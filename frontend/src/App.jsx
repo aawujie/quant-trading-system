@@ -60,6 +60,19 @@ export default function App() {
 
         console.log(`✅ Loaded ${klines.length} K-lines for ${symbol} ${timeframe}`);
 
+        // Align chart to left: first bar at left edge, show all data with padding on right
+        if (chartRef.current && candlestickData.length > 0) {
+          const timeScale = chartRef.current.timeScale();
+          const barCount = candlestickData.length;
+          // from: 0 means first bar is at left edge
+          // to: barCount + padding shows all bars with some space on right
+          timeScale.setVisibleLogicalRange({
+            from: 0,
+            to: barCount + barCount * 0.1  // Show all bars + 10% padding
+          });
+          console.log(`📍 Chart aligned to left (showing all ${barCount} bars)`);
+        }
+
         // Load indicators (MA5, MA20)
         await loadIndicators(klines);
 
