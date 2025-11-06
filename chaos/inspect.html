@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>深度检查</title>
+    <style>
+        body { padding: 20px; background: #f5f5f5; font-family: monospace; }
+        pre { background: white; padding: 15px; overflow-x: auto; white-space: pre-wrap; }
+        h2 { background: #333; color: white; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>LightweightCharts 对象深度检查</h1>
+    <pre id="output"></pre>
+
+    <script src="node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(msg) {
+            output.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        log('=== 1. LightweightCharts 对象类型 ===');
+        log('typeof LightweightCharts: ' + typeof LightweightCharts);
+        log('');
+
+        log('=== 2. LightweightCharts 的所有属性 ===');
+        const keys = Object.keys(LightweightCharts);
+        log('总共 ' + keys.length + ' 个属性');
+        keys.forEach((key, index) => {
+            const value = LightweightCharts[key];
+            log(`${index + 1}. ${key}: ${typeof value}`);
+        });
+        log('');
+
+        log('=== 3. 查找包含 "series" 的属性 ===');
+        keys.forEach(key => {
+            if (key.toLowerCase().includes('series')) {
+                log(`  ${key}: ${typeof LightweightCharts[key]}`);
+                if (typeof LightweightCharts[key] === 'object') {
+                    log(`    值: ${JSON.stringify(LightweightCharts[key], null, 2)}`);
+                }
+            }
+        });
+        log('');
+
+        log('=== 4. 查找包含 "candlestick" 的属性 ===');
+        keys.forEach(key => {
+            if (key.toLowerCase().includes('candle')) {
+                log(`  ${key}: ${typeof LightweightCharts[key]}`);
+            }
+        });
+        log('');
+
+        log('=== 5. createChart 方法测试 ===');
+        try {
+            const testDiv = document.createElement('div');
+            testDiv.style.width = '400px';
+            testDiv.style.height = '300px';
+            document.body.appendChild(testDiv);
+            
+            const chart = LightweightCharts.createChart(testDiv, {
+                width: 400,
+                height: 300,
+            });
+            
+            log('✅ createChart 成功');
+            log('chart 类型: ' + typeof chart);
+            log('');
+            
+            log('=== 6. chart 对象的方法 ===');
+            const chartMethods = [];
+            for (let key in chart) {
+                if (typeof chart[key] === 'function') {
+                    chartMethods.push(key);
+                }
+            }
+            log('chart 方法列表:');
+            chartMethods.forEach((method, index) => {
+                log(`  ${index + 1}. ${method}`);
+            });
+            log('');
+            
+            log('=== 7. 检查 addSeries 相关 ===');
+            log('chart.addSeries 类型: ' + typeof chart.addSeries);
+            log('chart.addCandlestickSeries 类型: ' + typeof chart.addCandlestickSeries);
+            log('chart.addLineSeries 类型: ' + typeof chart.addLineSeries);
+            log('');
+            
+            // 尝试旧 API
+            log('=== 8. 尝试旧 API (v4 及以前) ===');
+            if (typeof chart.addCandlestickSeries === 'function') {
+                log('✅ addCandlestickSeries 方法存在！');
+                try {
+                    const series = chart.addCandlestickSeries();
+                    log('✅ 成功创建蜡烛图系列！');
+                } catch (e) {
+                    log('❌ 调用失败: ' + e.message);
+                }
+            } else {
+                log('❌ addCandlestickSeries 方法不存在');
+            }
+            
+        } catch (error) {
+            log('❌ 错误: ' + error.message);
+            log('堆栈: ' + error.stack);
+        }
+    </script>
+</body>
+</html>
+
+

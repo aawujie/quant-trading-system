@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightweight Charts Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .chart-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .chart-section:hover {
+            transform: translateY(-5px);
+        }
+
+        .chart-title {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chart-description {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            position: relative;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+
+        .info-box code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Lightweight Charts 使用演示</h1>
+
+        <!-- K线图 -->
+        <div class="chart-section">
+            <div class="chart-title">
+                <span>1. 蜡烛图（K线图）</span>
+            </div>
+            <div class="chart-description">
+                展示传统的 OHLC（开盘价、最高价、最低价、收盘价）蜡烛图，常用于股票和加密货币交易分析。
+            </div>
+            <div id="candlestick-chart" class="chart-container"></div>
+            <div class="controls">
+                <button onclick="addCandlestickData()">添加新数据</button>
+                <button onclick="toggleCandlestickTheme()">切换主题</button>
+                <button onclick="resetCandlestickZoom()">重置缩放</button>
+            </div>
+            <div class="info-box">
+                💡 <strong>提示：</strong>你可以使用鼠标滚轮缩放图表，拖动以平移查看不同时间段的数据。
+            </div>
+        </div>
+
+        <!-- 线形图 -->
+        <div class="chart-section">
+            <div class="chart-title">
+                <span>2. 线形图</span>
+            </div>
+            <div class="chart-description">
+                简洁的线形图，适合展示价格趋势或连续数据变化。
+            </div>
+            <div id="line-chart" class="chart-container"></div>
+            <div class="controls">
+                <button onclick="updateLineData()">更新数据</button>
+                <button onclick="changeLineColor()">改变颜色</button>
+            </div>
+        </div>
+
+        <!-- 面积图 -->
+        <div class="chart-section">
+            <div class="chart-title">
+                <span>3. 面积图</span>
+            </div>
+            <div class="chart-description">
+                带有填充区域的面积图，可以更直观地展示数据的累积效果。
+            </div>
+            <div id="area-chart" class="chart-container"></div>
+            <div class="controls">
+                <button onclick="addAreaData()">添加数据点</button>
+                <button onclick="toggleAreaGradient()">切换渐变</button>
+            </div>
+        </div>
+
+        <!-- 柱状图 -->
+        <div class="chart-section">
+            <div class="chart-title">
+                <span>4. 柱状图（成交量）</span>
+            </div>
+            <div class="chart-description">
+                柱状图常用于展示成交量或其他离散数据。
+            </div>
+            <div id="histogram-chart" class="chart-container"></div>
+            <div class="controls">
+                <button onclick="updateHistogramData()">随机数据</button>
+            </div>
+        </div>
+
+        <!-- 多系列图表 -->
+        <div class="chart-section">
+            <div class="chart-title">
+                <span>5. 多系列组合图表</span>
+            </div>
+            <div class="chart-description">
+                在同一个图表中展示多个数据系列，比如价格 + 移动平均线 + 成交量。
+            </div>
+            <div id="multi-series-chart" class="chart-container"></div>
+            <div class="controls">
+                <button onclick="toggleMA()">切换均线显示</button>
+                <button onclick="toggleVolume()">切换成交量</button>
+            </div>
+            <div class="info-box">
+                📈 <strong>组合展示：</strong>蓝色K线 + 红色20日均线 + 绿色50日均线 + 底部成交量柱状图
+            </div>
+        </div>
+    </div>
+
+    <script src="node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script>
+        // 等待 DOM 加载完成
+        window.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+        });
+
+        function initCharts() {
+        // ========== 1. 蜡烛图 ==========
+        let candlestickChart = LightweightCharts.createChart(document.getElementById('candlestick-chart'), {
+            width: document.getElementById('candlestick-chart').clientWidth,
+            height: 400,
+            layout: {
+                background: { color: '#ffffff' },
+                textColor: '#333',
+            },
+            grid: {
+                vertLines: { color: '#e1e1e1' },
+                horzLines: { color: '#e1e1e1' },
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+            },
+            rightPriceScale: {
+                borderColor: '#cccccc',
+            },
+            timeScale: {
+                borderColor: '#cccccc',
+                timeVisible: true,
+                secondsVisible: false,
+            },
+        });
+
+        let candlestickSeries = candlestickChart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false,
+            wickUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+        });
+
+        // 生成模拟K线数据
+        function generateCandlestickData(count = 100) {
+            const data = [];
+            let basePrice = 100;
+            const startTime = Math.floor(Date.now() / 1000) - count * 86400;
+
+            for (let i = 0; i < count; i++) {
+                const time = startTime + i * 86400;
+                const randomWalk = (Math.random() - 0.5) * 3;
+                basePrice += randomWalk;
+                
+                const open = basePrice + (Math.random() - 0.5) * 2;
+                const close = basePrice + (Math.random() - 0.5) * 2;
+                const high = Math.max(open, close) + Math.random() * 2;
+                const low = Math.min(open, close) - Math.random() * 2;
+
+                data.push({
+                    time: time,
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: close,
+                });
+            }
+            return data;
+        }
+
+        const candlestickData = generateCandlestickData(100);
+        candlestickSeries.setData(candlestickData);
+
+        let isDarkTheme = false;
+        function toggleCandlestickTheme() {
+            isDarkTheme = !isDarkTheme;
+            candlestickChart.applyOptions({
+                layout: {
+                    background: { color: isDarkTheme ? '#1e1e1e' : '#ffffff' },
+                    textColor: isDarkTheme ? '#d1d4dc' : '#333',
+                },
+                grid: {
+                    vertLines: { color: isDarkTheme ? '#2a2a2a' : '#e1e1e1' },
+                    horzLines: { color: isDarkTheme ? '#2a2a2a' : '#e1e1e1' },
+                },
+            });
+        }
+
+        function addCandlestickData() {
+            const lastCandle = candlestickData[candlestickData.length - 1];
+            const newTime = lastCandle.time + 86400;
+            const basePrice = lastCandle.close;
+            
+            const open = basePrice + (Math.random() - 0.5) * 2;
+            const close = basePrice + (Math.random() - 0.5) * 3;
+            const high = Math.max(open, close) + Math.random() * 2;
+            const low = Math.min(open, close) - Math.random() * 2;
+
+            const newCandle = {
+                time: newTime,
+                open: open,
+                high: high,
+                low: low,
+                close: close,
+            };
+
+            candlestickData.push(newCandle);
+            candlestickSeries.update(newCandle);
+        }
+
+        function resetCandlestickZoom() {
+            candlestickChart.timeScale().fitContent();
+        }
+
+        // ========== 2. 线形图 ==========
+        let lineChart = LightweightCharts.createChart(document.getElementById('line-chart'), {
+            width: document.getElementById('line-chart').clientWidth,
+            height: 400,
+            layout: {
+                background: { color: '#ffffff' },
+                textColor: '#333',
+            },
+            grid: {
+                vertLines: { color: '#e1e1e1' },
+                horzLines: { color: '#e1e1e1' },
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+            },
+        });
+
+        let lineSeries = lineChart.addSeries(LightweightCharts.LineSeries, {
+            color: '#2962FF',
+            lineWidth: 2,
+        });
+
+        function generateLineData(count = 100) {
+            const data = [];
+            let value = 100;
+            const startTime = Math.floor(Date.now() / 1000) - count * 86400;
+
+            for (let i = 0; i < count; i++) {
+                value += (Math.random() - 0.5) * 5;
+                data.push({
+                    time: startTime + i * 86400,
+                    value: value,
+                });
+            }
+            return data;
+        }
+
+        lineSeries.setData(generateLineData(100));
+
+        const colors = ['#2962FF', '#FF6B6B', '#4ECDC4', '#FFA07A', '#98D8C8'];
+        let colorIndex = 0;
+
+        function changeLineColor() {
+            colorIndex = (colorIndex + 1) % colors.length;
+            lineSeries.applyOptions({
+                color: colors[colorIndex],
+            });
+        }
+
+        function updateLineData() {
+            lineSeries.setData(generateLineData(100));
+        }
+
+        // ========== 3. 面积图 ==========
+        let areaChart = LightweightCharts.createChart(document.getElementById('area-chart'), {
+            width: document.getElementById('area-chart').clientWidth,
+            height: 400,
+            layout: {
+                background: { color: '#ffffff' },
+                textColor: '#333',
+            },
+        });
+
+        let areaSeries = areaChart.addSeries(LightweightCharts.AreaSeries, {
+            topColor: 'rgba(38, 166, 154, 0.4)',
+            bottomColor: 'rgba(38, 166, 154, 0.0)',
+            lineColor: 'rgba(38, 166, 154, 1)',
+            lineWidth: 2,
+        });
+
+        const areaData = generateLineData(80);
+        areaSeries.setData(areaData);
+
+        let useGradient = true;
+        function toggleAreaGradient() {
+            useGradient = !useGradient;
+            if (useGradient) {
+                areaSeries.applyOptions({
+                    topColor: 'rgba(38, 166, 154, 0.4)',
+                    bottomColor: 'rgba(38, 166, 154, 0.0)',
+                });
+            } else {
+                areaSeries.applyOptions({
+                    topColor: 'rgba(38, 166, 154, 0.2)',
+                    bottomColor: 'rgba(38, 166, 154, 0.2)',
+                });
+            }
+        }
+
+        function addAreaData() {
+            const lastPoint = areaData[areaData.length - 1];
+            const newPoint = {
+                time: lastPoint.time + 86400,
+                value: lastPoint.value + (Math.random() - 0.5) * 5,
+            };
+            areaData.push(newPoint);
+            areaSeries.update(newPoint);
+        }
+
+        // ========== 4. 柱状图 ==========
+        let histogramChart = LightweightCharts.createChart(document.getElementById('histogram-chart'), {
+            width: document.getElementById('histogram-chart').clientWidth,
+            height: 400,
+            layout: {
+                background: { color: '#ffffff' },
+                textColor: '#333',
+            },
+        });
+
+        let histogramSeries = histogramChart.addSeries(LightweightCharts.HistogramSeries, {
+            color: '#26a69a',
+            priceFormat: {
+                type: 'volume',
+            },
+            priceScaleId: '',
+        });
+
+        function generateHistogramData(count = 100) {
+            const data = [];
+            const startTime = Math.floor(Date.now() / 1000) - count * 86400;
+
+            for (let i = 0; i < count; i++) {
+                const value = Math.random() * 100 + 20;
+                const color = Math.random() > 0.5 ? '#26a69a' : '#ef5350';
+                
+                data.push({
+                    time: startTime + i * 86400,
+                    value: value,
+                    color: color,
+                });
+            }
+            return data;
+        }
+
+        histogramSeries.setData(generateHistogramData(100));
+
+        function updateHistogramData() {
+            histogramSeries.setData(generateHistogramData(100));
+        }
+
+        // ========== 5. 多系列组合图表 ==========
+        let multiChart = LightweightCharts.createChart(document.getElementById('multi-series-chart'), {
+            width: document.getElementById('multi-series-chart').clientWidth,
+            height: 400,
+            layout: {
+                background: { color: '#ffffff' },
+                textColor: '#333',
+            },
+            grid: {
+                vertLines: { color: '#e1e1e1' },
+                horzLines: { color: '#e1e1e1' },
+            },
+        });
+
+        // 主K线
+        let mainCandlestickSeries = multiChart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false,
+            wickUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+        });
+        mainCandlestickSeries.setData(candlestickData);
+
+        // 20日移动平均线
+        let ma20Series = multiChart.addSeries(LightweightCharts.LineSeries, {
+            color: '#FF6B6B',
+            lineWidth: 2,
+            title: 'MA20',
+        });
+
+        // 50日移动平均线
+        let ma50Series = multiChart.addSeries(LightweightCharts.LineSeries, {
+            color: '#4ECDC4',
+            lineWidth: 2,
+            title: 'MA50',
+        });
+
+        // 计算移动平均线
+        function calculateMA(data, period) {
+            const ma = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) continue;
+                
+                let sum = 0;
+                for (let j = 0; j < period; j++) {
+                    sum += data[i - j].close;
+                }
+                ma.push({
+                    time: data[i].time,
+                    value: sum / period,
+                });
+            }
+            return ma;
+        }
+
+        const ma20Data = calculateMA(candlestickData, 20);
+        const ma50Data = calculateMA(candlestickData, 50);
+        ma20Series.setData(ma20Data);
+        ma50Series.setData(ma50Data);
+
+        // 成交量（在底部）
+        let volumeSeries = multiChart.addSeries(LightweightCharts.HistogramSeries, {
+            color: '#26a69a',
+            priceFormat: {
+                type: 'volume',
+            },
+            priceScaleId: 'volume',
+        });
+
+        multiChart.priceScale('volume').applyOptions({
+            scaleMargins: {
+                top: 0.8,
+                bottom: 0,
+            },
+        });
+
+        const volumeData = candlestickData.map(candle => ({
+            time: candle.time,
+            value: Math.random() * 1000000 + 100000,
+            color: candle.close >= candle.open ? '#26a69a80' : '#ef535080',
+        }));
+        volumeSeries.setData(volumeData);
+
+        let ma20Visible = true;
+        let ma50Visible = true;
+        let volumeVisible = true;
+
+        function toggleMA() {
+            ma20Visible = !ma20Visible;
+            ma50Visible = !ma50Visible;
+            ma20Series.applyOptions({ visible: ma20Visible });
+            ma50Series.applyOptions({ visible: ma50Visible });
+        }
+
+        function toggleVolume() {
+            volumeVisible = !volumeVisible;
+            volumeSeries.applyOptions({ visible: volumeVisible });
+        }
+
+        // 响应式调整
+        window.addEventListener('resize', () => {
+            const charts = [
+                { chart: candlestickChart, id: 'candlestick-chart' },
+                { chart: lineChart, id: 'line-chart' },
+                { chart: areaChart, id: 'area-chart' },
+                { chart: histogramChart, id: 'histogram-chart' },
+                { chart: multiChart, id: 'multi-series-chart' },
+            ];
+
+            charts.forEach(({ chart, id }) => {
+                const container = document.getElementById(id);
+                chart.applyOptions({ width: container.clientWidth });
+            });
+        });
+        } // 结束 initCharts 函数
+    </script>
+</body>
+</html>
+

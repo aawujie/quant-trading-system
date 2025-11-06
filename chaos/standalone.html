@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightweight Charts - 独立演示（无需服务器）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .alert {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            color: #856404;
+        }
+
+        .chart-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .chart-title {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            position: relative;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Lightweight Charts 独立演示</h1>
+
+        <div class="alert">
+            ℹ️ <strong>提示：</strong>这个版本使用 CDN 加载库，可以直接双击打开，无需启动服务器。
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-title">蜡烛图（K线图）</div>
+            <div id="candlestick-chart" class="chart-container"></div>
+            <div class="controls">
+                <button onclick="addNewData()">添加数据</button>
+                <button onclick="toggleTheme()">切换主题</button>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-title">线形图</div>
+            <div id="line-chart" class="chart-container"></div>
+            <div class="controls">
+                <button onclick="updateLineChart()">更新数据</button>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-title">面积图</div>
+            <div id="area-chart" class="chart-container"></div>
+        </div>
+    </div>
+
+    <!-- 使用 CDN 加载 Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@5.0.9/dist/lightweight-charts.standalone.production.js"></script>
+    
+    <script>
+        // 检查库是否加载成功
+        if (typeof LightweightCharts === 'undefined') {
+            alert('❌ Lightweight Charts 库加载失败！请检查网络连接。');
+        }
+
+        // ========== 蜡烛图 ==========
+        const candlestickChart = LightweightCharts.createChart(
+            document.getElementById('candlestick-chart'),
+            {
+                width: document.getElementById('candlestick-chart').clientWidth,
+                height: 400,
+                layout: {
+                    background: { color: '#ffffff' },
+                    textColor: '#333',
+                },
+                grid: {
+                    vertLines: { color: '#e1e1e1' },
+                    horzLines: { color: '#e1e1e1' },
+                },
+                timeScale: {
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            }
+        );
+
+        const candlestickSeries = candlestickChart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false,
+            wickUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+        });
+
+        // 生成模拟数据
+        function generateCandlestickData(count = 100) {
+            const data = [];
+            let basePrice = 100;
+            const startTime = Math.floor(Date.now() / 1000) - count * 86400;
+
+            for (let i = 0; i < count; i++) {
+                const time = startTime + i * 86400;
+                basePrice += (Math.random() - 0.5) * 3;
+                
+                const open = basePrice + (Math.random() - 0.5) * 2;
+                const close = basePrice + (Math.random() - 0.5) * 2;
+                const high = Math.max(open, close) + Math.random() * 2;
+                const low = Math.min(open, close) - Math.random() * 2;
+
+                data.push({ time, open, high, low, close });
+            }
+            return data;
+        }
+
+        let candleData = generateCandlestickData(100);
+        candlestickSeries.setData(candleData);
+
+        let isDark = false;
+        function toggleTheme() {
+            isDark = !isDark;
+            candlestickChart.applyOptions({
+                layout: {
+                    background: { color: isDark ? '#1e1e1e' : '#ffffff' },
+                    textColor: isDark ? '#d1d4dc' : '#333',
+                },
+                grid: {
+                    vertLines: { color: isDark ? '#2a2a2a' : '#e1e1e1' },
+                    horzLines: { color: isDark ? '#2a2a2a' : '#e1e1e1' },
+                },
+            });
+        }
+
+        function addNewData() {
+            const lastCandle = candleData[candleData.length - 1];
+            const newTime = lastCandle.time + 86400;
+            const basePrice = lastCandle.close;
+            
+            const open = basePrice + (Math.random() - 0.5) * 2;
+            const close = basePrice + (Math.random() - 0.5) * 3;
+            const high = Math.max(open, close) + Math.random() * 2;
+            const low = Math.min(open, close) - Math.random() * 2;
+
+            const newCandle = { time: newTime, open, high, low, close };
+            candleData.push(newCandle);
+            candlestickSeries.update(newCandle);
+        }
+
+        // ========== 线形图 ==========
+        const lineChart = LightweightCharts.createChart(
+            document.getElementById('line-chart'),
+            {
+                width: document.getElementById('line-chart').clientWidth,
+                height: 400,
+                layout: {
+                    background: { color: '#ffffff' },
+                    textColor: '#333',
+                },
+                grid: {
+                    vertLines: { color: '#e1e1e1' },
+                    horzLines: { color: '#e1e1e1' },
+                },
+            }
+        );
+
+        const lineSeries = lineChart.addSeries(LightweightCharts.LineSeries, {
+            color: '#2962FF',
+            lineWidth: 2,
+        });
+
+        function generateLineData(count = 100) {
+            const data = [];
+            let value = 100;
+            const startTime = Math.floor(Date.now() / 1000) - count * 86400;
+
+            for (let i = 0; i < count; i++) {
+                value += (Math.random() - 0.5) * 5;
+                data.push({
+                    time: startTime + i * 86400,
+                    value: value,
+                });
+            }
+            return data;
+        }
+
+        lineSeries.setData(generateLineData(100));
+
+        function updateLineChart() {
+            lineSeries.setData(generateLineData(100));
+        }
+
+        // ========== 面积图 ==========
+        const areaChart = LightweightCharts.createChart(
+            document.getElementById('area-chart'),
+            {
+                width: document.getElementById('area-chart').clientWidth,
+                height: 400,
+                layout: {
+                    background: { color: '#ffffff' },
+                    textColor: '#333',
+                },
+            }
+        );
+
+        const areaSeries = areaChart.addSeries(LightweightCharts.AreaSeries, {
+            topColor: 'rgba(38, 166, 154, 0.4)',
+            bottomColor: 'rgba(38, 166, 154, 0.0)',
+            lineColor: 'rgba(38, 166, 154, 1)',
+            lineWidth: 2,
+        });
+
+        areaSeries.setData(generateLineData(80));
+
+        // 响应式调整
+        window.addEventListener('resize', () => {
+            candlestickChart.applyOptions({
+                width: document.getElementById('candlestick-chart').clientWidth
+            });
+            lineChart.applyOptions({
+                width: document.getElementById('line-chart').clientWidth
+            });
+            areaChart.applyOptions({
+                width: document.getElementById('area-chart').clientWidth
+            });
+        });
+
+        console.log('✅ Lightweight Charts 加载成功！');
+    </script>
+</body>
+</html>
+

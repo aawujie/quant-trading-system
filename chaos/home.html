@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightweight Charts 演示集合</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 4em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.3em;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .demo-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 45px rgba(0,0,0,0.4);
+        }
+
+        .demo-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .demo-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .demo-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .demo-features {
+            list-style: none;
+            padding: 0;
+        }
+
+        .demo-features li {
+            color: #999;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .demo-features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        .badge.advanced {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .badge.module {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 50px;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            border-bottom: 2px solid white;
+            padding-bottom: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .footer a:hover {
+            border-bottom-color: transparent;
+        }
+
+        .info-section {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 40px;
+            color: white;
+        }
+
+        .info-section h2 {
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .info-section ul {
+            list-style-position: inside;
+            line-height: 2;
+        }
+
+        .code-snippet {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5em;
+            }
+            
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Lightweight Charts</h1>
+            <p>完整的使用演示和教程</p>
+        </div>
+
+        <div class="demo-grid">
+            <!-- 基础演示 -->
+            <a href="index.html" class="demo-card">
+                <div class="demo-icon">📈</div>
+                <div class="demo-title">基础演示</div>
+                <div class="demo-description">
+                    学习 Lightweight Charts 的基本用法，包含 5 种常用图表类型。
+                </div>
+                <ul class="demo-features">
+                    <li>蜡烛图（K线图）</li>
+                    <li>线形图</li>
+                    <li>面积图</li>
+                    <li>柱状图</li>
+                    <li>多系列组合图表</li>
+                </ul>
+                <span class="badge">初级</span>
+            </a>
+
+            <!-- 高级演示 -->
+            <a href="advanced-demo.html" class="demo-card">
+                <div class="demo-icon">🚀</div>
+                <div class="demo-title">高级演示</div>
+                <div class="demo-description">
+                    实时交易仪表盘，展示专业级的技术指标和数据可视化。
+                </div>
+                <ul class="demo-features">
+                    <li>实时数据流更新</li>
+                    <li>RSI 技术指标</li>
+                    <li>MACD 指标</li>
+                    <li>订单深度图</li>
+                    <li>实时统计面板</li>
+                </ul>
+                <span class="badge advanced">高级</span>
+            </a>
+
+            <!-- 模块化示例 -->
+            <a href="module-demo.html" class="demo-card">
+                <div class="demo-icon">🎯</div>
+                <div class="demo-title">模块化示例</div>
+                <div class="demo-description">
+                    展示如何使用封装好的工具类，快速构建专业图表应用。
+                </div>
+                <ul class="demo-features">
+                    <li>ChartManager 类</li>
+                    <li>技术指标计算器</li>
+                    <li>布林带指标</li>
+                    <li>数据生成器</li>
+                    <li>事件处理器</li>
+                </ul>
+                <span class="badge module">开发工具</span>
+            </a>
+        </div>
+
+        <div class="info-section">
+            <h2>🚀 快速开始</h2>
+            <div class="code-snippet">
+                # 启动开发服务器<br>
+                npm start<br>
+                <br>
+                # 或者使用开发模式（禁用缓存）<br>
+                npm run dev
+            </div>
+
+            <h2 style="margin-top: 30px;">📦 项目结构</h2>
+            <ul>
+                <li><strong>index.html</strong> - 基础演示</li>
+                <li><strong>advanced-demo.html</strong> - 高级演示</li>
+                <li><strong>module-demo.html</strong> - 模块化示例</li>
+                <li><strong>chart-utils.js</strong> - 工具类库</li>
+                <li><strong>README.md</strong> - 详细文档</li>
+            </ul>
+
+            <h2 style="margin-top: 30px;">✨ 主要特性</h2>
+            <ul>
+                <li>🎨 精美的用户界面设计</li>
+                <li>📱 完全响应式布局</li>
+                <li>⚡ 高性能实时数据更新</li>
+                <li>🛠️ 可复用的工具类库</li>
+                <li>📊 丰富的技术指标</li>
+                <li>🌙 支持主题切换</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>
+                基于 <a href="https://github.com/tradingview/lightweight-charts" target="_blank">TradingView Lightweight Charts</a> v5.0.9
+            </p>
+            <p style="margin-top: 10px; opacity: 0.8;">
+                查看 <a href="README.md" target="_blank">README.md</a> 获取更多信息
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // 简单的路由管理
+        document.querySelectorAll('.demo-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                const href = card.getAttribute('href');
+                window.location.href = href;
+            });
+        });
+
+        // 添加一些动画效果
+        const cards = document.querySelectorAll('.demo-card');
+        cards.forEach((card, index) => {
+            card.style.animation = `fadeInUp 0.6s ease forwards ${index * 0.1}s`;
+            card.style.opacity = '0';
+        });
+
+        // CSS 动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
+

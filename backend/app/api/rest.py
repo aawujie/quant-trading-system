@@ -1,0 +1,236 @@
+"""REST API endpoints"""
+
+import logging
+from typing import List, Optional
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.database import Database
+from app.config import settings
+from app.models.market_data import KlineData
+from app.models.indicators import IndicatorData
+from app.models.signals import SignalData
+
+logger = logging.getLogger(__name__)
+
+# Create FastAPI app
+app = FastAPI(
+    title="Quantitative Trading System API",
+    description="REST API for accessing trading data",
+    version="0.1.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Database instance (will be initialized on startup)
+db: Optional[Database] = None
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    global db
+    db = Database(settings.database_url)
+    await db.create_tables()
+    logger.info("REST API started")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database on shutdown"""
+    global db
+    if db:
+        await db.close()
+    logger.info("REST API shutdown")
+
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "name": "Quantitative Trading System API",
+        "version": "0.1.0",
+        "status": "running"
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy"}
+
+
+# K-line endpoints
+
+@app.get("/api/klines/{symbol}/{timeframe}", response_model=List[KlineData])
+async def get_klines(
+    symbol: str,
+    timeframe: str,
+    limit: int = Query(100, ge=1, le=1000, description="Number of K-lines to fetch")
+):
+    """
+    Get recent K-line data
+    
+    Args:
+        symbol: Trading symbol (e.g., BTCUSDT)
+        timeframe: Timeframe (e.g., 1h, 1d)
+        limit: Number of K-lines to fetch (max 1000)
+        
+    Returns:
+        List of K-line data
+    """
+    try:
+        klines = await db.get_recent_klines(symbol, timeframe, limit)
+        return klines
+    except Exception as e:
+        logger.error(f"Failed to fetch K-lines: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/klines/{symbol}/{timeframe}/latest", response_model=Optional[KlineData])
+async def get_latest_kline(
+    symbol: str,
+    timeframe: str
+):
+    """
+    Get the latest K-line
+    
+    Args:
+        symbol: Trading symbol
+        timeframe: Timeframe
+        
+    Returns:
+        Latest K-line data or None
+    """
+    try:
+        klines = await db.get_recent_klines(symbol, timeframe, limit=1)
+        return klines[0] if klines else None
+    except Exception as e:
+        logger.error(f"Failed to fetch latest K-line: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Indicator endpoints
+
+@app.get("/api/indicators/{symbol}/{timeframe}/latest", response_model=Optional[IndicatorData])
+async def get_latest_indicator(
+    symbol: str,
+    timeframe: str
+):
+    """
+    Get the latest indicator data
+    
+    Args:
+        symbol: Trading symbol
+        timeframe: Timeframe
+        
+    Returns:
+        Latest indicator data or None
+    """
+    try:
+        # Get latest K-line timestamp
+        timestamp = await db.get_last_kline_time(symbol, timeframe)
+        
+        if not timestamp:
+            return None
+        
+        indicator = await db.get_indicator_at(symbol, timeframe, timestamp)
+        return indicator
+    except Exception as e:
+        logger.error(f"Failed to fetch latest indicator: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Signal endpoints
+
+@app.get("/api/signals/{strategy_name}", response_model=List[SignalData])
+async def get_signals(
+    strategy_name: str,
+    symbol: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=1000, description="Number of signals to fetch")
+):
+    """
+    Get trading signals
+    
+    Args:
+        strategy_name: Strategy identifier (e.g., dual_ma)
+        symbol: Optional symbol filter
+        limit: Number of signals to fetch
+        
+    Returns:
+        List of trading signals
+    """
+    try:
+        signals = await db.get_recent_signals(strategy_name, symbol, limit)
+        return signals
+    except Exception as e:
+        logger.error(f"Failed to fetch signals: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/signals/{strategy_name}/latest", response_model=Optional[SignalData])
+async def get_latest_signal(
+    strategy_name: str,
+    symbol: Optional[str] = None
+):
+    """
+    Get the latest signal
+    
+    Args:
+        strategy_name: Strategy identifier
+        symbol: Optional symbol filter
+        
+    Returns:
+        Latest signal or None
+    """
+    try:
+        signals = await db.get_recent_signals(strategy_name, symbol, limit=1)
+        return signals[0] if signals else None
+    except Exception as e:
+        logger.error(f"Failed to fetch latest signal: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Statistics endpoints
+
+@app.get("/api/stats/symbols")
+async def get_available_symbols():
+    """
+    Get list of available symbols
+    
+    Returns:
+        List of symbols with data
+    """
+    # TODO: Implement query to get distinct symbols from database
+    return {
+        "symbols": ["BTCUSDT", "ETHUSDT"],
+        "note": "This endpoint is not fully implemented yet"
+    }
+
+
+@app.get("/api/stats/summary")
+async def get_system_summary():
+    """
+    Get system statistics summary
+    
+    Returns:
+        System statistics
+    """
+    # TODO: Implement comprehensive statistics
+    return {
+        "status": "running",
+        "total_klines": 0,
+        "total_indicators": 0,
+        "total_signals": 0,
+        "active_symbols": 0,
+        "note": "This endpoint is not fully implemented yet"
+    }
+

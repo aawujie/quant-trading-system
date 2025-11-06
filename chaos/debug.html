@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>调试页面</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+        #chart { background: white; width: 600px; height: 300px; margin: 20px 0; }
+        pre { background: white; padding: 10px; overflow-x: auto; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Lightweight Charts 调试</h1>
+    <div id="info"></div>
+    <div id="chart"></div>
+    <pre id="output"></pre>
+
+    <script src="node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script>
+        const info = document.getElementById('info');
+        const output = document.getElementById('output');
+        
+        function log(msg, isError = false) {
+            const p = document.createElement('p');
+            p.className = isError ? 'error' : 'success';
+            p.textContent = msg;
+            info.appendChild(p);
+            console.log(msg);
+        }
+
+        function logOutput(msg) {
+            output.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        try {
+            log('✅ 1. LightweightCharts 对象存在');
+            logOutput('typeof LightweightCharts: ' + typeof LightweightCharts);
+            logOutput('LightweightCharts keys: ' + Object.keys(LightweightCharts).join(', '));
+            
+            log('✅ 2. 尝试创建图表...');
+            const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+                width: 600,
+                height: 300,
+            });
+            
+            log('✅ 3. 图表创建成功！');
+            logOutput('typeof chart: ' + typeof chart);
+            logOutput('chart constructor: ' + chart.constructor.name);
+            
+            // 列出所有方法
+            logOutput('\n=== Chart 对象的所有方法 ===');
+            const methods = [];
+            for (let key in chart) {
+                if (typeof chart[key] === 'function') {
+                    methods.push(key);
+                }
+            }
+            logOutput('方法列表: ' + methods.join(', '));
+            
+            // 检查特定方法
+            logOutput('\n=== 检查特定方法 ===');
+            logOutput('addCandlestickSeries: ' + typeof chart.addCandlestickSeries);
+            logOutput('addLineSeries: ' + typeof chart.addLineSeries);
+            logOutput('addAreaSeries: ' + typeof chart.addAreaSeries);
+            logOutput('addHistogramSeries: ' + typeof chart.addHistogramSeries);
+            
+            // 尝试添加系列
+            log('✅ 4. 尝试添加蜡烛图系列...');
+            if (typeof chart.addCandlestickSeries === 'function') {
+                const series = chart.addCandlestickSeries();
+                log('✅ 5. 蜡烛图系列添加成功！');
+                
+                series.setData([
+                    { time: '2024-01-01', open: 100, high: 105, low: 95, close: 102 },
+                    { time: '2024-01-02', open: 102, high: 110, low: 100, close: 108 },
+                    { time: '2024-01-03', open: 108, high: 112, low: 105, close: 107 },
+                ]);
+                log('✅ 6. 数据设置成功！图表应该显示了');
+            } else {
+                log('❌ addCandlestickSeries 不是函数！', true);
+                
+                // 尝试查找类似的方法
+                logOutput('\n=== 查找包含 "candle" 或 "series" 的方法 ===');
+                methods.forEach(method => {
+                    if (method.toLowerCase().includes('candle') || 
+                        method.toLowerCase().includes('series')) {
+                        logOutput('  - ' + method);
+                    }
+                });
+            }
+            
+        } catch (error) {
+            log('❌ 错误: ' + error.message, true);
+            logOutput('\n错误堆栈:\n' + error.stack);
+        }
+    </script>
+</body>
+</html>
+
+

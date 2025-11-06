@@ -1,0 +1,221 @@
+# ============================================
+# 量化交易系统 - Git 忽略文件
+# ============================================
+
+# ============================================
+# 敏感配置文件
+# ============================================
+.env
+.env.local
+.env.*.local
+*.secret
+secrets/
+
+# ============================================
+# Python
+# ============================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.Python
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# uv
+.uv/
+uv.lock
+
+# ============================================
+# Node.js / Frontend
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build output
+dist/
+dist-ssr/
+*.local
+
+# Editor directories and files
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ============================================
+# IDEs
+# ============================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================
+# 数据库
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# PostgreSQL
+postgres_data/
+
+# ============================================
+# Redis
+# ============================================
+*.rdb
+dump.rdb
+redis_data/
+
+# ============================================
+# Docker
+# ============================================
+docker-compose.override.yml
+.docker/
+
+# ============================================
+# 日志文件
+# ============================================
+*.log
+logs/*.log
+*.log.*
+
+# 保留日志目录但忽略内容
+logs/*
+!logs/.gitkeep
+
+# ============================================
+# 临时文件
+# ============================================
+*.tmp
+*.temp
+*.swp
+*.bak
+*.orig
+.DS_Store
+Thumbs.db
+
+# ============================================
+# 测试和调试
+# ============================================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ============================================
+# 回测数据和缓存
+# ============================================
+data/cache/
+data/backtest/
+data/temp/
+*.pkl
+*.pickle
+
+# ============================================
+# 证书和密钥
+# ============================================
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+
+# ============================================
+# 系统文件
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================
+# 其他
+# ============================================
+# Alembic 备份
+alembic/versions/*.pyc
+alembic/__pycache__/
+
+# 本地开发脚本
+local_*.sh
+local_*.py
+
+# 文档构建
+docs/_build/
+site/
+
