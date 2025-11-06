@@ -45,20 +45,20 @@ echo ""
 # 4. Start backend nodes (multi-process mode)
 echo "🚀 Starting backend nodes..."
 
-# K-line node
-uv run python -m app.main --node kline --symbols BTCUSDT,ETHUSDT --timeframes 1h --fetch-interval 60 > ../logs/kline_node.log 2>&1 &
+# K-line node - fetch multiple timeframes
+uv run python -m app.main --node kline --symbols BTCUSDT,ETHUSDT --timeframes 1h,4h,1d --fetch-interval 60 > ../logs/kline_node.log 2>&1 &
 KLINE_PID=$!
 echo "✅ K-line node started (PID: $KLINE_PID)"
 
-# Indicator node
-uv run python -m app.main --node indicator --symbols BTCUSDT,ETHUSDT --timeframes 1h > ../logs/indicator_node.log 2>&1 &
+# Indicator node - calculate for multiple timeframes
+uv run python -m app.main --node indicator --symbols BTCUSDT,ETHUSDT --timeframes 1h,4h,1d > ../logs/indicator_node.log 2>&1 &
 INDICATOR_PID=$!
 echo "✅ Indicator node started (PID: $INDICATOR_PID)"
 
-# Strategy node
+# Strategy node - default to 1h
 uv run python -m app.main --node strategy --symbols BTCUSDT,ETHUSDT --timeframe 1h > ../logs/strategy_node.log 2>&1 &
 STRATEGY_PID=$!
-echo "✅ Strategy node started (PID: $INDICATOR_PID)"
+echo "✅ Strategy node started (PID: $STRATEGY_PID)"
 
 echo ""
 echo "========================================="

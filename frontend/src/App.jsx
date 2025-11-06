@@ -137,9 +137,10 @@ export default function App() {
 
   // Handle symbol change
   const handleSymbolChange = (newSymbol) => {
+    console.log('🔄 Switching symbol to:', newSymbol);
     setSymbol(newSymbol);
     setSignals([]);
-    hasLoadedData.current = false; // Reset on symbol change
+    hasLoadedData.current = false; // Reset to allow data reload
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
@@ -147,6 +148,28 @@ export default function App() {
       seriesRef.current.ma20.setData([]);
     }
   };
+
+  // Handle timeframe change
+  const handleTimeframeChange = (newTimeframe) => {
+    console.log('🔄 Switching timeframe to:', newTimeframe);
+    setTimeframe(newTimeframe);
+    setSignals([]);
+    hasLoadedData.current = false; // Reset to allow data reload
+    if (seriesRef.current) {
+      // Clear chart data
+      seriesRef.current.candlestick.setData([]);
+      seriesRef.current.ma5.setData([]);
+      seriesRef.current.ma20.setData([]);
+    }
+  };
+
+  // Reload data when symbol or timeframe changes
+  useEffect(() => {
+    if (seriesRef.current && !hasLoadedData.current) {
+      console.log('📥 Reloading data for', symbol, timeframe);
+      loadHistoricalData();
+    }
+  }, [symbol, timeframe, loadHistoricalData]);
 
   // WebSocket message handler
   const handleWebSocketMessage = (message) => {
@@ -264,7 +287,7 @@ export default function App() {
 
             <select 
               value={timeframe} 
-              onChange={(e) => setTimeframe(e.target.value)}
+              onChange={(e) => handleTimeframeChange(e.target.value)}
             >
               <option value="1h">1小时</option>
               <option value="4h">4小时</option>
