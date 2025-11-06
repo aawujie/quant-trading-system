@@ -17,6 +17,8 @@ export default function TradingChart({ symbol, onChartReady }) {
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    console.log('🎨 Creating chart for symbol:', symbol);
+
     // Create chart
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
@@ -73,9 +75,12 @@ export default function TradingChart({ symbol, onChartReady }) {
 
     seriesRef.current.ma20 = ma20Series;
 
-    // Notify parent component
+    // Notify parent component only once
     if (onChartReady) {
-      onChartReady(chart, seriesRef.current);
+      // Use setTimeout to ensure this runs after the chart is fully initialized
+      setTimeout(() => {
+        onChartReady(chart, seriesRef.current);
+      }, 0);
     }
 
     // Handle resize
@@ -90,10 +95,11 @@ export default function TradingChart({ symbol, onChartReady }) {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      console.log('🗑️ Cleaning up chart');
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [symbol, onChartReady]);
+  }, [symbol]); // Remove onChartReady from dependencies
 
   return (
     <div 

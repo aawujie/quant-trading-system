@@ -16,26 +16,68 @@ logger = logging.getLogger(__name__)
 class BinanceExchange(ExchangeBase):
     """Binance exchange implementation using ccxt"""
     
-    def __init__(self, api_key: str = "", api_secret: str = ""):
+    def __init__(self, api_key: str = "", api_secret: str = "", proxy_config: Optional[Dict[str, Any]] = None):
         """
         Initialize Binance exchange
         
         Args:
             api_key: Binance API key
             api_secret: Binance API secret
+            proxy_config: Proxy configuration dict
         """
         super().__init__(api_key, api_secret)
         
-        self.exchange = ccxt.binance({
+        config = {
             'apiKey': api_key,
             'secret': api_secret,
             'enableRateLimit': True,  # Respect rate limits
             'options': {
                 'defaultType': 'spot',  # Use spot trading by default
             }
-        })
+        }
+        
+        # Add proxy configuration if provided
+        if proxy_config and proxy_config.get('enabled'):
+            proxy_url = self._build_proxy_url(proxy_config)
+            if proxy_url:
+                # ccxt uses aiohttp_proxy for async requests
+                config['aiohttp_proxy'] = proxy_url
+                config['proxies'] = {
+                    'http': proxy_url,
+                    'https': proxy_url,
+                }
+                logger.info(f"Using proxy: {proxy_config.get('host')}:{proxy_config.get('port')}")
+        
+        self.exchange = ccxt.binance(config)
         
         logger.info("BinanceExchange initialized")
+    
+    def _build_proxy_url(self, proxy_config: Dict[str, Any]) -> Optional[str]:
+        """
+        Build proxy URL from config
+        
+        Args:
+            proxy_config: Proxy configuration dict
+            
+        Returns:
+            Proxy URL string or None
+        """
+        host = proxy_config.get('host')
+        port = proxy_config.get('port')
+        
+        if not host or not port:
+            logger.warning("Proxy enabled but host or port not configured")
+            return None
+        
+        username = proxy_config.get('username')
+        password = proxy_config.get('password')
+        
+        if username and password:
+            # Proxy with authentication
+            return f"http://{username}:{password}@{host}:{port}"
+        else:
+            # Proxy without authentication
+            return f"http://{host}:{port}"
     
     async def fetch_klines(
         self,

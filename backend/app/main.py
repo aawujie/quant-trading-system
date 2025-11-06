@@ -37,10 +37,22 @@ async def start_kline_node(bus: MessageBus, db: Database, args):
     
     logger.info("Starting K-line node...")
     
+    # Prepare proxy configuration
+    proxy_config = None
+    if settings.proxy_enabled:
+        proxy_config = {
+            'enabled': settings.proxy_enabled,
+            'host': settings.proxy_host,
+            'port': settings.proxy_port,
+            'username': settings.proxy_username,
+            'password': settings.proxy_password
+        }
+    
     # Initialize exchange
     exchange = BinanceExchange(
         api_key=settings.binance_api_key,
-        api_secret=settings.binance_api_secret
+        api_secret=settings.binance_api_secret,
+        proxy_config=proxy_config
     )
     
     # Parse symbols and timeframes

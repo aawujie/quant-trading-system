@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import TradingChart from './components/TradingChart';
 import { useWebSocket } from './hooks/useWebSocket';
 import axios from 'axios';
@@ -10,35 +10,35 @@ export default function App() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState('1h');
   const [signals, setSignals] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Changed to false
   const [error, setError] = useState(null);
 
   const chartRef = useRef(null);
   const seriesRef = useRef(null);
   const markersRef = useRef([]);
+  const hasLoadedData = useRef(false); // Track if data has been loaded
 
-  // Initialize chart
-  const handleChartReady = (chart, series) => {
-    chartRef.current = chart;
-    seriesRef.current = series;
-    console.log('Chart initialized');
-
-    // Load initial data
-    loadHistoricalData();
-  };
-
-  // Load historical K-line data
-  const loadHistoricalData = async () => {
+  // Load historical K-line data - wrapped in useCallback
+  const loadHistoricalData = useCallback(async () => {
+    // Prevent duplicate loading during React strict mode
+    if (hasLoadedData.current) {
+      console.log('⏭️ Skipping duplicate data load');
+      return;
+    }
+    hasLoadedData.current = true;
     try {
+      console.log('🔄 Loading historical data...');
       setIsLoading(true);
       setError(null);
 
       // Fetch K-lines
+      console.log(`📡 Fetching: ${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200`);
       const klinesResponse = await axios.get(
         `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200`
       );
 
       const klines = klinesResponse.data;
+      console.log(`✅ Received ${klines.length} K-lines`);
 
       if (klines.length > 0 && seriesRef.current) {
         // Update candlestick chart
@@ -50,27 +50,43 @@ export default function App() {
           close: k.close,
         }));
 
+        console.log('📊 Setting candlestick data...');
         seriesRef.current.candlestick.setData(candlestickData);
 
-        console.log(`Loaded ${klines.length} K-lines for ${symbol} ${timeframe}`);
+        console.log(`✅ Loaded ${klines.length} K-lines for ${symbol} ${timeframe}`);
 
         // Load indicators (MA5, MA20)
         await loadIndicators(klines);
 
         // Load signals
         await loadSignals();
+      } else {
+        console.warn('⚠️ No data or seriesRef not ready');
       }
 
+      console.log('✅ Data loading complete, setting isLoading=false');
       setIsLoading(false);
     } catch (err) {
-      console.error('Failed to load historical data:', err);
+      console.error('❌ Failed to load historical data:', err);
       setError('Failed to load data. Please check if the backend is running.');
       setIsLoading(false);
     }
-  };
+  }, [symbol, timeframe]); // Only depend on symbol and timeframe
+
+  // Initialize chart
+  const handleChartReady = useCallback((chart, series) => {
+    chartRef.current = chart;
+    seriesRef.current = series;
+    console.log('✅ Chart initialized, loading data...');
+
+    // Load initial data
+    loadHistoricalData();
+  }, [loadHistoricalData]);
+
+  // Load indicators has been moved above
 
   // Load indicator data
-  const loadIndicators = async (klines) => {
+  const loadIndicators = useCallback(async (klines) => {
     try {
       // For each K-line timestamp, try to get indicator data
       const timestamps = klines.map(k => k.timestamp);
@@ -87,10 +103,10 @@ export default function App() {
     } catch (err) {
       console.error('Failed to load indicators:', err);
     }
-  };
+  }, [symbol, timeframe]);
 
   // Load trading signals
-  const loadSignals = async () => {
+  const loadSignals = useCallback(async () => {
     try {
       const response = await axios.get(
         `${API_BASE_URL}/api/signals/dual_ma?symbol=${symbol}&limit=50`
@@ -117,12 +133,13 @@ export default function App() {
     } catch (err) {
       console.error('Failed to load signals:', err);
     }
-  };
+  }, [symbol]);
 
   // Handle symbol change
   const handleSymbolChange = (newSymbol) => {
     setSymbol(newSymbol);
     setSignals([]);
+    hasLoadedData.current = false; // Reset on symbol change
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
@@ -219,7 +236,7 @@ export default function App() {
       ];
 
       subscribe(topics);
-      console.log('Subscribed to topics:', topics);
+      console.log('📡 Subscribed to topics:', topics);
     }
   }, [isConnected, symbol, timeframe, subscribe]);
 
@@ -259,14 +276,16 @@ export default function App() {
             <div className="error">{error}</div>
           )}
 
-          {isLoading ? (
-            <div className="loading">加载中...</div>
-          ) : (
-            <TradingChart 
-              symbol={symbol} 
-              onChartReady={handleChartReady} 
-            />
+          {isLoading && (
+            <div className="loading" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
+              加载数据中...
+            </div>
           )}
+
+          <TradingChart 
+            symbol={symbol} 
+            onChartReady={handleChartReady} 
+          />
         </div>
 
         <aside className="signal-panel">

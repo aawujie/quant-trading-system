@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     binance_api_key: str = ""
     binance_api_secret: str = ""
     
+    # Proxy Configuration
+    proxy_enabled: bool = True
+    proxy_host: str = "127.0.0.1"
+    proxy_port: int = 7897
+    proxy_username: str = ""
+    proxy_password: str = ""
+    
     # System Configuration
     log_level: str = "INFO"
     
