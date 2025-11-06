@@ -8,11 +8,19 @@ import { createChart } from 'lightweight-charts';
  * 
  * @param {string} symbol - Trading symbol (e.g., 'BTCUSDT')
  * @param {function} onChartReady - Callback when chart is initialized
+ * @param {function} onLoadMore - Callback to load more historical data when scrolling left
  */
-export default function TradingChart({ symbol, onChartReady }) {
+export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const seriesRef = useRef({});
+  const isLoadingMore = useRef(false);
+  const onLoadMoreRef = useRef(onLoadMore); // Store the latest onLoadMore callback
+  
+  // Update the ref whenever onLoadMore changes
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -75,6 +83,33 @@ export default function TradingChart({ symbol, onChartReady }) {
 
     seriesRef.current.ma20 = ma20Series;
 
+    // Subscribe to visible time range changes for infinite scroll
+    const timeScale = chart.timeScale();
+    const handleVisibleTimeRangeChange = (timeRange) => {
+      if (!timeRange || isLoadingMore.current) return;
+
+      const logicalRange = timeScale.getVisibleLogicalRange();
+      if (!logicalRange) return;
+
+      // When user scrolls to the left edge (logicalRange.from approaches 0)
+      // Trigger loading more historical data
+      if (logicalRange.from < 20 && logicalRange.from >= 0) {
+        console.log('📥 Near left edge, loading more data...');
+        isLoadingMore.current = true;
+        
+        // Trigger load more - use ref to get the latest callback
+        if (onLoadMoreRef.current) {
+          onLoadMoreRef.current(() => {
+            isLoadingMore.current = false;
+          });
+        } else {
+          isLoadingMore.current = false;
+        }
+      }
+    };
+
+    timeScale.subscribeVisibleLogicalRangeChange(handleVisibleTimeRangeChange);
+
     // Notify parent component only once
     if (onChartReady) {
       // Use setTimeout to ensure this runs after the chart is fully initialized
@@ -97,6 +132,7 @@ export default function TradingChart({ symbol, onChartReady }) {
     return () => {
       console.log('🗑️ Cleaning up chart');
       window.removeEventListener('resize', handleResize);
+      timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleTimeRangeChange);
       chart.remove();
     };
   }, [symbol]); // Remove onChartReady from dependencies

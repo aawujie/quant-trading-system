@@ -74,7 +74,8 @@ async def health_check():
 async def get_klines(
     symbol: str,
     timeframe: str,
-    limit: int = Query(100, ge=1, le=1000, description="Number of K-lines to fetch")
+    limit: int = Query(100, ge=1, le=1000, description="Number of K-lines to fetch"),
+    before: Optional[int] = Query(None, description="Fetch K-lines before this timestamp (for pagination)")
 ):
     """
     Get recent K-line data
@@ -83,12 +84,13 @@ async def get_klines(
         symbol: Trading symbol (e.g., BTCUSDT)
         timeframe: Timeframe (e.g., 1h, 1d)
         limit: Number of K-lines to fetch (max 1000)
+        before: Optional timestamp - fetch K-lines before this timestamp (for infinite scroll)
         
     Returns:
         List of K-line data
     """
     try:
-        klines = await db.get_recent_klines(symbol, timeframe, limit)
+        klines = await db.get_recent_klines(symbol, timeframe, limit, before)
         return klines
     except Exception as e:
         logger.error(f"Failed to fetch K-lines: {e}")

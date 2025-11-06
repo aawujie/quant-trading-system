@@ -17,6 +17,7 @@ export default function App() {
   const seriesRef = useRef(null);
   const markersRef = useRef([]);
   const hasLoadedData = useRef(false); // Track if data has been loaded
+  const earliestTimestamp = useRef(null); // Track the earliest loaded timestamp
 
   // Load historical K-line data - wrapped in useCallback
   const loadHistoricalData = useCallback(async () => {
@@ -41,6 +42,10 @@ export default function App() {
       console.log(`✅ Received ${klines.length} K-lines`);
 
       if (klines.length > 0 && seriesRef.current) {
+        // Track the earliest timestamp
+        earliestTimestamp.current = klines[0].timestamp;
+        console.log(`📌 Initial earliest timestamp set to: ${earliestTimestamp.current}`);
+        
         // Update candlestick chart
         const candlestickData = klines.map(k => ({
           time: k.timestamp,
@@ -72,6 +77,61 @@ export default function App() {
       setIsLoading(false);
     }
   }, [symbol, timeframe]); // Only depend on symbol and timeframe
+
+  // Load more historical data (for infinite scroll)
+  const loadMoreData = useCallback(async (onComplete) => {
+    try {
+      // Check if we have a valid earliest timestamp
+      if (!earliestTimestamp.current) {
+        console.warn('⚠️ No earliest timestamp available');
+        if (onComplete) onComplete();
+        return;
+      }
+
+      console.log('📥 Loading more historical data before:', earliestTimestamp.current);
+      
+      // Fetch older K-lines
+      const klinesResponse = await axios.get(
+        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=100&before=${earliestTimestamp.current}`
+      );
+
+      const klines = klinesResponse.data;
+      console.log(`✅ Loaded ${klines.length} more K-lines`);
+
+      if (klines.length > 0 && seriesRef.current) {
+        // Update the earliest timestamp to the oldest one we just loaded
+        earliestTimestamp.current = klines[0].timestamp;
+        console.log(`📌 Updated earliest timestamp to: ${earliestTimestamp.current}`);
+        
+        // Get existing data
+        const existingData = seriesRef.current.candlestick.data();
+        
+        // Prepare new candlestick data
+        const newCandlestickData = klines.map(k => ({
+          time: k.timestamp,
+          open: k.open,
+          high: k.high,
+          low: k.low,
+          close: k.close,
+        }));
+
+        // Merge new data with existing data (new data comes first)
+        const mergedData = [...newCandlestickData, ...existingData];
+        
+        // Update chart with merged data
+        seriesRef.current.candlestick.setData(mergedData);
+        
+        console.log(`✅ Total K-lines now: ${mergedData.length}`);
+      } else {
+        console.log('⚠️ No more historical data available');
+      }
+    } catch (err) {
+      console.error('❌ Failed to load more data:', err);
+    } finally {
+      // Always call the completion callback to reset loading flag
+      if (onComplete) onComplete();
+    }
+  }, [symbol, timeframe]);
 
   // Initialize chart
   const handleChartReady = useCallback((chart, series) => {
@@ -141,6 +201,7 @@ export default function App() {
     setSymbol(newSymbol);
     setSignals([]);
     hasLoadedData.current = false; // Reset to allow data reload
+    earliestTimestamp.current = null; // Reset earliest timestamp
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
@@ -155,6 +216,7 @@ export default function App() {
     setTimeframe(newTimeframe);
     setSignals([]);
     hasLoadedData.current = false; // Reset to allow data reload
+    earliestTimestamp.current = null; // Reset earliest timestamp
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
@@ -307,7 +369,8 @@ export default function App() {
 
           <TradingChart 
             symbol={symbol} 
-            onChartReady={handleChartReady} 
+            onChartReady={handleChartReady}
+            onLoadMore={loadMoreData}
           />
         </div>
 

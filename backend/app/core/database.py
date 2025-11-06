@@ -209,16 +209,31 @@ class Database:
         self, 
         symbol: str, 
         timeframe: str, 
-        limit: int = 200
+        limit: int = 200,
+        before: Optional[int] = None
     ) -> List[KlineData]:
-        """Get recent K-lines"""
+        """
+        Get recent K-lines
+        
+        Args:
+            symbol: Trading symbol
+            timeframe: Timeframe
+            limit: Number of K-lines to fetch
+            before: Optional timestamp - fetch K-lines before this timestamp
+        """
         async with self.SessionLocal() as session:
-            result = await session.execute(
-                select(KlineDB)
-                .where(KlineDB.symbol == symbol, KlineDB.timeframe == timeframe)
-                .order_by(KlineDB.timestamp.desc())
-                .limit(limit)
+            query = select(KlineDB).where(
+                KlineDB.symbol == symbol, 
+                KlineDB.timeframe == timeframe
             )
+            
+            # If before timestamp is specified, only get K-lines before it
+            if before is not None:
+                query = query.where(KlineDB.timestamp < before)
+            
+            query = query.order_by(KlineDB.timestamp.desc()).limit(limit)
+            
+            result = await session.execute(query)
             rows = result.scalars().all()
             
             # Convert to Pydantic models (reverse to chronological order)
