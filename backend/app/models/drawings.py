@@ -10,6 +10,7 @@ class DrawingType(str, Enum):
     TREND_LINE = "trend_line"
     RECTANGLE = "rectangle"
     HORIZONTAL_LINE = "horizontal_line"
+    VERTICAL_LINE = "vertical_line"
     FIBONACCI = "fibonacci"
 
 

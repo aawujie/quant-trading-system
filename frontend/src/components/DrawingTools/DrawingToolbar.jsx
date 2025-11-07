@@ -15,6 +15,18 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
       name: '矩形',
       icon: '▭',
       tooltip: '绘制矩形'
+    },
+    {
+      id: 'horizontal_line',
+      name: '水平线',
+      icon: '—',
+      tooltip: '绘制水平线（支撑/阻力）'
+    },
+    {
+      id: 'vertical_line',
+      name: '垂直线',
+      icon: '│',
+      tooltip: '绘制垂直线（时间标记）'
     }
   ];
 

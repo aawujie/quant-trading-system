@@ -2,6 +2,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChartCoordinates } from '../utils/chartCoordinates';
 import { TrendLineTool } from '../components/DrawingTools/drawings/TrendLineTool';
 import { RectangleTool } from '../components/DrawingTools/drawings/RectangleTool';
+import { HorizontalLineTool } from '../components/DrawingTools/drawings/HorizontalLineTool';
+import { VerticalLineTool } from '../components/DrawingTools/drawings/VerticalLineTool';
 import { drawingApi } from '../services/drawingApi';
 
 /**
@@ -56,6 +58,10 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         return new TrendLineTool(chart, series, coordinates.current);
       case 'rectangle':
         return new RectangleTool(chart, series, coordinates.current);
+      case 'horizontal_line':
+        return new HorizontalLineTool(chart, series, coordinates.current);
+      case 'vertical_line':
+        return new VerticalLineTool(chart, series, coordinates.current);
       default:
         return null;
     }
@@ -122,10 +128,14 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         created_at: timestamp
       };
 
+      console.log('📤 保存绘图数据:', JSON.stringify(drawingData, null, 2));
       await drawingApi.saveDrawing(drawingData);
       console.log('✅ 绘图已保存');
     } catch (error) {
       console.error('❌ 保存绘图失败:', error);
+      if (error.response) {
+        console.error('❌ 错误详情:', JSON.stringify(error.response.data, null, 2));
+      }
     }
   }, [symbol, timeframe]);
 

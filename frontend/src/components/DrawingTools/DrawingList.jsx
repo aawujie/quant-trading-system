@@ -7,9 +7,20 @@ export default function DrawingList({ drawings, onDelete }) {
     const typeMap = {
       'trend_line': '趋势线',
       'rectangle': '矩形',
-      'horizontal_line': '水平线'
+      'horizontal_line': '水平线',
+      'vertical_line': '垂直线'
     };
     return typeMap[type] || type;
+  };
+
+  const getDrawingIcon = (type) => {
+    const iconMap = {
+      'trend_line': '📈',
+      'rectangle': '▭',
+      'horizontal_line': '—',
+      'vertical_line': '│'
+    };
+    return iconMap[type] || '🎨';
   };
 
   const formatTime = (timestamp) => {
@@ -48,7 +59,7 @@ export default function DrawingList({ drawings, onDelete }) {
               <div style={styles.itemInfo}>
                 <div style={styles.itemType}>
                   <span style={styles.typeIcon}>
-                    {drawing.type === 'trend_line' ? '📈' : '▭'}
+                    {getDrawingIcon(drawing.type)}
                   </span>
                   <span style={styles.typeName}>
                     {getDrawingTypeName(drawing.type)}
