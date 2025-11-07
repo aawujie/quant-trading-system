@@ -7,15 +7,14 @@ const API_BASE_URL = 'http://localhost:8000';
  */
 export const drawingApi = {
   /**
-   * 获取指定交易对的所有绘图
+   * 获取指定交易对的所有绘图（所有时间级别共享）
    * @param {string} symbol - 交易对
-   * @param {string} timeframe - 时间周期
    * @returns {Promise<Array>}
    */
-  async getDrawings(symbol, timeframe) {
+  async getDrawings(symbol) {
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/api/drawings/${symbol}/${timeframe}`
+        `${API_BASE_URL}/api/drawings/${symbol}`
       );
       return response.data;
     } catch (error) {

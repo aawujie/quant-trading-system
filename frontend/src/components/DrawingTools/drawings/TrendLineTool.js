@@ -47,13 +47,17 @@ export class TrendLineTool extends BaseTool {
       this.startPoint.price
     );
     
-    if (!start || start.x === null || start.y === null) return;
+    if (!start || start.x === null || start.y === null) {
+      return; // 坐标转换失败，不绘制
+    }
     
     const end = this.endPoint
       ? this.coordinates.priceToScreen(this.endPoint.time, this.endPoint.price)
       : null;
 
-    if (!end || end.x === null || end.y === null) return;
+    if (!end || end.x === null || end.y === null) {
+      return; // 坐标转换失败，不绘制
+    }
 
     // 应用样式
     ctx.strokeStyle = this.style.color;

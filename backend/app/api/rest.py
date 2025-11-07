@@ -240,23 +240,21 @@ async def get_system_summary():
 
 # Drawing endpoints
 
-@app.get("/api/drawings/{symbol}/{timeframe}", response_model=List[DrawingData])
+@app.get("/api/drawings/{symbol}", response_model=List[DrawingData])
 async def get_drawings(
-    symbol: str,
-    timeframe: str
+    symbol: str
 ):
     """
-    获取指定交易对的所有绘图
+    获取指定交易对的所有绘图（所有时间级别共享）
     
     Args:
         symbol: 交易对
-        timeframe: 时间周期
         
     Returns:
         绘图数据列表
     """
     try:
-        drawings = await db.get_drawings(symbol, timeframe)
+        drawings = await db.get_drawings(symbol)
         return drawings
     except Exception as e:
         logger.error(f"Failed to fetch drawings: {e}")

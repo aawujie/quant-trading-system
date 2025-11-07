@@ -480,14 +480,12 @@ class Database:
     
     async def get_drawings(
         self,
-        symbol: str,
-        timeframe: str
+        symbol: str
     ) -> List[DrawingData]:
-        """获取指定交易对的所有绘图"""
+        """获取指定交易对的所有绘图（所有时间级别共享）"""
         async with self.SessionLocal() as session:
             query = select(DrawingDB).where(
-                DrawingDB.symbol == symbol,
-                DrawingDB.timeframe == timeframe
+                DrawingDB.symbol == symbol
             ).order_by(DrawingDB.created_at.desc())
             
             result = await session.execute(query)

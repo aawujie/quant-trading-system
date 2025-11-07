@@ -24,13 +24,13 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
     }
   }, [chart, series]);
 
-  // 加载历史绘图
+  // 加载历史绘图（所有时间级别共享）
   useEffect(() => {
-    if (!chart || !series || !symbol || !timeframe) return;
+    if (!chart || !series || !symbol) return;
 
     async function loadHistoricalDrawings() {
       try {
-        const savedDrawings = await drawingApi.getDrawings(symbol, timeframe);
+        const savedDrawings = await drawingApi.getDrawings(symbol);
         
         // 将保存的数据转换为绘图工具实例
         const reconstructedDrawings = savedDrawings.map(data => {
@@ -40,14 +40,14 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         
         setDrawings(reconstructedDrawings);
         
-        console.log(`✅ 加载了 ${savedDrawings.length} 个历史绘图`);
+        console.log(`✅ 加载了 ${savedDrawings.length} 个历史绘图（所有时间级别共享）`);
       } catch (error) {
         console.error('❌ 加载历史绘图失败:', error);
       }
     }
 
     loadHistoricalDrawings();
-  }, [chart, series, symbol, timeframe]);
+  }, [chart, series, symbol]); // 移除 timeframe 依赖
 
   // 创建新工具
   const createTool = useCallback((toolType) => {
