@@ -22,7 +22,6 @@ export default function App() {
   const markersRef = useRef([]);
   const hasLoadedData = useRef(false); // Track if data has been loaded
   const earliestTimestamp = useRef(null); // Track the earliest loaded timestamp
-  const initialBarCount = useRef(null); // Save initial bar count for zoom level
 
   // 绘图管理
   const drawingManager = useDrawingManager(
@@ -32,7 +31,7 @@ export default function App() {
     timeframe
   );
 
-  // Set chart to initial view: left-aligned, show all data, 10% right padding
+  // Set chart to show latest 200 bars (or all if less than 200)
   const setInitialChartView = useCallback(() => {
     if (!chartRef.current || !seriesRef.current?.candlestick) {
       console.warn('⚠️ Chart or series not ready');
@@ -47,46 +46,41 @@ export default function App() {
       }
 
       const timeScale = chartRef.current.timeScale();
-      const barCount = candlestickData.length;
+      const totalBars = candlestickData.length;
+      const barsToShow = 200; // Always show latest 200 bars
       
-      // Save initial bar count for reset functionality
-      if (initialBarCount.current === null) {
-        initialBarCount.current = barCount;
-        console.log(`💾 Saved initial bar count: ${barCount}`);
-      }
+      // Calculate range: show latest 200 bars with 10% padding on right
+      const from = Math.max(0, totalBars - barsToShow);
+      const to = totalBars + barsToShow * 0.1;
       
-      // Align chart to left: first bar at left edge, show all data with padding on right
-      timeScale.setVisibleLogicalRange({
-        from: 0,
-        to: barCount + barCount * 0.1  // Show all bars + 10% padding
-      });
+      timeScale.setVisibleLogicalRange({ from, to });
       
-      console.log(`📍 Chart view: showing all ${barCount} bars (0 to ${(barCount * 1.1).toFixed(1)})`);
+      console.log(`📍 Chart view: showing latest ${Math.min(totalBars, barsToShow)} bars (${from.toFixed(0)} to ${to.toFixed(1)})`);
     } catch (err) {
       console.error('❌ Failed to set chart view:', err);
     }
   }, []);
 
-  // Reset chart to initial state - use saved bar count to maintain zoom level
+  // Reset chart - always show latest 200 bars with same zoom level
   const resetChart = useCallback(() => {
-    if (!chartRef.current || initialBarCount.current === null) {
-      console.warn('⚠️ Chart not ready or no saved bar count');
+    if (!chartRef.current || !seriesRef.current?.candlestick) {
+      console.warn('⚠️ Chart not ready');
       return;
     }
 
     try {
-      console.log('🔄 Resetting chart to initial zoom level...');
+      console.log('🔄 Resetting to show latest 200 bars...');
+      const candlestickData = seriesRef.current.candlestick.data();
+      const totalBars = candlestickData.length;
+      const barsToShow = 200;
+      
       const timeScale = chartRef.current.timeScale();
+      const from = Math.max(0, totalBars - barsToShow);
+      const to = totalBars + barsToShow * 0.1;
       
-      // Use the saved initial bar count to calculate range
-      // This maintains the original zoom level (K-line width)
-      const savedBarCount = initialBarCount.current;
-      timeScale.setVisibleLogicalRange({
-        from: 0,
-        to: savedBarCount + savedBarCount * 0.1
-      });
+      timeScale.setVisibleLogicalRange({ from, to });
       
-      console.log(`✅ Chart reset: using initial bar count ${savedBarCount} (0 to ${(savedBarCount * 1.1).toFixed(1)})`);
+      console.log(`✅ Reset: showing latest ${Math.min(totalBars, barsToShow)} bars (${from.toFixed(0)} to ${to.toFixed(1)})`);
     } catch (err) {
       console.error('❌ Failed to reset chart:', err);
     }
@@ -278,7 +272,6 @@ export default function App() {
     setSignals([]);
     hasLoadedData.current = false; // Reset to allow data reload
     earliestTimestamp.current = null; // Reset earliest timestamp
-    initialBarCount.current = null; // Clear saved bar count
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
