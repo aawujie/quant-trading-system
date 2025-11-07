@@ -353,7 +353,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>量化交易系统</h1>
+        <h1>Trading Nerd</h1>
         <div className="status">
           <span>{isConnected ? '🟢 已连接' : '🔴 未连接'}</span>
           <span>{symbol}</span>
@@ -413,6 +413,7 @@ export default function App() {
                 onMouseDown={drawingManager.handleMouseDown}
                 onMouseMove={drawingManager.handleMouseMove}
                 onMouseUp={drawingManager.handleMouseUp}
+                onMouseLeave={drawingManager.handleMouseLeave}
                 redrawCanvas={drawingManager.redrawCanvas}
                 isDrawingMode={drawingManager.activeTool !== null}
               />

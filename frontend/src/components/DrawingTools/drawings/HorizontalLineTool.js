@@ -39,6 +39,14 @@ export class HorizontalLineTool extends BaseTool {
     // 水平线不需要释放逻辑
   }
 
+  onMouseLeave() {
+    // 鼠标离开画布时清除预览
+    if (this.price === null) {
+      this.previewPrice = null;
+      this.previewTimestamp = null;
+    }
+  }
+
   draw(ctx) {
     // 获取图表宽度
     const chartElement = this.chart.chartElement();

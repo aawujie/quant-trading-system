@@ -227,6 +227,18 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
     redrawCanvas();
   }, [saveDrawing, redrawCanvas, drawings.length]);
 
+  const handleMouseLeave = useCallback(() => {
+    if (!currentTool.current) return;
+    
+    // 调用工具的 onMouseLeave 方法
+    if (currentTool.current.onMouseLeave) {
+      currentTool.current.onMouseLeave();
+    }
+    
+    // 触发重绘以清除预览
+    redrawCanvas();
+  }, [redrawCanvas]);
+
   // 当图表缩放/平移时重绘（时间轴和价格轴）
   useEffect(() => {
     if (!chart || !series) return;
@@ -297,6 +309,7 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    handleMouseLeave,
     redrawCanvas,
     deleteDrawing,
   };

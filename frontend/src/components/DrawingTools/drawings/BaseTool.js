@@ -52,6 +52,13 @@ export class BaseTool {
   }
 
   /**
+   * 鼠标离开画布事件 - 子类可选实现
+   */
+  onMouseLeave() {
+    // 默认不做任何操作，子类可以覆盖
+  }
+
+  /**
    * 绘制图形 - 子类需要实现
    * @param {CanvasRenderingContext2D} ctx - Canvas上下文
    */

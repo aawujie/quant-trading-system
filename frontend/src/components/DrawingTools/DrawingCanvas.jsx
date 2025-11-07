@@ -10,6 +10,7 @@ export default function DrawingCanvas({
   onMouseDown,
   onMouseMove,
   onMouseUp,
+  onMouseLeave,
   redrawCanvas,
   isDrawingMode // 新增：是否处于绘图模式
 }) {
@@ -40,6 +41,7 @@ export default function DrawingCanvas({
     canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('mousemove', onMouseMove);
     canvas.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('mouseleave', onMouseLeave);
 
     // 初始绘制
     if (redrawCanvas) {
@@ -78,6 +80,7 @@ export default function DrawingCanvas({
       canvas.removeEventListener('mousedown', onMouseDown);
       canvas.removeEventListener('mousemove', onMouseMove);
       canvas.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('mouseleave', onMouseLeave);
       
       window.removeEventListener('resize', handleResize);
       timeScale.unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
@@ -91,7 +94,7 @@ export default function DrawingCanvas({
         }
       }
     };
-  }, [chart, canvasRef, redrawCanvas, onMouseDown, onMouseMove, onMouseUp]);
+  }, [chart, canvasRef, redrawCanvas, onMouseDown, onMouseMove, onMouseUp, onMouseLeave]);
 
   // 当绘图模式改变时，动态更新canvas的事件接收状态
   useEffect(() => {
