@@ -108,11 +108,12 @@ class KlineNode(ProducerNode):
         try:
             # 1. Get last timestamp from database (for incremental fetch)
             last_ts = await self.db.get_last_kline_time(symbol, timeframe)
+            kline_count = await self.db.count_klines(symbol, timeframe)
             
             if last_ts:
                 logger.debug(
                     f"Last K-line for {symbol} {timeframe}: "
-                    f"timestamp={last_ts}"
+                    f"timestamp={last_ts}, count={kline_count}"
                 )
             else:
                 logger.info(
@@ -124,40 +125,117 @@ class KlineNode(ProducerNode):
             # Convert symbol format: BTCUSDT -> BTC/USDT for ccxt
             exchange_symbol = self._format_symbol_for_exchange(symbol)
             
-            klines = await self.exchange.fetch_klines(
-                symbol=exchange_symbol,
-                timeframe=timeframe,
-                since=last_ts,  # Only fetch data after last timestamp
-                limit=1000
-            )
-            
-            if not klines:
-                logger.debug(f"No new K-lines for {symbol} {timeframe}")
-                return
+            # 根据数据量决定获取策略
+            if kline_count < 2000:  # 数据少于2000条，需要批量补充历史数据
+                import time
+                # 获取时间周期的秒数
+                timeframe_seconds = {
+                    '3m': 180, '5m': 300, '15m': 900, '30m': 1800,
+                    '1h': 3600, '4h': 14400, '1d': 86400
+                }
+                seconds = timeframe_seconds.get(timeframe, 3600)
+                
+                # 目标：获取到7天前的数据
+                target_ts = int(time.time() - 7 * 24 * 3600)
+                
+                # 确定起始时间
+                if last_ts:
+                    # 有数据，从最早的时间戳往前推
+                    earliest_ts = await self.db.get_earliest_kline_time(symbol, timeframe)
+                    since_ts = int(earliest_ts - seconds * 1000)
+                else:
+                    # 没有数据，从7天前开始
+                    since_ts = target_ts
+                    earliest_ts = int(time.time())
+                
+                logger.info(f"数据不足（{kline_count}条），{symbol} {timeframe} 批量拉取到7天前")
+                
+                # 批量获取，直到覆盖到7天前
+                # 策略：从7天前开始，每次拉1000条，逐步往现在推进
+                all_klines = []
+                current_since = target_ts
+                
+                for i in range(10):  # 最多10批，每批1000条
+                    batch_klines = await self.exchange.fetch_klines(
+                        symbol=exchange_symbol,
+                        timeframe=timeframe,
+                        since=current_since,
+                        limit=1000
+                    )
+                    
+                    if not batch_klines:
+                        logger.info(f"批次{i+1}无数据，停止 {symbol} {timeframe}")
+                        break
+                    
+                    all_klines.extend(batch_klines)
+                    
+                    # 更新since为本批次最后一个K线的时间+1个周期
+                    last_ts_in_batch = max(k.timestamp for k in batch_klines)
+                    current_since = int(last_ts_in_batch + seconds)
+                    
+                    # 如果已经拉到最新数据了（距离现在不到2个周期），停止
+                    import time
+                    if last_ts_in_batch >= time.time() - seconds * 2:
+                        logger.info(f"已拉取到最新，停止批量获取 {symbol} {timeframe}")
+                        break
+                    
+                    logger.info(f"批次{i+1}获取了{len(batch_klines)}条 {symbol} {timeframe}")
+                
+                klines = all_klines
+                if klines:
+                    logger.info(f"批量获取了 {len(klines)} 条历史数据 for {symbol} {timeframe}")
+                else:
+                    logger.debug(f"No historical K-lines for {symbol} {timeframe}")
+                    return
+            else:
+                # 数据充足，正常增量更新
+                klines = await self.exchange.fetch_klines(
+                    symbol=exchange_symbol,
+                    timeframe=timeframe,
+                    since=None,
+                    limit=100
+                )
+                
+                if not klines:
+                    logger.debug(f"No new K-lines for {symbol} {timeframe}")
+                    return
             
             logger.info(
                 f"Fetched {len(klines)} K-lines for {symbol} {timeframe}"
             )
             
-            # 3. Save to database (bulk insert, skip duplicates)
-            inserted = await self.db.bulk_insert_klines(klines)
+            # 3. 过滤出新数据（比数据库中最新的更新）
+            new_klines = []
+            if last_ts:
+                new_klines = [k for k in klines if k.timestamp > last_ts]
+                if not new_klines:
+                    logger.debug(f"No newer K-lines for {symbol} {timeframe} (last: {last_ts})")
+                    return
+            else:
+                new_klines = klines
+            
+            logger.info(
+                f"Fetched {len(klines)} K-lines, {len(new_klines)} are new for {symbol} {timeframe}"
+            )
+            
+            # 4. Save to database (bulk insert, skip duplicates)
+            inserted = await self.db.bulk_insert_klines(new_klines)
             
             if inserted > 0:
                 logger.info(
                     f"Inserted {inserted} new K-lines for {symbol} {timeframe}"
                 )
             
-            # 4. Publish to message bus (only new K-lines)
+            # 5. Publish to message bus (only new K-lines)
             topic = f"kline:{symbol}:{timeframe}"
             
-            for kline in klines:
-                # Only publish K-lines that are newer than last_ts
-                if not last_ts or kline.timestamp > last_ts:
-                    await self.emit(topic, kline.model_dump())
+            for kline in new_klines:
+                await self.emit(topic, kline.model_dump())
             
-            logger.debug(
-                f"Published {len(klines)} K-lines to topic '{topic}'"
-            )
+            if new_klines:
+                logger.debug(
+                    f"Published {len(new_klines)} K-lines to topic '{topic}'"
+                )
             
         except Exception as e:
             logger.error(

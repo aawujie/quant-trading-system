@@ -45,13 +45,15 @@ echo ""
 # 4. Start backend nodes (multi-process mode)
 echo "🚀 Starting backend nodes..."
 
-# K-line node - fetch multiple timeframes
-uv run python -m app.main --node kline --symbols BTCUSDT,ETHUSDT --timeframes 1h,4h,1d --fetch-interval 60 > ../logs/kline_node.log 2>&1 &
+# K-line node - fetch multiple timeframes (使用默认5秒间隔)
+# 支持的时间级别: 3m, 5m, 15m, 30m, 1h, 4h, 1d
+uv run python -m app.main --node kline --symbols BTCUSDT,ETHUSDT --timeframes 3m,5m,15m,30m,1h,4h,1d > ../logs/kline_node.log 2>&1 &
 KLINE_PID=$!
-echo "✅ K-line node started (PID: $KLINE_PID)"
+echo "✅ K-line node started (PID: $KLINE_PID, 数据更新间隔: 5秒)"
+echo "   时间级别: 3m, 5m, 15m, 30m, 1h, 4h, 1d"
 
 # Indicator node - calculate for multiple timeframes
-uv run python -m app.main --node indicator --symbols BTCUSDT,ETHUSDT --timeframes 1h,4h,1d > ../logs/indicator_node.log 2>&1 &
+uv run python -m app.main --node indicator --symbols BTCUSDT,ETHUSDT --timeframes 3m,5m,15m,30m,1h,4h,1d > ../logs/indicator_node.log 2>&1 &
 INDICATOR_PID=$!
 echo "✅ Indicator node started (PID: $INDICATOR_PID)"
 

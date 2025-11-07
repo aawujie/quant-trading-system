@@ -223,8 +223,8 @@ async def main():
     parser.add_argument(
         "--fetch-interval",
         type=int,
-        default=60,
-        help="K-line fetch interval in seconds (default: 60)"
+        default=settings.kline_fetch_interval,
+        help=f"K-line fetch interval in seconds (default: {settings.kline_fetch_interval})"
     )
     
     parser.add_argument(

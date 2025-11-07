@@ -22,6 +22,7 @@ export default function App() {
   const markersRef = useRef([]);
   const hasLoadedData = useRef(false); // Track if data has been loaded
   const earliestTimestamp = useRef(null); // Track the earliest loaded timestamp
+  const initialBarCount = useRef(null); // Save initial bar count for zoom level
 
   // 绘图管理
   const drawingManager = useDrawingManager(
@@ -30,6 +31,66 @@ export default function App() {
     symbol,
     timeframe
   );
+
+  // Set chart to initial view: left-aligned, show all data, 10% right padding
+  const setInitialChartView = useCallback(() => {
+    if (!chartRef.current || !seriesRef.current?.candlestick) {
+      console.warn('⚠️ Chart or series not ready');
+      return;
+    }
+
+    try {
+      const candlestickData = seriesRef.current.candlestick.data();
+      if (!candlestickData || candlestickData.length === 0) {
+        console.warn('⚠️ No candlestick data available');
+        return;
+      }
+
+      const timeScale = chartRef.current.timeScale();
+      const barCount = candlestickData.length;
+      
+      // Save initial bar count for reset functionality
+      if (initialBarCount.current === null) {
+        initialBarCount.current = barCount;
+        console.log(`💾 Saved initial bar count: ${barCount}`);
+      }
+      
+      // Align chart to left: first bar at left edge, show all data with padding on right
+      timeScale.setVisibleLogicalRange({
+        from: 0,
+        to: barCount + barCount * 0.1  // Show all bars + 10% padding
+      });
+      
+      console.log(`📍 Chart view: showing all ${barCount} bars (0 to ${(barCount * 1.1).toFixed(1)})`);
+    } catch (err) {
+      console.error('❌ Failed to set chart view:', err);
+    }
+  }, []);
+
+  // Reset chart to initial state - use saved bar count to maintain zoom level
+  const resetChart = useCallback(() => {
+    if (!chartRef.current || initialBarCount.current === null) {
+      console.warn('⚠️ Chart not ready or no saved bar count');
+      return;
+    }
+
+    try {
+      console.log('🔄 Resetting chart to initial zoom level...');
+      const timeScale = chartRef.current.timeScale();
+      
+      // Use the saved initial bar count to calculate range
+      // This maintains the original zoom level (K-line width)
+      const savedBarCount = initialBarCount.current;
+      timeScale.setVisibleLogicalRange({
+        from: 0,
+        to: savedBarCount + savedBarCount * 0.1
+      });
+      
+      console.log(`✅ Chart reset: using initial bar count ${savedBarCount} (0 to ${(savedBarCount * 1.1).toFixed(1)})`);
+    } catch (err) {
+      console.error('❌ Failed to reset chart:', err);
+    }
+  }, []);
 
   // Load historical K-line data - wrapped in useCallback
   const loadHistoricalData = useCallback(async () => {
@@ -72,18 +133,8 @@ export default function App() {
 
         console.log(`✅ Loaded ${klines.length} K-lines for ${symbol} ${timeframe}`);
 
-        // Align chart to left: first bar at left edge, show all data with padding on right
-        if (chartRef.current && candlestickData.length > 0) {
-          const timeScale = chartRef.current.timeScale();
-          const barCount = candlestickData.length;
-          // from: 0 means first bar is at left edge
-          // to: barCount + padding shows all bars with some space on right
-          timeScale.setVisibleLogicalRange({
-            from: 0,
-            to: barCount + barCount * 0.1  // Show all bars + 10% padding
-          });
-          console.log(`📍 Chart aligned to left (showing all ${barCount} bars)`);
-        }
+        // Set initial chart view
+        setInitialChartView();
 
         // Load indicators (MA5, MA20)
         await loadIndicators(klines);
@@ -101,7 +152,7 @@ export default function App() {
       setError('Failed to load data. Please check if the backend is running.');
       setIsLoading(false);
     }
-  }, [symbol, timeframe]); // Only depend on symbol and timeframe
+  }, [symbol, timeframe, setInitialChartView]);
 
   // Load more historical data (for infinite scroll)
   const loadMoreData = useCallback(async (onComplete) => {
@@ -227,6 +278,7 @@ export default function App() {
     setSignals([]);
     hasLoadedData.current = false; // Reset to allow data reload
     earliestTimestamp.current = null; // Reset earliest timestamp
+    initialBarCount.current = null; // Clear saved bar count
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
@@ -376,10 +428,36 @@ export default function App() {
               value={timeframe} 
               onChange={(e) => handleTimeframeChange(e.target.value)}
             >
+              <option value="3m">3分钟</option>
+              <option value="5m">5分钟</option>
+              <option value="15m">15分钟</option>
+              <option value="30m">30分钟</option>
               <option value="1h">1小时</option>
               <option value="4h">4小时</option>
               <option value="1d">1天</option>
             </select>
+
+            {/* 重置图表按钮 */}
+            <button 
+              onClick={resetChart}
+              style={{
+                marginLeft: '0.5rem',
+                marginRight: '1rem',
+                padding: '0.5rem 1rem',
+                background: '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem'
+              }}
+              title="重置图表到初始状态"
+            >
+              🔄 重置
+            </button>
 
             {/* 绘图工具栏 */}
             <DrawingToolbar

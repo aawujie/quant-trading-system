@@ -226,6 +226,28 @@ class Database:
             row = result.scalar_one_or_none()
             return row if row else None
     
+    async def count_klines(self, symbol: str, timeframe: str) -> int:
+        """Count the number of K-lines for a symbol/timeframe"""
+        async with self.SessionLocal() as session:
+            from sqlalchemy import func
+            result = await session.execute(
+                select(func.count(KlineDB.id))
+                .where(KlineDB.symbol == symbol, KlineDB.timeframe == timeframe)
+            )
+            return result.scalar() or 0
+    
+    async def get_earliest_kline_time(self, symbol: str, timeframe: str) -> Optional[int]:
+        """Get the timestamp of the earliest K-line for a symbol/timeframe"""
+        async with self.SessionLocal() as session:
+            result = await session.execute(
+                select(KlineDB.timestamp)
+                .where(KlineDB.symbol == symbol, KlineDB.timeframe == timeframe)
+                .order_by(KlineDB.timestamp.asc())
+                .limit(1)
+            )
+            row = result.scalar_one_or_none()
+            return row if row else None
+    
     async def get_recent_klines(
         self, 
         symbol: str, 
