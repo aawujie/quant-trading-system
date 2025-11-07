@@ -42,6 +42,19 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
       crosshair: {
         mode: 0, // CrosshairMode.Normal
       },
+      localization: {
+        timeFormatter: (timestamp) => {
+          // Convert Unix timestamp to Beijing time (UTC+8)
+          const date = new Date(timestamp * 1000);
+          const beijingDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+          const year = beijingDate.getUTCFullYear();
+          const month = String(beijingDate.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(beijingDate.getUTCDate()).padStart(2, '0');
+          const hours = String(beijingDate.getUTCHours()).padStart(2, '0');
+          const minutes = String(beijingDate.getUTCMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day} ${hours}:${minutes}`;
+        },
+      },
       timeScale: {
         borderColor: '#3a3a4a',
         timeVisible: true,

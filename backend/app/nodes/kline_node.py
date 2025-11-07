@@ -126,7 +126,7 @@ class KlineNode(ProducerNode):
             exchange_symbol = self._format_symbol_for_exchange(symbol)
             
             # 根据数据量决定获取策略
-            if kline_count < 2000:  # 数据少于2000条，需要批量补充历史数据
+            if kline_count < 500:  # 数据少于500条，需要批量补充历史数据
                 import time
                 # 获取时间周期的秒数
                 timeframe_seconds = {
@@ -142,7 +142,7 @@ class KlineNode(ProducerNode):
                 if last_ts:
                     # 有数据，从最早的时间戳往前推
                     earliest_ts = await self.db.get_earliest_kline_time(symbol, timeframe)
-                    since_ts = int(earliest_ts - seconds * 1000)
+                    since_ts = int(earliest_ts - seconds * 100)  # 往前推100个周期
                 else:
                     # 没有数据，从7天前开始
                     since_ts = target_ts
@@ -204,15 +204,25 @@ class KlineNode(ProducerNode):
                 f"Fetched {len(klines)} K-lines for {symbol} {timeframe}"
             )
             
-            # 3. 过滤出新数据（比数据库中最新的更新）
+            # 3. 过滤出新数据（比数据库中最新的更新或相等，以支持更新当前未完成的K线）
+            # 注意：批量拉取模式下不过滤，直接使用全部数据，依赖数据库UPSERT处理重复
+            logger.info(f"📊 kline_count={kline_count}, len(klines)={len(klines)}, last_ts={last_ts}")
             new_klines = []
-            if last_ts:
-                new_klines = [k for k in klines if k.timestamp > last_ts]
+            if kline_count < 500:
+                # 批量拉取模式：不过滤，全部插入，依赖数据库UPSERT
+                new_klines = klines
+                logger.info(f"✅ 批量模式：{len(new_klines)} 条数据待插入 for {symbol} {timeframe}")
+            elif last_ts:
+                # 增量更新模式：过滤新数据
+                # 使用 >= 而不是 > 来允许更新当前正在形成的K线
+                new_klines = [k for k in klines if k.timestamp >= last_ts]
+                logger.info(f"🔄 增量模式：过滤后 {len(new_klines)} 条 for {symbol} {timeframe}")
                 if not new_klines:
                     logger.debug(f"No newer K-lines for {symbol} {timeframe} (last: {last_ts})")
                     return
             else:
                 new_klines = klines
+                logger.info(f"🆕 初始模式：{len(new_klines)} 条 for {symbol} {timeframe}")
             
             logger.info(
                 f"Fetched {len(klines)} K-lines, {len(new_klines)} are new for {symbol} {timeframe}"

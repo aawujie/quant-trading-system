@@ -113,7 +113,8 @@ export default function App() {
         earliestTimestamp.current = klines[0].timestamp;
         console.log(`📌 Initial earliest timestamp set to: ${earliestTimestamp.current}`);
         
-        // Update candlestick chart
+        // Update candlestick chart - use timestamp directly
+        // The chart will display time based on user's browser timezone
         const candlestickData = klines.map(k => ({
           time: k.timestamp,
           open: k.open,
@@ -176,7 +177,7 @@ export default function App() {
         // Get existing data
         const existingData = seriesRef.current.candlestick.data();
         
-        // Prepare new candlestick data
+        // Prepare new candlestick data - use timestamp directly
         const newCandlestickData = klines.map(k => ({
           time: k.timestamp,
           open: k.open,
@@ -321,6 +322,7 @@ export default function App() {
   // Handle K-line update
   const handleKlineUpdate = (kline) => {
     if (seriesRef.current && kline.symbol === symbol && kline.timeframe === timeframe) {
+      // Use timestamp directly - chart will display based on browser timezone
       seriesRef.current.candlestick.update({
         time: kline.timestamp,
         open: kline.open,

@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, Integer, String, Float, BigInteger, DateTime, Index, select, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, BigInteger, DateTime, Index, select, JSON, func
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
@@ -34,6 +34,7 @@ class KlineDB(Base):
     low = Column(Float, nullable=False)
     close = Column(Float, nullable=False)
     volume = Column(Float, nullable=False)
+    beijing_time = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     __table_args__ = (
@@ -182,15 +183,22 @@ class Database:
                 return False
     
     async def bulk_insert_klines(self, klines: List[KlineData]) -> int:
-        """Bulk insert K-lines (ignores duplicates)"""
+        """Bulk insert/update K-lines (upsert)"""
         if not klines:
             return 0
         
+        from sqlalchemy.dialects.postgresql import insert
+        from datetime import datetime, timezone
+        
         async with self.SessionLocal() as session:
-            inserted = 0
-            for kline in klines:
-                try:
-                    db_kline = KlineDB(
+            try:
+                affected = 0
+                for kline in klines:
+                    # Convert Unix timestamp to UTC datetime, then let PostgreSQL handle timezone conversion
+                    # We store as UTC and PostgreSQL will display in the session's timezone
+                    utc_time = datetime.fromtimestamp(kline.timestamp, tz=timezone.utc)
+                    
+                    stmt = insert(KlineDB).values(
                         symbol=kline.symbol,
                         timeframe=kline.timeframe,
                         timestamp=kline.timestamp,
@@ -198,20 +206,30 @@ class Database:
                         high=kline.high,
                         low=kline.low,
                         close=kline.close,
-                        volume=kline.volume
+                        volume=kline.volume,
+                        beijing_time=utc_time  # Store UTC time, let PostgreSQL handle display
                     )
-                    session.add(db_kline)
-                    inserted += 1
-                except Exception:
-                    pass  # Skip duplicates
-            
-            try:
+                    # On conflict (duplicate), update the OHLCV values and beijing_time
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=['symbol', 'timeframe', 'timestamp'],
+                        set_=dict(
+                            open=stmt.excluded.open,
+                            high=stmt.excluded.high,
+                            low=stmt.excluded.low,
+                            close=stmt.excluded.close,
+                            volume=stmt.excluded.volume,
+                            beijing_time=stmt.excluded.beijing_time
+                        )
+                    )
+                    await session.execute(stmt)
+                    affected += 1
+                
                 await session.commit()
-                logger.debug(f"Bulk inserted {inserted} klines")
-                return inserted
+                logger.debug(f"Upserted {affected} klines")
+                return affected
             except Exception as e:
                 await session.rollback()
-                logger.error(f"Failed to bulk insert klines: {e}")
+                logger.error(f"Failed to upsert klines: {e}")
                 return 0
     
     async def get_last_kline_time(self, symbol: str, timeframe: str) -> Optional[int]:
@@ -285,6 +303,7 @@ class Database:
                     symbol=row.symbol,
                     timeframe=row.timeframe,
                     timestamp=row.timestamp,
+                    beijing_time=row.beijing_time.isoformat() if row.beijing_time else None,
                     open=row.open,
                     high=row.high,
                     low=row.low,

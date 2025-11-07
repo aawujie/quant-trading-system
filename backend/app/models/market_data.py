@@ -14,6 +14,7 @@ class KlineData(BaseModel):
     symbol: str = Field(..., description="Trading pair symbol (e.g., 'BTCUSDT')")
     timeframe: str = Field(..., description="Timeframe (e.g., '1h', '1d')")
     timestamp: int = Field(..., description="Unix timestamp in seconds")
+    beijing_time: Optional[str] = Field(None, description="Beijing time (UTC+8) in ISO format")
     open: float = Field(..., description="Opening price")
     high: float = Field(..., description="Highest price")
     low: float = Field(..., description="Lowest price")
