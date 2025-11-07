@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, Integer, String, Float, BigInteger, DateTime, Index, select
+from sqlalchemy import create_engine, Column, Integer, String, Float, BigInteger, DateTime, Index, select, JSON
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
@@ -12,6 +12,7 @@ from sqlalchemy.pool import NullPool
 from app.models.market_data import KlineData
 from app.models.indicators import IndicatorData
 from app.models.signals import SignalData
+from app.models.drawings import DrawingData, DrawingPoint, DrawingStyle
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,26 @@ class SignalDB(Base):
     
     __table_args__ = (
         Index('idx_signals_lookup', 'strategy_name', 'symbol', 'timestamp'),
+    )
+
+
+class DrawingDB(Base):
+    """绘图数据表"""
+    __tablename__ = "drawings"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    drawing_id = Column(String(50), nullable=False, unique=True, index=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    timeframe = Column(String(10), nullable=False, index=True)
+    drawing_type = Column(String(20), nullable=False)
+    points = Column(JSON, nullable=False)  # 存储为 JSON
+    style = Column(JSON, nullable=False)   # 存储为 JSON
+    label = Column(String(200))
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_drawings_lookup', 'symbol', 'timeframe'),
     )
 
 
@@ -390,4 +411,122 @@ class Database:
                 )
                 for row in reversed(rows)
             ]
+    
+    # Drawing operations
+    
+    async def insert_drawing(self, drawing: DrawingData) -> bool:
+        """插入绘图数据"""
+        async with self.SessionLocal() as session:
+            try:
+                db_drawing = DrawingDB(
+                    drawing_id=drawing.drawing_id,
+                    symbol=drawing.symbol,
+                    timeframe=drawing.timeframe,
+                    drawing_type=drawing.drawing_type.value,
+                    points=[p.model_dump() for p in drawing.points],
+                    style=drawing.style.model_dump(),
+                    label=drawing.label,
+                    created_at=drawing.created_at
+                )
+                session.add(db_drawing)
+                await session.commit()
+                logger.info(f"Inserted drawing: {drawing.drawing_id}")
+                return True
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to insert drawing: {e}")
+                return False
+    
+    async def get_drawings(
+        self,
+        symbol: str,
+        timeframe: str
+    ) -> List[DrawingData]:
+        """获取指定交易对的所有绘图"""
+        async with self.SessionLocal() as session:
+            query = select(DrawingDB).where(
+                DrawingDB.symbol == symbol,
+                DrawingDB.timeframe == timeframe
+            ).order_by(DrawingDB.created_at.desc())
+            
+            result = await session.execute(query)
+            rows = result.scalars().all()
+            
+            return [
+                DrawingData(
+                    drawing_id=row.drawing_id,
+                    symbol=row.symbol,
+                    timeframe=row.timeframe,
+                    drawing_type=row.drawing_type,
+                    points=[DrawingPoint(**p) for p in row.points],
+                    style=DrawingStyle(**row.style),
+                    label=row.label or "",
+                    created_at=row.created_at
+                )
+                for row in rows
+            ]
+    
+    async def get_drawing_by_id(self, drawing_id: str) -> Optional[DrawingData]:
+        """根据ID获取单个绘图"""
+        async with self.SessionLocal() as session:
+            result = await session.execute(
+                select(DrawingDB).where(DrawingDB.drawing_id == drawing_id)
+            )
+            row = result.scalar_one_or_none()
+            
+            if not row:
+                return None
+            
+            return DrawingData(
+                drawing_id=row.drawing_id,
+                symbol=row.symbol,
+                timeframe=row.timeframe,
+                drawing_type=row.drawing_type,
+                points=[DrawingPoint(**p) for p in row.points],
+                style=DrawingStyle(**row.style),
+                label=row.label or "",
+                created_at=row.created_at
+            )
+    
+    async def update_drawing(self, drawing: DrawingData) -> bool:
+        """更新绘图数据"""
+        async with self.SessionLocal() as session:
+            try:
+                result = await session.execute(
+                    select(DrawingDB).where(DrawingDB.drawing_id == drawing.drawing_id)
+                )
+                db_drawing = result.scalar_one_or_none()
+                
+                if db_drawing:
+                    db_drawing.points = [p.model_dump() for p in drawing.points]
+                    db_drawing.style = drawing.style.model_dump()
+                    db_drawing.label = drawing.label
+                    await session.commit()
+                    logger.info(f"Updated drawing: {drawing.drawing_id}")
+                    return True
+                return False
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to update drawing: {e}")
+                return False
+    
+    async def delete_drawing(self, drawing_id: str) -> bool:
+        """删除绘图"""
+        async with self.SessionLocal() as session:
+            try:
+                result = await session.execute(
+                    select(DrawingDB).where(DrawingDB.drawing_id == drawing_id)
+                )
+                drawing = result.scalar_one_or_none()
+                
+                if drawing:
+                    await session.delete(drawing)
+                    await session.commit()
+                    logger.info(f"Deleted drawing: {drawing_id}")
+                    return True
+                return False
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to delete drawing: {e}")
+                return False
 

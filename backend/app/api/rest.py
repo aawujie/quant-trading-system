@@ -11,6 +11,7 @@ from app.config import settings
 from app.models.market_data import KlineData
 from app.models.indicators import IndicatorData
 from app.models.signals import SignalData
+from app.models.drawings import DrawingData
 
 logger = logging.getLogger(__name__)
 
@@ -235,4 +236,124 @@ async def get_system_summary():
         "active_symbols": 0,
         "note": "This endpoint is not fully implemented yet"
     }
+
+
+# Drawing endpoints
+
+@app.get("/api/drawings/{symbol}/{timeframe}", response_model=List[DrawingData])
+async def get_drawings(
+    symbol: str,
+    timeframe: str
+):
+    """
+    获取指定交易对的所有绘图
+    
+    Args:
+        symbol: 交易对
+        timeframe: 时间周期
+        
+    Returns:
+        绘图数据列表
+    """
+    try:
+        drawings = await db.get_drawings(symbol, timeframe)
+        return drawings
+    except Exception as e:
+        logger.error(f"Failed to fetch drawings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/drawings/id/{drawing_id}", response_model=Optional[DrawingData])
+async def get_drawing_by_id(drawing_id: str):
+    """
+    根据ID获取单个绘图
+    
+    Args:
+        drawing_id: 绘图ID
+        
+    Returns:
+        绘图数据或None
+    """
+    try:
+        drawing = await db.get_drawing_by_id(drawing_id)
+        if not drawing:
+            raise HTTPException(status_code=404, detail="Drawing not found")
+        return drawing
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch drawing: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/drawings", response_model=dict)
+async def create_drawing(drawing: DrawingData):
+    """
+    创建新绘图
+    
+    Args:
+        drawing: 绘图数据
+        
+    Returns:
+        成功消息
+    """
+    try:
+        success = await db.insert_drawing(drawing)
+        if success:
+            return {"status": "success", "drawing_id": drawing.drawing_id}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save drawing")
+    except Exception as e:
+        logger.error(f"Failed to create drawing: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/drawings/{drawing_id}", response_model=dict)
+async def update_drawing(drawing_id: str, drawing: DrawingData):
+    """
+    更新绘图
+    
+    Args:
+        drawing_id: 绘图ID
+        drawing: 更新的绘图数据
+        
+    Returns:
+        成功消息
+    """
+    try:
+        if drawing_id != drawing.drawing_id:
+            raise HTTPException(status_code=400, detail="Drawing ID mismatch")
+        
+        success = await db.update_drawing(drawing)
+        if success:
+            return {"status": "success"}
+        else:
+            raise HTTPException(status_code=404, detail="Drawing not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update drawing: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/drawings/{drawing_id}", response_model=dict)
+async def delete_drawing(drawing_id: str):
+    """
+    删除绘图
+    
+    Args:
+        drawing_id: 绘图ID
+        
+    Returns:
+        成功消息
+    """
+    try:
+        success = await db.delete_drawing(drawing_id)
+        if success:
+            return {"status": "success"}
+        else:
+            raise HTTPException(status_code=404, detail="Drawing not found")
+    except Exception as e:
+        logger.error(f"Failed to delete drawing: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 

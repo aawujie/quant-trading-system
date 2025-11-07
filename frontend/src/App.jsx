@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import TradingChart from './components/TradingChart';
 import { useWebSocket } from './hooks/useWebSocket';
+import { useDrawingManager } from './hooks/useDrawingManager';
+import DrawingToolbar from './components/DrawingTools/DrawingToolbar';
+import DrawingCanvas from './components/DrawingTools/DrawingCanvas';
+import DrawingList from './components/DrawingTools/DrawingList';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -18,6 +22,14 @@ export default function App() {
   const markersRef = useRef([]);
   const hasLoadedData = useRef(false); // Track if data has been loaded
   const earliestTimestamp = useRef(null); // Track the earliest loaded timestamp
+
+  // 绘图管理
+  const drawingManager = useDrawingManager(
+    chartRef.current,
+    seriesRef.current?.candlestick,
+    symbol,
+    timeframe
+  );
 
   // Load historical K-line data - wrapped in useCallback
   const loadHistoricalData = useCallback(async () => {
@@ -368,6 +380,12 @@ export default function App() {
               <option value="4h">4小时</option>
               <option value="1d">1天</option>
             </select>
+
+            {/* 绘图工具栏 */}
+            <DrawingToolbar
+              activeTool={drawingManager.activeTool}
+              onToolSelect={drawingManager.activateTool}
+            />
           </div>
 
           {error && (
@@ -380,15 +398,37 @@ export default function App() {
             </div>
           )}
 
-          <TradingChart 
-            symbol={symbol} 
-            onChartReady={handleChartReady}
-            onLoadMore={loadMoreData}
-          />
+          <div style={{ position: 'relative' }}>
+            <TradingChart 
+              symbol={symbol} 
+              onChartReady={handleChartReady}
+              onLoadMore={loadMoreData}
+            />
+            
+            {/* 绘图画布覆盖层 */}
+            {chartRef.current && (
+              <DrawingCanvas
+                chart={chartRef.current}
+                canvasRef={drawingManager.canvasRef}
+                onMouseDown={drawingManager.handleMouseDown}
+                onMouseMove={drawingManager.handleMouseMove}
+                onMouseUp={drawingManager.handleMouseUp}
+                redrawCanvas={drawingManager.redrawCanvas}
+                isDrawingMode={drawingManager.activeTool !== null}
+              />
+            )}
+          </div>
         </div>
 
         <aside className="signal-panel">
-          <h3>交易信号 ({signals.length})</h3>
+          {/* 绘图列表 */}
+          <DrawingList
+            drawings={drawingManager.drawings}
+            onDelete={drawingManager.deleteDrawing}
+          />
+
+          {/* 交易信号 */}
+          <h3 style={{ marginTop: '2rem' }}>交易信号 ({signals.length})</h3>
           <div className="signal-list">
             {signals.map((signal, idx) => (
               <div key={idx} className={`signal signal-${signal.signal_type.toLowerCase()}`}>
