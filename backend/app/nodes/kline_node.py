@@ -89,9 +89,9 @@ class KlineNode(ProducerNode):
         # Background tasks
         self._flush_task = None
         
-        # Output topics
+        # Output topics (包含market_type以区分现货/永续)
         self.output_topics = [
-            f"kline:{symbol}:{tf}"
+            f"kline:{symbol}:{tf}:{market_type}"
             for symbol in symbols
             for tf in timeframes
         ]
@@ -311,7 +311,7 @@ class KlineNode(ProducerNode):
             
             # ========== ZERO-LATENCY PUBLISH ==========
             # Publish to message bus immediately (don't wait for DB)
-            topic = f"kline:{symbol}:{timeframe}"
+            topic = f"kline:{symbol}:{timeframe}:{self.market_type}"
             for kline in new_klines:
                 await self.emit(topic, kline.model_dump())
             

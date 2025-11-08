@@ -16,18 +16,21 @@ export default function App() {
   const [timeframe, setTimeframe] = useState('1h');
   const [marketType, setMarketType] = useState('future'); // 市场类型：spot(现货) / future(永续)
   
-  // Use refs to store latest symbol/timeframe for WebSocket callbacks
+  // Use refs to store latest symbol/timeframe/marketType for WebSocket callbacks
   const symbolRef = useRef(symbol);
   const timeframeRef = useRef(timeframe);
+  const marketTypeRef = useRef(marketType);
   
-  // Update refs when symbol/timeframe changes
+  // Update refs when symbol/timeframe/marketType changes
   useEffect(() => {
     symbolRef.current = symbol;
     timeframeRef.current = timeframe;
-  }, [symbol, timeframe]);
+    marketTypeRef.current = marketType;
+  }, [symbol, timeframe, marketType]);
   const [signals, setSignals] = useState([]);
   const [isLoading, setIsLoading] = useState(false); // Changed to false
   const [error, setError] = useState(null);
+  const [noDataMessage, setNoDataMessage] = useState(null); // 无数据提示
 
   // 实时价格数据
   const [priceData, setPriceData] = useState({
@@ -165,6 +168,7 @@ export default function App() {
       console.log('🔄 Loading historical data...');
       setIsLoading(true);
       setError(null);
+      setNoDataMessage(null); // 清除之前的提示
 
       // Fetch K-lines
       console.log(`📡 Fetching: ${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200&market_type=${marketType}`);
@@ -230,8 +234,21 @@ export default function App() {
 
         // Load signals
         await loadSignals();
+      } else if (klines.length === 0) {
+        // 没有数据，显示友好提示
+        console.warn('⚠️ No K-line data available for this market type');
+        const marketTypeName = marketType === 'spot' ? '现货' : marketType === 'future' ? '永续合约' : marketType;
+        const otherMarketType = marketType === 'spot' ? 'future' : 'spot';
+        const otherMarketTypeName = otherMarketType === 'spot' ? '现货' : '永续合约';
+        
+        setNoDataMessage({
+          type: marketType,
+          typeName: marketTypeName,
+          otherType: otherMarketType,
+          otherTypeName: otherMarketTypeName
+        });
       } else {
-        console.warn('⚠️ No data or seriesRef not ready');
+        console.warn('⚠️ seriesRef not ready');
       }
 
       console.log('✅ Data loading complete, setting isLoading=false');
@@ -365,6 +382,7 @@ export default function App() {
     console.log('🔄 Switching symbol to:', newSymbol);
     setSymbol(newSymbol);
     setSignals([]);
+    setNoDataMessage(null); // 清除无数据提示
     hasLoadedData.current = false; // Reset to allow data reload
     earliestTimestamp.current = null; // Reset earliest timestamp
     if (seriesRef.current) {
@@ -386,6 +404,7 @@ export default function App() {
     console.log('🔄 Switching timeframe to:', newTimeframe);
     setTimeframe(newTimeframe);
     setSignals([]);
+    setNoDataMessage(null); // 清除无数据提示
     hasLoadedData.current = false; // Reset to allow data reload
     earliestTimestamp.current = null; // Reset earliest timestamp
     if (seriesRef.current) {
@@ -407,6 +426,7 @@ export default function App() {
     console.log('🔄 Switching market type to:', newMarketType);
     setMarketType(newMarketType);
     setSignals([]);
+    setNoDataMessage(null); // 清除无数据提示
     hasLoadedData.current = false; // Reset to allow data reload
     earliestTimestamp.current = null; // Reset earliest timestamp
     if (seriesRef.current) {
@@ -467,19 +487,23 @@ export default function App() {
 
   // Handle K-line update
   const handleKlineUpdate = (kline) => {
-    // Use refs to get latest symbol/timeframe (avoid closure issues)
+    // Use refs to get latest symbol/timeframe/marketType (avoid closure issues)
     const currentSymbol = symbolRef.current;
     const currentTimeframe = timeframeRef.current;
+    const currentMarketType = marketTypeRef.current;
     
     // Debug: log all received K-lines
     console.log('🔍 Checking K-line:', {
-      received: `${kline.symbol}:${kline.timeframe}`,
-      expected: `${currentSymbol}:${currentTimeframe}`,
+      received: `${kline.symbol}:${kline.timeframe}:${kline.market_type}`,
+      expected: `${currentSymbol}:${currentTimeframe}:${currentMarketType}`,
       hasSeriesRef: !!seriesRef.current,
-      match: kline.symbol === currentSymbol && kline.timeframe === currentTimeframe
+      match: kline.symbol === currentSymbol && kline.timeframe === currentTimeframe && kline.market_type === currentMarketType
     });
 
-    if (seriesRef.current && kline.symbol === currentSymbol && kline.timeframe === currentTimeframe) {
+    if (seriesRef.current && 
+        kline.symbol === currentSymbol && 
+        kline.timeframe === currentTimeframe && 
+        kline.market_type === currentMarketType) {
       // Debug: 检查数据格式
       if (typeof kline.timestamp !== 'number') {
         console.error('❌ Invalid timestamp type:', typeof kline.timestamp, kline.timestamp);
@@ -567,7 +591,7 @@ export default function App() {
   useEffect(() => {
     if (isConnected) {
       const topics = [
-        `kline:${symbol}:${timeframe}`,
+        `kline:${symbol}:${timeframe}:${marketType}`,
         `indicator:${symbol}:${timeframe}`,
         `signal:dual_ma:${symbol}`,
       ];
@@ -575,13 +599,13 @@ export default function App() {
       subscribe(topics);
       console.log('📡 Subscribed to topics:', topics);
 
-      // Cleanup: unsubscribe when symbol/timeframe changes
+      // Cleanup: unsubscribe when symbol/timeframe/marketType changes
       return () => {
         unsubscribe(topics);
         console.log('📡 Unsubscribed from topics:', topics);
       };
     }
-  }, [isConnected, symbol, timeframe, subscribe, unsubscribe]);
+  }, [isConnected, symbol, timeframe, marketType, subscribe, unsubscribe]);
 
   return (
     <div className="app">
@@ -692,6 +716,81 @@ export default function App() {
           {isLoading && (
             <div className="loading" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
               加载数据中...
+            </div>
+          )}
+
+          {/* 无数据提示 */}
+          {noDataMessage && !isLoading && (
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 10,
+              background: 'rgba(33, 33, 33, 0.95)',
+              border: '2px solid #FF9800',
+              borderRadius: '12px',
+              padding: '32px 48px',
+              textAlign: 'center',
+              maxWidth: '600px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
+              <h3 style={{ color: '#FF9800', fontSize: '20px', marginBottom: '16px', fontWeight: '600' }}>
+                暂无{noDataMessage.typeName}数据
+              </h3>
+              <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.6', marginBottom: '24px' }}>
+                当前市场类型：<strong style={{ color: '#FF9800' }}>{noDataMessage.typeName}</strong>
+                <br />
+                后端没有运行相应的数据采集节点
+              </p>
+              
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '24px',
+                textAlign: 'left'
+              }}>
+                <div style={{ color: '#aaa', fontSize: '13px', marginBottom: '8px' }}>💡 解决方案：</div>
+                <div style={{ color: '#eee', fontSize: '13px', lineHeight: '1.8' }}>
+                  <strong>方案1：</strong>启动{noDataMessage.typeName}数据节点
+                  <br />
+                  <code style={{
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    display: 'inline-block',
+                    marginTop: '8px',
+                    color: '#4CAF50'
+                  }}>
+                    MARKET_TYPE={noDataMessage.type} python -m app.main --node kline ...
+                  </code>
+                  <br /><br />
+                  <strong>方案2：</strong>切换到 {noDataMessage.otherTypeName} 查看数据
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleMarketTypeChange(noDataMessage.otherType)}
+                style={{
+                  padding: '12px 32px',
+                  background: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(33, 150, 243, 0.3)'
+                }}
+                onMouseOver={(e) => e.target.style.background = '#1976D2'}
+                onMouseOut={(e) => e.target.style.background = '#2196F3'}
+              >
+                {noDataMessage.otherType === 'spot' ? '💵' : '📈'} 切换到{noDataMessage.otherTypeName}
+              </button>
             </div>
           )}
 
