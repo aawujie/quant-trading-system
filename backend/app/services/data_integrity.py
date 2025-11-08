@@ -280,10 +280,9 @@ class DataIntegrityService:
                     logger.debug(f"   No K-lines returned for {start_ts}-{end_ts}")
                     continue
                 
-                # 保存到数据库
-                for kline_data in klines:
-                    # 创建KlineData对象
-                    kline = KlineData(
+                # 批量保存到数据库（使用 upsert，自动处理重复数据）
+                kline_objects = [
+                    KlineData(
                         symbol=kline_data['symbol'],
                         timeframe=kline_data['timeframe'],
                         timestamp=kline_data['timestamp'],
@@ -294,12 +293,14 @@ class DataIntegrityService:
                         volume=kline_data['volume'],
                         market_type=market_type
                     )
-                    
-                    success = await self.db.insert_kline(kline)
-                    if success:
-                        total_filled += 1
+                    for kline_data in klines
+                ]
                 
-                logger.debug(f"   Filled {len(klines)} K-lines for gap {start_ts}-{end_ts}")
+                # 使用 bulk_insert_klines，它会自动处理重复数据（on_conflict_do_update）
+                affected = await self.db.bulk_insert_klines(kline_objects)
+                total_filled += affected
+                
+                logger.debug(f"   Filled {affected} K-lines for gap {start_ts}-{end_ts}")
                 
                 # 避免API限流
                 await asyncio.sleep(0.2)
