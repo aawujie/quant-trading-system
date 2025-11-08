@@ -188,7 +188,8 @@ async def get_indicators(
     symbol: str,
     timeframe: str,
     limit: int = Query(500, ge=1, le=1000, description="Number of indicators to fetch"),
-    before: Optional[int] = Query(None, description="Fetch indicators before this timestamp")
+    before: Optional[int] = Query(None, description="Fetch indicators before this timestamp"),
+    market_type: str = Query('future', description="Market type: spot, future, delivery")
 ):
     """
     Get recent indicator data (batch)
@@ -198,12 +199,13 @@ async def get_indicators(
         timeframe: Timeframe (e.g., 1h, 1d)
         limit: Number of indicators to fetch (max 1000)
         before: Optional timestamp - fetch indicators before this timestamp
+        market_type: Market type (spot, future, delivery)
         
     Returns:
         List of indicator data, sorted by timestamp ascending
     """
     try:
-        indicators = await db.get_recent_indicators(symbol, timeframe, limit, before)
+        indicators = await db.get_recent_indicators(symbol, timeframe, limit, before, market_type)
         return indicators
     except Exception as e:
         logger.error(f"Failed to fetch indicators: {e}")
@@ -213,7 +215,8 @@ async def get_indicators(
 @app.get("/api/indicators/{symbol}/{timeframe}/latest", response_model=Optional[IndicatorData])
 async def get_latest_indicator(
     symbol: str,
-    timeframe: str
+    timeframe: str,
+    market_type: str = Query('future', description="Market type: spot, future, delivery")
 ):
     """
     Get the latest indicator data
@@ -221,18 +224,19 @@ async def get_latest_indicator(
     Args:
         symbol: Trading symbol
         timeframe: Timeframe
+        market_type: Market type (spot, future, delivery)
         
     Returns:
         Latest indicator data or None
     """
     try:
         # Get latest K-line timestamp
-        timestamp = await db.get_last_kline_time(symbol, timeframe)
+        timestamp = await db.get_last_kline_time(symbol, timeframe, market_type)
         
         if not timestamp:
             return None
         
-        indicator = await db.get_indicator_at(symbol, timeframe, timestamp)
+        indicator = await db.get_indicator_at(symbol, timeframe, timestamp, market_type)
         return indicator
     except Exception as e:
         logger.error(f"Failed to fetch latest indicator: {e}")

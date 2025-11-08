@@ -15,6 +15,7 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
   const chartRef = useRef(null);
   const seriesRef = useRef({});
   const isLoadingMore = useRef(false);
+  const lastLoadTimeRef = useRef(0); // Track last load time to prevent rapid triggers
   const onLoadMoreRef = useRef(onLoadMore); // Store the latest onLoadMore callback
   
   // Update the ref whenever onLoadMore changes
@@ -101,7 +102,14 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
       // When user scrolls to the left edge, trigger loading
       // Lower threshold = less frequent triggers
       if (logicalRange.from < 10 && logicalRange.from >= 0) {
+        // Prevent rapid triggers: require at least 2 seconds between loads
+        const now = Date.now();
+        if (now - lastLoadTimeRef.current < 2000) {
+          return;
+        }
+        
         console.log('📥 Near left edge, loading more data...');
+        lastLoadTimeRef.current = now;
         isLoadingMore.current = true;
         
         // Trigger load more - use ref to get the latest callback

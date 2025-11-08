@@ -410,7 +410,7 @@ export default function App() {
       
       // 使用批量API加载指标数据
       const response = await axios.get(
-        `${API_BASE_URL}/api/indicators/${symbol}/${timeframe}?limit=500`
+        `${API_BASE_URL}/api/indicators/${symbol}/${timeframe}?limit=500&market_type=${marketType}`
       );
 
       const indicators = response.data;
