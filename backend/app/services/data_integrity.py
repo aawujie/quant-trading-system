@@ -111,7 +111,7 @@ class DataIntegrityService:
                         
                         if auto_fix:
                             filled = await self.backfill_indicators(
-                                symbol, timeframe, indicator_gaps
+                                symbol, timeframe, indicator_gaps, market_type
                             )
                             total_indicators_filled += filled
                 
@@ -323,10 +323,14 @@ class DataIntegrityService:
         self,
         symbol: str,
         timeframe: str,
-        missing_timestamps: List[int]
+        missing_timestamps: List[int],
+        market_type: str = 'spot'
     ) -> int:
         """
         回补指标数据
+        
+        Args:
+            market_type: 市场类型 (spot, future, delivery)
         
         Returns:
             Number of indicators filled
@@ -357,7 +361,7 @@ class DataIntegrityService:
             try:
                 # 获取该时间点及之前的K线（用于计算）
                 klines_before = await self.db.get_klines_before(
-                    symbol, timeframe, timestamp, limit=max_required
+                    symbol, timeframe, timestamp, limit=max_required, market_type=market_type
                 )
                 
                 # 至少需要 min_required 根K线才能开始计算指标
