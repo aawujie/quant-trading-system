@@ -434,10 +434,14 @@ class IndicatorNode(ProcessorNode):
             )
             
             # Create IndicatorData object
+            # 从 K线数据中获取 market_type（所有K线应该有相同的 market_type）
+            market_type = klines[0].market_type if klines else 'spot'
+            
             indicator = IndicatorData(
                 symbol=symbol,
                 timeframe=timeframe,
                 timestamp=int(df['timestamp'].iloc[latest_idx]),
+                market_type=market_type,
                 ma5=float(ma5[latest_idx]) if not np.isnan(ma5[latest_idx]) else None,
                 ma10=float(ma10[latest_idx]) if not np.isnan(ma10[latest_idx]) else None,
                 ma20=float(ma20[latest_idx]) if not np.isnan(ma20[latest_idx]) else None,

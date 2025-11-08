@@ -215,6 +215,7 @@ class IndicatorData(BaseModel):
     symbol: str = Field(..., description="Trading pair symbol (e.g., 'BTCUSDT')")
     timeframe: str = Field(..., description="Timeframe (e.g., '1h', '1d')")
     timestamp: int = Field(..., description="Unix timestamp in seconds")
+    market_type: str = Field(default='spot', description="Market type: 'spot', 'future', 'delivery'")
     
     # Moving Averages
     ma5: Optional[float] = Field(None, description="5-period simple moving average")

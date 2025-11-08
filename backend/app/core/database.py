@@ -51,6 +51,7 @@ class IndicatorDB(Base):
     symbol = Column(String(20), nullable=False, index=True)
     timeframe = Column(String(10), nullable=False, index=True)
     timestamp = Column(BigInteger, nullable=False, index=True)
+    market_type = Column(String(20), nullable=False, server_default='spot', index=True)  # spot, future, delivery
     ma5 = Column(Float)
     ma10 = Column(Float)
     ma20 = Column(Float)
@@ -70,7 +71,7 @@ class IndicatorDB(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     __table_args__ = (
-        Index('idx_indicators_lookup', 'symbol', 'timeframe', 'timestamp', unique=True),
+        Index('idx_indicators_lookup', 'symbol', 'timeframe', 'timestamp', 'market_type', unique=True),
     )
 
 
@@ -390,6 +391,7 @@ class Database:
                     symbol=indicator.symbol,
                     timeframe=indicator.timeframe,
                     timestamp=indicator.timestamp,
+                    market_type=indicator.market_type,
                     ma5=indicator.ma5,
                     ma10=indicator.ma10,
                     ma20=indicator.ma20,
@@ -419,7 +421,8 @@ class Database:
         self, 
         symbol: str, 
         timeframe: str, 
-        timestamp: int
+        timestamp: int,
+        market_type: str = 'spot'
     ) -> Optional[IndicatorData]:
         """Get indicator at specific timestamp"""
         async with self.SessionLocal() as session:
@@ -428,7 +431,8 @@ class Database:
                 .where(
                     IndicatorDB.symbol == symbol,
                     IndicatorDB.timeframe == timeframe,
-                    IndicatorDB.timestamp == timestamp
+                    IndicatorDB.timestamp == timestamp,
+                    IndicatorDB.market_type == market_type
                 )
             )
             row = result.scalar_one_or_none()
@@ -440,6 +444,7 @@ class Database:
                 symbol=row.symbol,
                 timeframe=row.timeframe,
                 timestamp=row.timestamp,
+                market_type=row.market_type,
                 ma5=row.ma5,
                 ma10=row.ma10,
                 ma20=row.ma20,
@@ -463,7 +468,8 @@ class Database:
         symbol: str,
         timeframe: str,
         limit: int = 500,
-        before: Optional[int] = None
+        before: Optional[int] = None,
+        market_type: str = 'spot'
     ) -> List[IndicatorData]:
         """
         Get recent indicators
@@ -473,6 +479,7 @@ class Database:
             timeframe: Timeframe
             limit: Number of indicators to fetch
             before: Optional timestamp - fetch indicators before this timestamp
+            market_type: Market type (spot, future, delivery)
             
         Returns:
             List of indicator data, sorted by timestamp ascending
@@ -480,7 +487,8 @@ class Database:
         async with self.SessionLocal() as session:
             query = select(IndicatorDB).where(
                 IndicatorDB.symbol == symbol,
-                IndicatorDB.timeframe == timeframe
+                IndicatorDB.timeframe == timeframe,
+                IndicatorDB.market_type == market_type
             )
             
             if before:
@@ -497,6 +505,7 @@ class Database:
                     symbol=row.symbol,
                     timeframe=row.timeframe,
                     timestamp=row.timestamp,
+                    market_type=row.market_type,
                     ma5=row.ma5,
                     ma10=row.ma10,
                     ma20=row.ma20,

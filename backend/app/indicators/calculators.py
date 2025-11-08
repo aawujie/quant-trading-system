@@ -491,6 +491,7 @@ class IndicatorCalculatorSet:
             'symbol': kline.symbol,
             'timeframe': kline.timeframe,
             'timestamp': kline.timestamp,
+            'market_type': kline.market_type,
             'ma5': ma5,
             'ma10': ma10,
             'ma20': ma20,
