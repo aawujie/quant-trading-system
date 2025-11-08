@@ -1,12 +1,12 @@
-# 数据修复模式对比：按时间 vs 按数量
+# 数据修复模式说明
 
 ## 📋 概述
 
-数据修复系统支持两种模式：
-- **按时间修复**：检查指定时间范围内的数据完整性
-- **按数量修复**：检查最近N根K线的数据完整性
+数据修复系统采用**固定混合模式**：
+- **K线修复**：固定按时间（days_back）
+- **指标修复**：固定按数量（klines_count）
 
-但并非所有修复类型都适用两种模式。
+这是经过深思熟虑的设计决策，不是可选的。
 
 ---
 
@@ -16,12 +16,11 @@
 
 | 维度 | K线修复 | 指标修复 |
 |------|--------|---------|
+| **固定模式** | **按时间** | **按数量** |
 | **数据源** | 交易所 API（外部） | 本地K线数据（内部） |
-| **按时间** | ✅ 合理 | ✅ 合理 |
-| **按数量** | ❌ 不合理 | ✅ 合理 |
 | **缺失原因** | 系统故障、网络中断 | 计算遗漏、程序bug |
 | **修复方式** | 从交易所拉取历史数据 | 基于已有K线计算 |
-| **时间语义** | 必须明确时间范围 | 可以只关心数量 |
+| **参数** | `days_back` | `klines_count` |
 | **API限制** | `fetch_klines(start_time, end_time)` | 本地计算，无API限制 |
 
 ---
@@ -97,7 +96,7 @@ klines_count = 2000  ❓ 为什么需要这么久远的数据？
 
 ---
 
-## ✅ 为什么指标修复可以按数量？
+## ✅ 为什么指标修复固定按数量？
 
 ### 1. 数据源是本地的
 
@@ -110,34 +109,23 @@ klines_count = 2000  ❓ 为什么需要这么久远的数据？
 4. 保存到数据库
 ```
 
-### 2. 灵活性高
+### 2. 统一样本量
 
-**可以按时间或数量，都有明确语义：**
+**固定按数量确保回测公平：**
 ```python
-# 按时间：确保最近30天的指标完整
-days_back = 30
-→ 适合生产环境，确保时间连续性
-
-# 按数量：确保每个周期都有2000个指标
+# 固定数量：确保每个周期都有相同数量的指标
 klines_count = 2000
-→ 适合回测和策略开发，数量一致更公平
+
+效果：
+  1d: 2000根指标
+  1h: 2000根指标
+  3m: 2000根指标
+
+→ 样本量统一，回测对比公平
+→ 策略开发时，控制变量一致
 ```
 
-### 3. 回测友好
-
-**策略开发时，相同数量更合理：**
-```python
-# 回测场景：对比不同周期的策略表现
-策略A在1d周期：用2000根K线回测 = 5.5年
-策略B在1h周期：用2000根K线回测 = 83天
-
-虽然时间跨度不同，但：
-✅ 样本量相同（都是2000个交易点）
-✅ 统计意义相当
-✅ 对比更公平
-```
-
-### 4. 无外部依赖
+### 3. 无外部依赖
 
 ```python
 # 指标计算示例
@@ -234,14 +222,14 @@ for kline in klines:
 
 ---
 
-## 🎯 配置建议
+## 🎯 配置说明
 
-### ⭐ 推荐：混合模式（K线按时间 + 指标按数量）
+### 固定混合模式（唯一模式）
 
 ```python
 # config.py
-repair_days_back = 30        # K线修复：检查最近30天
-repair_klines_count = 2000   # 指标修复：每个周期2000根
+repair_days_back = 30        # K线修复：固定按时间（30天）
+repair_klines_count = 2000   # 指标修复：固定按数量（2000根）
 
 # 效果
 K线：
@@ -252,29 +240,29 @@ K线：
   1h:  2000 根指标（83天）
   3m:  2000 根指标（4天）
 
-# 优势
+# 原理
 ✅ K线时间连续性有保障（按时间）
 ✅ 指标样本量统一公平（按数量）
 ✅ 兼顾生产稳定性和回测需求
-✅ 最佳实践
 ```
 
-### 生产环境（全按时间）
+### 启动时快速检查
 
 ```python
-# 节点启动时快速检查
+# 节点启动时自动运行
 repair_hours_back_on_startup = 1  # 最近1小时
-→ K线和指标都按时间检查
+
+# K线修复：1小时（按时间）
+# 指标修复：2000根（按数量）
 
 # 效果
-1d:  1 根（1小时 < 1天，无数据）
-1h:  1 根（1小时）
-3m:  20 根（1小时）
+快速检查最近时段的K线完整性
+确保2000根指标数据可用
 
 # 优势
 ✅ 快速启动
-✅ 只检查最近数据
-✅ 适合日常运行
+✅ K线检查最近时段
+✅ 指标保持统一样本量
 ```
 
 ---
@@ -315,43 +303,66 @@ async def backfill_klines(missing_timestamps):
         db.save_klines(klines)
 ```
 
-### 指标修复：支持按时间和按数量
+### 指标修复：固定按数量
 
 ```python
 async def detect_indicator_gaps(
-    days_back: float = None,
-    klines_count: int = None
-):
-    """指标缺失检测（支持两种模式）"""
-    if klines_count:
-        # 按数量模式：获取最近N根K线
-        klines = db.get_recent_klines(limit=klines_count)
-        kline_timestamps = {k.timestamp for k in klines}
-    else:
-        # 按时间模式：获取时间范围内的K线
-        cutoff = now - days_back * 86400
-        klines = db.get_klines_after(cutoff)
-        kline_timestamps = {k.timestamp for k in klines}
+    symbol: str,
+    timeframe: str,
+    klines_count: int,
+    market_type: str = 'spot'
+) -> List[int]:
+    """指标缺失检测（固定按数量）"""
     
-    # 获取已有的指标
-    indicators = db.get_indicators()
+    # 1. 获取最近 N 根K线的时间戳（基准）
+    klines = await db.get_recent_klines(
+        symbol, timeframe, 
+        limit=klines_count,
+        market_type=market_type
+    )
+    kline_timestamps = {k.timestamp for k in klines}
+    
+    if not kline_timestamps:
+        return []
+    
+    # 2. 获取已有的指标
+    indicators = await db.get_recent_indicators(
+        symbol, timeframe, 
+        limit=klines_count,
+        market_type=market_type
+    )
     indicator_timestamps = {i.timestamp for i in indicators}
     
-    # 找出有K线但没指标的
-    missing = kline_timestamps - indicator_timestamps
+    # 3. 找出有K线但没指标的
+    missing = sorted(kline_timestamps - indicator_timestamps)
     
     return missing
 
-async def backfill_indicators(missing_timestamps):
+async def backfill_indicators(
+    symbol: str,
+    timeframe: str, 
+    missing_timestamps: List[int],
+    market_type: str = 'spot'
+) -> int:
     """本地计算指标"""
+    filled = 0
+    
     for timestamp in missing_timestamps:
-        # 获取该时间点的K线
-        kline = db.get_kline_at(timestamp)
+        # 获取该时间点之前的K线（用于计算指标）
+        klines_before = await db.get_klines_before(
+            symbol, timeframe, timestamp,
+            limit=max_required_klines,
+            market_type=market_type
+        )
         
         # 本地计算指标（不需要交易所API）
-        indicator = calculate_indicators(kline)
+        indicator = calculate_indicators(klines_before)
         
-        db.save_indicator(indicator)
+        if indicator:
+            await db.insert_indicator(indicator)
+            filled += 1
+    
+    return filled
 ```
 
 ---
@@ -389,21 +400,10 @@ K线修复：
 
 ## ⚠️ 注意事项
 
-### 1. 按数量模式的限制
+### 1. 数据不足时的行为
 
 ```python
-repair_by_count = True
-
-限制：
-❌ 不支持K线修复（自动跳过）
-✅ 只支持指标修复
-⚠️  如果数据库K线不足2000根，会修复所有可用的
-```
-
-### 2. 数据不足时的行为
-
-```python
-# 按数量模式，期望2000根，但只有311根
+# 指标修复：期望2000根，但数据库只有311根
 klines_count = 2000
 actual_klines = 311
 
@@ -411,72 +411,83 @@ actual_klines = 311
 → 获取全部311根K线
 → 检测和修复这311根的指标
 → 不会报错
-→ 日志会显示实际数量：
+→ 日志显示：
    "K-lines in range: 311"
+   "Missing indicators: X"
 ```
 
-### 3. 混合使用建议
+### 2. 参数调整建议
 
 ```python
-# 生产环境：按时间（每天自动运行）
-if is_production:
-    repair_by_count = False
-    repair_days_back = 7  # 检查最近一周
+# 根据实际需求调整参数
+repair_days_back = 30        # K线：30天够用吗？
+repair_klines_count = 2000   # 指标：2000根够用吗？
 
-# 开发环境：按数量（手动运行）
-if is_development:
-    repair_by_count = True
-    repair_klines_count = 2000  # 统一样本量
+# 快速检查
+repair_hours_back_on_startup = 1  # 节点启动时检查1小时
+
+# 示例配置
+# 轻量级：7天 + 500根
+repair_days_back = 7
+repair_klines_count = 500
+
+# 标准：30天 + 2000根（推荐）
+repair_days_back = 30
+repair_klines_count = 2000
+
+# 重量级：90天 + 5000根
+repair_days_back = 90
+repair_klines_count = 5000
 ```
 
 ---
 
 ## 🎓 总结
 
-### 核心原则
+### 核心原则（固定）
 
-**K线修复 = 外部数据同步 → 必须按时间**
+**K线修复 = 外部数据同步 → 固定按时间**
 - 数据来自交易所API
 - API要求时间范围
 - 时间缺口有明确语义
+- **参数：`days_back`**
 
-**指标修复 = 本地数据计算 → 可按时间或数量**
+**指标修复 = 本地数据计算 → 固定按数量**
 - 数据来自本地K线
-- 本地计算，灵活度高
-- 按数量有实际意义（回测、对比）
+- 本地计算，无API限制
+- 样本量统一，回测公平
+- **参数：`klines_count`**
 
-### 选择建议
-
-| 场景 | K线修复 | 指标修复 | 原因 |
-|------|--------|---------|------|
-| **⭐ 推荐** | **按时间** | **按数量** | **兼顾时间连续性和样本统一性** |
-| 生产环境 | 按时间 | 按数量 | 确保K线连续，指标样本充足 |
-| 实时交易 | 按时间 | 按时间 | 只需最近的数据 |
-| 策略回测 | 按时间 | 按数量 | K线连续，指标样本统一 |
-| 算法研究 | 不修复 | 按数量 | 只关心指标，样本量一致 |
-| 紧急修复 | 按时间 | 按时间 | 快速修复最近时段 |
-| 节点启动 | 按时间 | 按时间 | 快速检查最近几小时 |
-
-### 最佳实践
+### 固定配置
 
 ```python
-# ⭐ 推荐配置（混合模式）
-repair_days_back = 30        # K线：确保30天时间连续性
-repair_klines_count = 2000   # 指标：统一2000根样本量
+# 唯一模式（固定混合）
+repair_days_back = 30        # K线：固定按时间（30天）
+repair_klines_count = 2000   # 指标：固定按数量（2000根）
 
 # 节点启动时的快速检查
-repair_hours_back_on_startup = 1  # 只检查最近1小时
+repair_hours_back_on_startup = 1  # K线检查1小时，指标仍然2000根
 
 # 使用方式
-# 1. 节点启动时自动运行（快速检查）
+# 1. 节点启动时自动运行
 python -m app.main kline --symbols BTCUSDT --timeframes 1h,3m
-→ 检查最近1小时的K线和指标（按时间）
+→ K线：检查最近1小时（按时间）
+→ 指标：检查最近2000根（按数量）
 
-# 2. 手动深度修复（混合模式）
+# 2. 手动深度修复
 ./scripts/repair_data.sh "BTCUSDT" "1h,3m"
 → K线：检查最近30天（按时间）
 → 指标：检查最近2000根（按数量）
 ```
+
+### 为什么这样设计？
+
+| 方面 | 原因 |
+|------|------|
+| **K线按时间** | 确保时间连续性，避免交易所数据缺失 |
+| **指标按数量** | 样本量统一，回测对比公平 |
+| **固定模式** | 简化逻辑，避免配置混乱 |
+| **不可更改** | 经过深思熟虑的架构决策 |
 
 ---
 
@@ -489,5 +500,5 @@ python -m app.main kline --symbols BTCUSDT --timeframes 1h,3m
 ---
 
 **最后更新：** 2025-11-08
-**版本：** v2.0 - 混合模式（K线按时间 + 指标按数量）
+**版本：** v3.0 - 固定混合模式（K线固定按时间 + 指标固定按数量）
 

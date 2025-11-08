@@ -336,14 +336,14 @@ async def main():
             repair_indicator = args.node in ["indicator", "all"]
             
             # Run quick repair (只检查最近几小时)
-            # 快速检查模式：K线和指标都按时间检测
+            # K线按时间，指标按数量（固定模式）
             hours_back = settings.repair_hours_back_on_startup
             
             await service.check_and_repair_all(
                 symbols=symbols,
                 timeframes=timeframes,
-                days_back=hours_back / 24,  # K线和指标都用时间（快速检查）
-                klines_count=None,           # 快速检查不用数量模式
+                days_back=hours_back / 24,          # K线：按时间（快速检查）
+                klines_count=settings.repair_klines_count,  # 指标：按数量
                 auto_fix=True,
                 market_type=settings.market_type,
                 repair_kline=repair_kline,
@@ -391,14 +391,14 @@ async def main():
             symbols = args.symbols.split(",")
             timeframes = args.timeframes.split(",")
             
-            # Deep repair: 混合模式
-            # - K线修复：按时间（确保时间连续性）
-            # - 指标修复：按数量（统一样本量）
+            # Deep repair: 固定模式
+            # - K线修复：固定按时间（确保时间连续性）
+            # - 指标修复：固定按数量（统一样本量）
             await service.check_and_repair_all(
                 symbols=symbols,
                 timeframes=timeframes,
-                days_back=settings.repair_days_back,      # K线用：按时间
-                klines_count=settings.repair_klines_count, # 指标用：按数量
+                days_back=settings.repair_days_back,      # K线：固定按时间
+                klines_count=settings.repair_klines_count, # 指标：固定按数量
                 auto_fix=True,
                 market_type=settings.market_type,
                 repair_kline=True,

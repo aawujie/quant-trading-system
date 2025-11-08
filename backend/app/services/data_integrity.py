@@ -32,8 +32,8 @@ class DataIntegrityService:
         self, 
         symbols: List[str],
         timeframes: List[str],
-        days_back: float = None,
-        klines_count: int = None,
+        days_back: float,
+        klines_count: int,
         auto_fix: bool = True,
         market_type: str = 'future',
         repair_kline: bool = True,
@@ -52,9 +52,9 @@ class DataIntegrityService:
             repair_kline: 是否修复K线数据
             repair_indicator: 是否修复指标数据
         
-        混合模式：
-        - K线修复：始终用 days_back（确保时间连续性）
-        - 指标修复：可用 days_back 或 klines_count（灵活选择）
+        固定模式：
+        - K线修复：固定用 days_back（按时间）
+        - 指标修复：固定用 klines_count（按数量）
         """
         logger.info("=" * 60)
         logger.info("🔍 Starting Data Integrity Check")
@@ -64,27 +64,20 @@ class DataIntegrityService:
         logger.info(f"Market type: {market_type}")
         logger.info("")
         
-        # 显示修复模式
-        logger.info("🔧 Repair Mode:")
-        if repair_kline and days_back:
+        # 显示修复模式（固定：K线按时间，指标按数量）
+        logger.info("🔧 Repair Mode (Fixed):")
+        
+        if repair_kline:
             if days_back < 1:
                 hours_back = days_back * 24
                 logger.info(f"  K-line: ✅ By time - {hours_back:.1f} hour(s)")
             else:
                 logger.info(f"  K-line: ✅ By time - {days_back:.1f} day(s)")
-        elif repair_kline:
-            logger.info(f"  K-line: ⚠️  Disabled (days_back not specified)")
         else:
             logger.info(f"  K-line: ❌ Disabled")
         
-        if repair_indicator and klines_count:
+        if repair_indicator:
             logger.info(f"  Indicator: ✅ By count - {klines_count} K-lines per timeframe")
-        elif repair_indicator and days_back:
-            if days_back < 1:
-                hours_back = days_back * 24
-                logger.info(f"  Indicator: ✅ By time - {hours_back:.1f} hour(s)")
-            else:
-                logger.info(f"  Indicator: ✅ By time - {days_back:.1f} day(s)")
         else:
             logger.info(f"  Indicator: ❌ Disabled")
         
@@ -104,8 +97,8 @@ class DataIntegrityService:
                 indicator_gaps = []
                 
                 # 1. 检测K线缺失（如果需要）
-                # K线修复：必须有 days_back（按时间检测）
-                if repair_kline and days_back:
+                # K线修复：固定按时间（days_back）
+                if repair_kline:
                     kline_gaps = await self.detect_kline_gaps(
                         symbol, timeframe, days_back, market_type
                     )
@@ -121,12 +114,10 @@ class DataIntegrityService:
                             total_klines_filled += filled
                 
                 # 2. 检测指标缺失（如果需要）
+                # 指标修复：固定按数量（klines_count）
                 if repair_indicator:
                     indicator_gaps = await self.detect_indicator_gaps(
-                        symbol, timeframe, 
-                        days_back=days_back,
-                        klines_count=klines_count,
-                        market_type=market_type
+                        symbol, timeframe, klines_count, market_type
                     )
                     total_indicator_gaps += len(indicator_gaps)
                     
@@ -233,51 +224,33 @@ class DataIntegrityService:
         self,
         symbol: str,
         timeframe: str,
-        days_back: float = None,
-        klines_count: int = None,
+        klines_count: int,
         market_type: str = 'spot'
     ) -> List[int]:
         """
-        检测指标数据缺失
+        检测指标数据缺失（固定按数量）
         
         Args:
-            days_back: 按时间检测（天数）
-            klines_count: 按数量检测（K线数量）
+            klines_count: 检测最近N根K线的指标（固定按数量）
             market_type: 市场类型 (spot, future, delivery)
-        
-        注意：days_back 和 klines_count 二选一
         
         Returns:
             List of missing timestamps
         """
-        # 获取K线时间戳（基准）
-        if klines_count:
-            # 按数量模式：获取最近 N 根K线
-            klines = await self.db.get_recent_klines(
-                symbol, timeframe, limit=klines_count, market_type=market_type
-            )
-            kline_timestamps = {k.timestamp for k in klines}
-            mode = f"{len(klines)} K-lines"
-        else:
-            # 按时间模式：获取时间范围内的K线
-            cutoff = int(datetime.now().timestamp()) - int(days_back * 86400)
-            klines = await self.db.get_recent_klines(
-                symbol, timeframe, limit=100000, market_type=market_type
-            )
-            kline_timestamps = {
-                k.timestamp for k in klines 
-                if k.timestamp >= cutoff
-            }
-            mode = f"{days_back} day(s)"
+        # 获取最近 N 根K线的时间戳（基准）
+        klines = await self.db.get_recent_klines(
+            symbol, timeframe, limit=klines_count, market_type=market_type
+        )
+        kline_timestamps = {k.timestamp for k in klines}
         
         if not kline_timestamps:
-            logger.debug(f"   No K-lines in range ({mode}), skipping indicator check")
+            logger.debug(f"   No K-lines found, skipping indicator check")
             return []
         
         # 获取指标时间戳
         indicators = await self.db.get_recent_indicators(
             symbol, timeframe, 
-            limit=klines_count or 100000,
+            limit=klines_count,
             market_type=market_type
         )
         indicator_timestamps = {i.timestamp for i in indicators}
@@ -285,7 +258,6 @@ class DataIntegrityService:
         # 找出有K线但没有指标的时间戳
         missing = sorted(kline_timestamps - indicator_timestamps)
         
-        logger.debug(f"   Mode: {mode}")
         logger.debug(f"   K-lines in range: {len(kline_timestamps)}")
         logger.debug(f"   Indicators in range: {len(indicator_timestamps & kline_timestamps)}")
         logger.debug(f"   Missing indicators: {len(missing)}")
