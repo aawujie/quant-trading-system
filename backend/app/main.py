@@ -391,15 +391,27 @@ async def main():
             timeframes = args.timeframes.split(",")
             
             # Deep repair: check both K-line and indicator data
-            await service.check_and_repair_all(
-                symbols=symbols,
-                timeframes=timeframes,
-                days_back=settings.repair_days_back,  # 使用完整的天数配置
-                auto_fix=True,
-                market_type=settings.market_type,
-                repair_kline=True,
-                repair_indicator=True
-            )
+            # 根据配置选择按时间或按数量模式
+            if settings.repair_by_count:
+                await service.check_and_repair_all(
+                    symbols=symbols,
+                    timeframes=timeframes,
+                    klines_count=settings.repair_klines_count,  # 按数量
+                    auto_fix=True,
+                    market_type=settings.market_type,
+                    repair_kline=True,
+                    repair_indicator=True
+                )
+            else:
+                await service.check_and_repair_all(
+                    symbols=symbols,
+                    timeframes=timeframes,
+                    days_back=settings.repair_days_back,  # 按时间
+                    auto_fix=True,
+                    market_type=settings.market_type,
+                    repair_kline=True,
+                    repair_indicator=True
+                )
             
             await exchange.close()
             
