@@ -15,6 +15,7 @@ export default function DrawingCanvas({
   isDrawingMode // 新增：是否处于绘图模式
 }) {
   const containerRef = useRef();
+  const crosshairPos = useRef({ x: null, y: null }); // 存储十字星位置
 
   useEffect(() => {
     if (!chart || !containerRef.current) return;
@@ -38,58 +39,96 @@ export default function DrawingCanvas({
     containerRef.current.appendChild(canvas);
     canvasRef.current = canvas;
 
-    // 包装 mousemove 事件，同时更新图表十字星
+    // 绘制十字星线
+    const drawCrosshair = (ctx, x, y) => {
+      if (x === null || y === null) return;
+      
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+      
+      // 绘制垂直线
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, ctx.canvas.height);
+      ctx.stroke();
+      
+      // 绘制水平线
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(ctx.canvas.width, y);
+      ctx.stroke();
+      
+      ctx.setLineDash([]);
+      ctx.restore();
+    };
+    
+    // 包装 mousemove 事件，更新十字星位置
     const handleMouseMove = (e) => {
+      // 更新十字星位置
+      const rect = canvas.getBoundingClientRect();
+      crosshairPos.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      
       // 调用绘图的 mousemove 处理
       onMouseMove(e);
       
-      // 如果在绘图模式，手动触发图表的十字星更新
+      // 在绘图模式下，触发重绘以更新十字星
       if (isDrawingMode) {
-        const chartContainer = chart.chartElement();
-        const rect = chartContainer.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        
-        // 触发图表的鼠标移动事件，使十字星跟随
-        const mouseEvent = new MouseEvent('mousemove', {
-          bubbles: true,
-          cancelable: true,
-          clientX: e.clientX,
-          clientY: e.clientY,
-          view: window
+        requestAnimationFrame(() => {
+          redrawWithCrosshair();
         });
-        chartContainer.dispatchEvent(mouseEvent);
       }
+    };
+    
+    // 包装 mouseleave 事件，清除十字星
+    const handleMouseLeave = (e) => {
+      crosshairPos.current = { x: null, y: null };
+      onMouseLeave(e);
+      
+      // 重绘
+      redrawWithCrosshair();
     };
     
     // 绑定鼠标事件到 canvas
     canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', onMouseUp);
-    canvas.addEventListener('mouseleave', onMouseLeave);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
 
-    // 初始绘制
-    if (redrawCanvas) {
+    // 包装 redrawCanvas，在重绘后添加十字星
+    const redrawWithCrosshair = () => {
+      if (!redrawCanvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       redrawCanvas();
-    }
+      
+      // 在绘图模式下绘制十字星
+      if (isDrawingMode && crosshairPos.current.x !== null) {
+        drawCrosshair(ctx, crosshairPos.current.x, crosshairPos.current.y);
+      }
+    };
+    
+    // 初始绘制
+    redrawWithCrosshair();
 
     // 监听窗口大小变化
     const handleResize = () => {
       const newRect = chartContainer.getBoundingClientRect();
       canvas.width = newRect.width;
       canvas.height = newRect.height;
-      if (redrawCanvas) {
-        redrawCanvas();
-      }
+      redrawWithCrosshair();
     };
 
     window.addEventListener('resize', handleResize);
 
     // 图表缩放/平移时重绘（时间轴和价格轴）
     const handleVisibleRangeChange = () => {
-      if (redrawCanvas) {
-        redrawCanvas();
-      }
+      redrawWithCrosshair();
     };
 
     const timeScale = chart.timeScale();
