@@ -30,11 +30,13 @@ export default function App() {
     marketTypeRef.current = marketType;
   }, [symbol, timeframe, marketType]);
 
-  // Clear series ref when switching away from trading view
+  // Clear refs and reset load flag when switching away from trading view
   useEffect(() => {
     if (currentView !== 'trading') {
       seriesRef.current = null;
       chartRef.current = null;
+      hasLoadedData.current = false; // Reset to allow reload when switching back
+      earliestTimestamp.current = null; // Reset earliest timestamp
     }
   }, [currentView]);
 
