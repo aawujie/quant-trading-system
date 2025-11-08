@@ -134,23 +134,27 @@ class BinanceExchange(ExchangeBase):
     
     async def fetch_ticker(self, symbol: str) -> TickerData:
         """
-        Fetch ticker data from Binance
+        Fetch ticker data from Binance (包含24小时统计)
         
         Args:
             symbol: Trading pair (e.g., 'BTC/USDT')
             
         Returns:
-            TickerData object
+            TickerData object with 24hr statistics
         """
         try:
             ticker = await self.exchange.fetch_ticker(symbol)
             
             return TickerData(
                 symbol=symbol.replace('/', ''),
-                bid=float(ticker['bid']),
-                ask=float(ticker['ask']),
+                bid=float(ticker['bid']) if ticker.get('bid') else 0.0,
+                ask=float(ticker['ask']) if ticker.get('ask') else 0.0,
                 last=float(ticker['last']),
-                volume_24h=float(ticker['quoteVolume']),
+                high=float(ticker['high']) if ticker.get('high') else None,
+                low=float(ticker['low']) if ticker.get('low') else None,
+                volume_24h=float(ticker['quoteVolume']) if ticker.get('quoteVolume') else 0.0,
+                price_change=float(ticker['change']) if ticker.get('change') else None,
+                price_change_percent=float(ticker['percentage']) if ticker.get('percentage') else None,
                 timestamp=int(ticker['timestamp'] / 1000)
             )
             

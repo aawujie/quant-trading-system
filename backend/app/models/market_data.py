@@ -46,14 +46,18 @@ class KlineData(BaseModel):
 
 class TickerData(BaseModel):
     """
-    Real-time ticker data model
+    Real-time ticker data model (24hr统计数据)
     """
     
     symbol: str = Field(..., description="Trading pair symbol")
     bid: float = Field(..., description="Best bid price")
     ask: float = Field(..., description="Best ask price")
     last: float = Field(..., description="Last traded price")
+    high: Optional[float] = Field(None, description="24-hour high price")
+    low: Optional[float] = Field(None, description="24-hour low price")
     volume_24h: float = Field(..., description="24-hour trading volume")
+    price_change: Optional[float] = Field(None, description="24-hour price change")
+    price_change_percent: Optional[float] = Field(None, description="24-hour price change percentage")
     timestamp: int = Field(..., description="Unix timestamp in seconds")
     
     class Config:

@@ -8,10 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import Database
 from app.config import settings
-from app.models.market_data import KlineData
+from app.models.market_data import KlineData, TickerData
 from app.models.indicators import IndicatorData
 from app.models.signals import SignalData
 from app.models.drawings import DrawingData
+from app.exchanges.binance import BinanceExchange
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +34,30 @@ app.add_middleware(
 
 # Database instance (will be initialized on startup)
 db: Optional[Database] = None
+exchange: Optional[BinanceExchange] = None
 
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup"""
-    global db
+    """Initialize database and exchange on startup"""
+    global db, exchange
     db = Database(settings.database_url)
     await db.create_tables()
+    
+    # Prepare proxy configuration
+    proxy_config = None
+    if settings.proxy_enabled:
+        proxy_config = {
+            'enabled': settings.proxy_enabled,
+            'host': settings.proxy_host,
+            'port': settings.proxy_port,
+            'username': settings.proxy_username,
+            'password': settings.proxy_password
+        }
+    
+    # Initialize exchange for ticker API (延迟加载，首次调用时自动加载markets)
+    exchange = BinanceExchange(proxy_config=proxy_config)
+    
     logger.info("REST API started")
 
 
@@ -118,6 +135,29 @@ async def get_latest_kline(
         return klines[0] if klines else None
     except Exception as e:
         logger.error(f"Failed to fetch latest K-line: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Ticker endpoints
+
+@app.get("/api/ticker/{symbol}", response_model=TickerData)
+async def get_ticker(symbol: str):
+    """
+    Get 24hr ticker statistics from exchange (交易所官方24小时统计数据)
+    
+    Args:
+        symbol: Trading symbol (e.g., 'BTCUSDT')
+        
+    Returns:
+        Ticker data with 24hr statistics
+    """
+    try:
+        # Convert BTCUSDT to BTC/USDT for exchange
+        exchange_symbol = f"{symbol[:-4]}/{symbol[-4:]}" if symbol.endswith('USDT') else symbol
+        ticker = await exchange.fetch_ticker(exchange_symbol)
+        return ticker
+    except Exception as e:
+        logger.error(f"Failed to fetch ticker for {symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import TradingChart from './components/TradingChart';
+import PriceDisplay from './components/PriceDisplay';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDrawingManager } from './hooks/useDrawingManager';
 import DrawingToolbar from './components/DrawingTools/DrawingToolbar';
@@ -16,6 +17,15 @@ export default function App() {
   const [signals, setSignals] = useState([]);
   const [isLoading, setIsLoading] = useState(false); // Changed to false
   const [error, setError] = useState(null);
+
+  // 实时价格数据
+  const [priceData, setPriceData] = useState({
+    currentPrice: null,
+    openPrice: null,
+    high24h: null,
+    low24h: null,
+    volume24h: null,
+  });
 
   const chartRef = useRef(null);
   const seriesRef = useRef(null);
@@ -108,6 +118,29 @@ export default function App() {
       console.error('❌ Failed to reset chart:', err);
     }
   }, []);
+
+  // Load 24h ticker data (独立于timeframe，初次加载)
+  const loadTickerData = useCallback(async (isInitialLoad = false) => {
+    try {
+      const tickerResponse = await axios.get(`${API_BASE_URL}/api/ticker/${symbol}`);
+      const ticker = tickerResponse.data;
+      
+      // 只更新24h统计数据
+      setPriceData(prev => ({
+        ...prev,
+        // 只在初次加载时设置currentPrice，之后由WebSocket实时更新
+        ...(isInitialLoad ? { currentPrice: ticker.last } : {}),
+        openPrice: ticker.last - (ticker.price_change || 0), // 反推24h前价格
+        high24h: ticker.high,
+        low24h: ticker.low,
+        volume24h: ticker.volume_24h,
+      }));
+      
+      console.log(`✅ Loaded 24h ticker data from exchange${isInitialLoad ? ' (initial)' : ' (refresh)'}`);
+    } catch (tickerErr) {
+      console.error('❌ Failed to load ticker data:', tickerErr);
+    }
+  }, [symbol]);
 
   // Load historical K-line data - wrapped in useCallback
   const loadHistoricalData = useCallback(async () => {
@@ -358,6 +391,18 @@ export default function App() {
     }
   };
 
+  // Load ticker data when symbol changes (独立于timeframe)
+  useEffect(() => {
+    loadTickerData(true); // 初次加载，会设置currentPrice
+    
+    // 定期刷新ticker数据（每30秒，只更新24h统计，不更新currentPrice）
+    const tickerInterval = setInterval(() => {
+      loadTickerData(false); // 定期刷新，不更新currentPrice
+    }, 30000);
+    
+    return () => clearInterval(tickerInterval);
+  }, [symbol, loadTickerData]);
+
   // Reload data when symbol or timeframe changes
   useEffect(() => {
     if (seriesRef.current && !hasLoadedData.current) {
@@ -373,6 +418,13 @@ export default function App() {
     if (!topic || !data) return;
 
     if (topic.startsWith('kline:')) {
+      // Debug: 打印原始数据
+      console.log('📨 收到K线数据:', {
+        topic,
+        timestamp: data.timestamp,
+        timestamp_type: typeof data.timestamp,
+        data: data
+      });
       handleKlineUpdate(data);
     } else if (topic.startsWith('indicator:')) {
       handleIndicatorUpdate(data);
@@ -384,6 +436,13 @@ export default function App() {
   // Handle K-line update
   const handleKlineUpdate = (kline) => {
     if (seriesRef.current && kline.symbol === symbol && kline.timeframe === timeframe) {
+      // Debug: 检查数据格式
+      if (typeof kline.timestamp !== 'number') {
+        console.error('❌ Invalid timestamp type:', typeof kline.timestamp, kline.timestamp);
+        console.error('Full kline data:', kline);
+        return;
+      }
+      
       // Use timestamp directly - chart will display based on browser timezone
       seriesRef.current.candlestick.update({
         time: kline.timestamp,
@@ -392,6 +451,12 @@ export default function App() {
         low: kline.low,
         close: kline.close,
       });
+
+      // Update current price only (24h data comes from exchange ticker API)
+      setPriceData(prev => ({
+        ...prev,
+        currentPrice: kline.close,
+      }));
 
       console.log('Updated K-line:', kline.timestamp);
     }
@@ -557,6 +622,17 @@ export default function App() {
         </div>
 
         <aside className="signal-panel">
+          {/* 实时价格显示 */}
+          <PriceDisplay
+            symbol={symbol}
+            currentPrice={priceData.currentPrice}
+            priceChange={priceData.currentPrice - priceData.openPrice}
+            priceChangePercent={priceData.openPrice ? ((priceData.currentPrice - priceData.openPrice) / priceData.openPrice * 100) : 0}
+            high24h={priceData.high24h}
+            low24h={priceData.low24h}
+            volume24h={priceData.volume24h}
+          />
+          
           {/* 绘图列表 */}
           <DrawingList
             drawings={drawingManager.drawings}

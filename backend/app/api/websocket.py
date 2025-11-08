@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from typing import Dict, Set
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import redis.asyncio as redis
@@ -13,8 +14,45 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app for WebSocket
-ws_app = FastAPI(title="WebSocket Server")
+# Global task reference
+redis_bridge_task = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown"""
+    import sys
+    global redis_bridge_task
+    
+    sys.stdout.write("=" * 60 + "\n")
+    sys.stdout.write("WebSocket服务器启动中...\n")
+    sys.stdout.write("=" * 60 + "\n")
+    sys.stdout.flush()
+    logger.info("WebSocket server starting up...")
+    
+    try:
+        # Start Redis bridge task
+        redis_bridge_task = asyncio.create_task(start_redis_bridge())
+        logger.info("✅ Redis bridge task created")
+        sys.stdout.write("✅ Redis桥接任务已创建\n")
+        sys.stdout.flush()
+        
+        yield  # Server is running
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to start Redis bridge: {e}", exc_info=True)
+        sys.stdout.write(f"❌ Redis桥接启动失败: {e}\n")
+        sys.stdout.flush()
+        yield
+    finally:
+        # Shutdown
+        sys.stdout.write("WebSocket服务器关闭中...\n")
+        sys.stdout.flush()
+        if redis_bridge_task:
+            redis_bridge_task.cancel()
+        logger.info("WebSocket server shutdown")
+
+# Create FastAPI app for WebSocket with lifespan
+ws_app = FastAPI(title="WebSocket Server", lifespan=lifespan)
 
 # Connection manager
 class ConnectionManager:
@@ -170,50 +208,54 @@ async def start_redis_bridge():
     
     This subscribes to all topics from Redis and forwards them to WebSocket clients
     """
+    import sys
+    sys.stdout.write("🚀 启动Redis桥接...\n")
+    sys.stdout.flush()
     logger.info("Starting Redis bridge...")
     
-    # Connect to Redis
-    redis_client = await redis.from_url(
-        f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}",
-        decode_responses=False
-    )
-    
-    bus = MessageBus(redis_client)
-    
-    # Subscribe to all topics using wildcard
-    async def forward_to_websocket(topic: str, data: dict):
-        """Forward Redis message to WebSocket clients"""
-        await manager.broadcast(topic, data)
-    
-    # Subscribe to all topics
-    topics = [
-        "kline:*",
-        "indicator:*",
-        "signal:*"
-    ]
-    
-    logger.info(f"Redis bridge subscribed to topics: {topics}")
-    
-    # Start subscription tasks
-    tasks = [
-        bus.subscribe(topic, forward_to_websocket)
-        for topic in topics
-    ]
-    
-    await asyncio.gather(*tasks)
+    try:
+        # Connect to Redis
+        redis_url = f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}"
+        sys.stdout.write(f"📡 连接到Redis: {redis_url}\n")
+        sys.stdout.flush()
+        redis_client = await redis.from_url(redis_url, decode_responses=False)
+        sys.stdout.write("✅ Redis连接成功\n")
+        sys.stdout.flush()
+        
+        bus = MessageBus(redis_client)
+        
+        # Subscribe to all topics using wildcard
+        async def forward_to_websocket(topic: str, data: dict):
+            """Forward Redis message to WebSocket clients"""
+            logger.debug(f"Forwarding message to WebSocket clients: {topic}")
+            await manager.broadcast(topic, data)
+        
+        # Subscribe to all topics
+        topics = [
+            "kline:*",
+            "indicator:*",
+            "signal:*"
+        ]
+        
+        sys.stdout.write(f"📻 订阅主题: {topics}\n")
+        sys.stdout.flush()
+        logger.info(f"Redis bridge subscribed to topics: {topics}")
+        
+        # Start subscription tasks
+        tasks = [
+            bus.subscribe(topic, forward_to_websocket)
+            for topic in topics
+        ]
+        
+        sys.stdout.write(f"✅ 启动{len(tasks)}个订阅任务\n")
+        sys.stdout.flush()
+        await asyncio.gather(*tasks)
+    except Exception as e:
+        sys.stdout.write(f"❌ Redis桥接失败: {e}\n")
+        sys.stdout.flush()
+        logger.error(f"Redis bridge failed: {e}", exc_info=True)
 
 
-@ws_app.on_event("startup")
-async def startup_event():
-    """Start Redis bridge on startup"""
-    asyncio.create_task(start_redis_bridge())
-    logger.info("WebSocket server started")
-
-
-@ws_app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("WebSocket server shutdown")
 
 
 # Health check endpoint
