@@ -272,22 +272,22 @@ async def main():
         bus = None
     else:
         # Connect to Redis for normal nodes
-    logger.info("Connecting to Redis...")
-    redis_client = await redis.from_url(
-        f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}",
-        decode_responses=False
-    )
-    
-    # Test Redis connection
-    try:
-        await redis_client.ping()
-        logger.info("✓ Redis connection successful")
-    except Exception as e:
-        logger.error(f"✗ Failed to connect to Redis: {e}")
-        sys.exit(1)
-    
-    # Create message bus
-    bus = MessageBus(redis_client)
+        logger.info("Connecting to Redis...")
+        redis_client = await redis.from_url(
+            f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}",
+            decode_responses=False
+        )
+        
+        # Test Redis connection
+        try:
+            await redis_client.ping()
+            logger.info("✓ Redis connection successful")
+        except Exception as e:
+            logger.error(f"✗ Failed to connect to Redis: {e}")
+            sys.exit(1)
+        
+        # Create message bus
+        bus = MessageBus(redis_client)
     
     # Connect to database
     logger.info("Connecting to database...")
@@ -441,7 +441,7 @@ async def main():
         # Cleanup
         logger.info("Cleaning up...")
         if bus:
-        await bus.close()
+            await bus.close()
         await db.close()
         logger.info("Shutdown complete")
 
