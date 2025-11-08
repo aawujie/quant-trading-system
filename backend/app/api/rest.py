@@ -13,6 +13,7 @@ from app.models.indicators import IndicatorData
 from app.models.signals import SignalData
 from app.models.drawings import DrawingData
 from app.exchanges.binance import BinanceExchange
+from app.services.data_manager import DataManager
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,13 @@ app.add_middleware(
 # Database instance (will be initialized on startup)
 db: Optional[Database] = None
 exchange: Optional[BinanceExchange] = None
+data_manager: Optional[DataManager] = None
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and exchange on startup"""
-    global db, exchange
+    global db, exchange, data_manager
     db = Database(settings.database_url)
     await db.create_tables()
     
@@ -56,7 +58,10 @@ async def startup_event():
         }
     
     # Initialize exchange for ticker API (延迟加载，首次调用时自动加载markets)
-    exchange = BinanceExchange(proxy_config=proxy_config)
+    exchange = BinanceExchange(proxy_config=proxy_config, market_type=settings.market_type)
+    
+    # Initialize data manager
+    data_manager = DataManager(db=db, exchange=exchange)
     
     logger.info("REST API started")
 
@@ -407,5 +412,170 @@ async def delete_drawing(drawing_id: str):
             raise HTTPException(status_code=404, detail="Drawing not found")
     except Exception as e:
         logger.error(f"Failed to delete drawing: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ====================
+# 数据管理 API
+# ====================
+
+@app.post("/api/data/download", response_model=dict)
+async def create_download_task(
+    symbol: str,
+    timeframe: str,
+    start_time: int,
+    end_time: int,
+    market_type: str = "future",
+    auto_start: bool = True
+):
+    """
+    创建历史数据下载任务
+    
+    Args:
+        symbol: 交易对（如 BTCUSDT）
+        timeframe: 时间周期（如 1h）
+        start_time: 开始时间戳（秒）
+        end_time: 结束时间戳（秒）
+        market_type: 市场类型（spot/future/delivery）
+        auto_start: 是否自动开始下载
+        
+    Returns:
+        任务信息
+    """
+    try:
+        task_id = data_manager.create_download_task(
+            symbol=symbol,
+            timeframe=timeframe,
+            start_time=start_time,
+            end_time=end_time,
+            market_type=market_type
+        )
+        
+        if auto_start:
+            await data_manager.start_download_task(task_id)
+        
+        task_status = data_manager.get_task_status(task_id)
+        
+        return {
+            "status": "success",
+            "task": task_status
+        }
+    except Exception as e:
+        logger.error(f"Failed to create download task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/data/download/{task_id}", response_model=dict)
+async def get_download_task(task_id: str):
+    """
+    获取下载任务状态
+    
+    Args:
+        task_id: 任务ID
+        
+    Returns:
+        任务状态
+    """
+    try:
+        task_status = data_manager.get_task_status(task_id)
+        
+        if task_status is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        return {
+            "status": "success",
+            "task": task_status
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get task status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/data/download", response_model=dict)
+async def list_download_tasks():
+    """
+    获取所有下载任务列表
+    
+    Returns:
+        任务列表
+    """
+    try:
+        tasks = data_manager.get_all_tasks()
+        
+        return {
+            "status": "success",
+            "tasks": tasks,
+            "total": len(tasks)
+        }
+    except Exception as e:
+        logger.error(f"Failed to list tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/data/download/{task_id}/start", response_model=dict)
+async def start_download_task(task_id: str):
+    """
+    启动下载任务
+    
+    Args:
+        task_id: 任务ID
+        
+    Returns:
+        成功消息
+    """
+    try:
+        await data_manager.start_download_task(task_id)
+        
+        return {
+            "status": "success",
+            "message": "Task started"
+        }
+    except Exception as e:
+        logger.error(f"Failed to start task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/data/download/{task_id}/cancel", response_model=dict)
+async def cancel_download_task(task_id: str):
+    """
+    取消下载任务
+    
+    Args:
+        task_id: 任务ID
+        
+    Returns:
+        成功消息
+    """
+    try:
+        await data_manager.cancel_task(task_id)
+        
+        return {
+            "status": "success",
+            "message": "Task cancelled"
+        }
+    except Exception as e:
+        logger.error(f"Failed to cancel task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/data/stats", response_model=dict)
+async def get_data_stats():
+    """
+    获取数据统计信息
+    
+    Returns:
+        数据统计
+    """
+    try:
+        stats = await data_manager.get_data_stats()
+        
+        return {
+            "status": "success",
+            "stats": stats
+        }
+    except Exception as e:
+        logger.error(f"Failed to get data stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

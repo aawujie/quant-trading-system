@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import TradingChart from './components/TradingChart';
 import PriceDisplay from './components/PriceDisplay';
+import DataManager from './components/DataManager/DataManager';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDrawingManager } from './hooks/useDrawingManager';
 import DrawingToolbar from './components/DrawingTools/DrawingToolbar';
@@ -12,6 +13,7 @@ const API_BASE_URL = 'http://localhost:8000';
 const WS_URL = 'ws://localhost:8001/ws';
 
 export default function App() {
+  const [currentView, setCurrentView] = useState('trading'); // trading, dataManager
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState('1h');
   const [marketType, setMarketType] = useState('future'); // 市场类型：spot(现货) / future(永续)
@@ -610,16 +612,40 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Trading Nerd</h1>
+        <div className="header-left">
+          <h1>Trading Nerd</h1>
+          <div className="nav-buttons">
+            <button
+              className={`nav-button ${currentView === 'trading' ? 'active' : ''}`}
+              onClick={() => setCurrentView('trading')}
+            >
+              📈 交易图表
+            </button>
+            <button
+              className={`nav-button ${currentView === 'dataManager' ? 'active' : ''}`}
+              onClick={() => setCurrentView('dataManager')}
+            >
+              📊 数据管理
+            </button>
+          </div>
+        </div>
         <div className="status">
           <span>{isConnected ? '🟢 已连接' : '🔴 未连接'}</span>
-          <span>{symbol}</span>
-          <span>{timeframe}</span>
+          {currentView === 'trading' && (
+            <>
+              <span>{symbol}</span>
+              <span>{timeframe}</span>
+            </>
+          )}
         </div>
       </header>
 
       <main className="main-content">
-        <div className="chart-section">
+        {currentView === 'dataManager' ? (
+          <DataManager />
+        ) : (
+          <>
+            <div className="chart-section">
           <div className="toolbar">
             {/* 市场类型切换 */}
             <div style={{ display: 'flex', gap: '4px', marginRight: '1rem' }}>
@@ -855,7 +881,9 @@ export default function App() {
               </div>
             )}
           </div>
-        </aside>
+            </aside>
+          </>
+        )}
       </main>
     </div>
   );

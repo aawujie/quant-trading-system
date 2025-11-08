@@ -586,4 +586,64 @@ class Database:
                 await session.rollback()
                 logger.error(f"Failed to delete drawing: {e}")
                 return False
+    
+    # 数据统计方法
+    
+    async def get_kline_stats(self) -> dict:
+        """获取K线数据统计信息"""
+        async with self.SessionLocal() as session:
+            try:
+                # 总数统计
+                total_result = await session.execute(
+                    select(func.count(KlineDB.id))
+                )
+                total_count = total_result.scalar() or 0
+                
+                # 币种列表
+                symbols_result = await session.execute(
+                    select(KlineDB.symbol).distinct()
+                )
+                symbols = [row[0] for row in symbols_result.all()]
+                
+                # 时间周期列表
+                timeframes_result = await session.execute(
+                    select(KlineDB.timeframe).distinct()
+                )
+                timeframes = [row[0] for row in timeframes_result.all()]
+                
+                # 市场类型列表
+                market_types_result = await session.execute(
+                    select(KlineDB.market_type).distinct()
+                )
+                market_types = [row[0] for row in market_types_result.all()]
+                
+                # 最早和最晚时间戳
+                earliest_result = await session.execute(
+                    select(func.min(KlineDB.timestamp))
+                )
+                earliest_timestamp = earliest_result.scalar()
+                
+                latest_result = await session.execute(
+                    select(func.max(KlineDB.timestamp))
+                )
+                latest_timestamp = latest_result.scalar()
+                
+                return {
+                    "total_count": total_count,
+                    "symbols": sorted(symbols),
+                    "timeframes": sorted(timeframes),
+                    "market_types": sorted(market_types),
+                    "earliest_timestamp": earliest_timestamp,
+                    "latest_timestamp": latest_timestamp,
+                }
+            except Exception as e:
+                logger.error(f"Failed to get kline stats: {e}")
+                return {
+                    "total_count": 0,
+                    "symbols": [],
+                    "timeframes": [],
+                    "market_types": [],
+                    "earliest_timestamp": None,
+                    "latest_timestamp": None,
+                }
 
