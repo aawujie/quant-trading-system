@@ -733,35 +733,6 @@ export default function App() {
         {/* Trading View - stays mounted, just hidden */}
         <div className="chart-section" style={{ display: currentView === 'trading' ? 'flex' : 'none' }}>
           <div className="toolbar">
-            {/* 市场类型切换 */}
-            <button
-              onClick={() => handleMarketTypeChange(marketType === 'spot' ? 'future' : 'spot')}
-              style={{
-                padding: '8px 12px',
-                background: '#2196F3',
-                color: 'white',
-                border: '1px solid #2196F3',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '600',
-                transition: 'all 0.2s',
-                minWidth: '42px',
-                marginRight: '1rem'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.background = '#1976D2';
-                e.target.style.borderColor = '#1976D2';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.background = '#2196F3';
-                e.target.style.borderColor = '#2196F3';
-              }}
-              title={marketType === 'spot' ? '切换到合约' : '切换到现货'}
-            >
-              {marketType === 'spot' ? 'S' : 'F'}
-            </button>
-
             <select 
               value={symbol} 
               onChange={(e) => handleSymbolChange(e.target.value)}
@@ -821,11 +792,40 @@ export default function App() {
             />
             </div>
 
-            {/* 重置图表按钮 - 放在最右边 */}
+            {/* 市场类型切换 - 放在右侧 */}
+            <button
+              onClick={() => handleMarketTypeChange(marketType === 'spot' ? 'future' : 'spot')}
+              style={{
+                marginLeft: 'auto',
+                padding: '8px 12px',
+                background: '#2196F3',
+                color: 'white',
+                border: '1px solid #2196F3',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '600',
+                transition: 'all 0.2s',
+                minWidth: '42px',
+                marginRight: '0.5rem'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.background = '#1976D2';
+                e.target.style.borderColor = '#1976D2';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.background = '#2196F3';
+                e.target.style.borderColor = '#2196F3';
+              }}
+              title={marketType === 'spot' ? '切换到合约' : '切换到现货'}
+            >
+              {marketType === 'spot' ? 'S' : 'F'}
+            </button>
+
+            {/* 重置图表按钮 */}
             <button 
               onClick={resetChart}
               style={{
-                marginLeft: 'auto',
                 padding: '0.5rem 1rem',
                 background: 'transparent',
                 color: '#888',
