@@ -30,15 +30,7 @@ export default function App() {
     marketTypeRef.current = marketType;
   }, [symbol, timeframe, marketType]);
 
-  // Clear refs and reset load flag when switching away from trading view
-  useEffect(() => {
-    if (currentView !== 'trading') {
-      seriesRef.current = null;
-      chartRef.current = null;
-      hasLoadedData.current = false; // Reset to allow reload when switching back
-      earliestTimestamp.current = null; // Reset earliest timestamp
-    }
-  }, [currentView]);
+  // No need to clear refs when switching views - chart stays in background
 
   const [signals, setSignals] = useState([]);
   const [isLoading, setIsLoading] = useState(false); // Changed to false
@@ -176,14 +168,22 @@ export default function App() {
       console.log('⏭️ Skipping duplicate data load');
       return;
     }
+    
+    // Early check: ensure refs are available before starting
+    if (!seriesRef.current || !chartRef.current) {
+      console.warn('⚠️ Chart refs not ready, deferring load');
+      return;
+    }
+    
     hasLoadedData.current = true;
+    
     try {
       console.log('🔄 Loading historical data...');
       setIsLoading(true);
       setError(null);
       setNoDataMessage(null); // 清除之前的提示
 
-      // Fetch K-lines
+      // Fetch K-lines from API
       console.log(`📡 Fetching: ${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200&market_type=${marketType}`);
       const klinesResponse = await axios.get(
         `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200&market_type=${marketType}`
@@ -192,7 +192,8 @@ export default function App() {
       const klines = klinesResponse.data;
       console.log(`✅ Received ${klines.length} K-lines`);
 
-      if (klines.length > 0 && seriesRef.current) {
+      // Re-check refs after async operations (they might be null if component unmounted)
+      if (klines.length > 0 && seriesRef.current && chartRef.current) {
         // Track the earliest timestamp
         earliestTimestamp.current = klines[0].timestamp;
         console.log(`📌 Initial earliest timestamp set to: ${earliestTimestamp.current}`);
@@ -211,7 +212,7 @@ export default function App() {
         seriesRef.current.candlestick.setData(candlestickData);
         
         // Add invisible helper line to extend time scale with full data points
-        if (!seriesRef.current.futureHelper) {
+        if (!seriesRef.current.futureHelper && chartRef.current) {
           const lastBar = candlestickData[candlestickData.length - 1];
           const futureBars = generateFutureBars(lastBar, timeframe, 50);
           
@@ -261,7 +262,11 @@ export default function App() {
           otherTypeName: otherMarketTypeName
         });
       } else {
-        console.warn('⚠️ seriesRef not ready');
+        console.warn('⚠️ Chart not ready:', {
+          hasKlines: klines.length > 0,
+          hasSeriesRef: !!seriesRef.current,
+          hasChartRef: !!chartRef.current
+        });
       }
 
       console.log('✅ Data loading complete, setting isLoading=false');
@@ -500,11 +505,7 @@ export default function App() {
 
   // Handle K-line update
   const handleKlineUpdate = (kline) => {
-    // Skip if not in trading view
-    if (currentView !== 'trading') {
-      return;
-    }
-
+    // Always update chart data, even when not visible (chart works in background)
     // Use refs to get latest symbol/timeframe/marketType (avoid closure issues)
     const currentSymbol = symbolRef.current;
     const currentTimeframe = timeframeRef.current;
@@ -563,11 +564,7 @@ export default function App() {
 
   // Handle indicator update
   const handleIndicatorUpdate = (indicator) => {
-    // Skip if not in trading view
-    if (currentView !== 'trading') {
-      return;
-    }
-
+    // Always update indicators, even when not visible (chart works in background)
     const currentSymbol = symbolRef.current;
     const currentTimeframe = timeframeRef.current;
     
@@ -605,11 +602,7 @@ export default function App() {
 
   // Handle signal update
   const handleSignalUpdate = (signal) => {
-    // Skip if not in trading view
-    if (currentView !== 'trading') {
-      return;
-    }
-
+    // Always update signals, even when not visible
     const currentSymbol = symbolRef.current;
     
     if (signal.symbol === currentSymbol) {
@@ -697,11 +690,11 @@ export default function App() {
       </header>
 
       <main className="main-content">
-        {currentView === 'dataManager' ? (
-          <DataManager />
-        ) : (
-          <>
-            <div className="chart-section">
+        {/* Data Manager View */}
+        {currentView === 'dataManager' && <DataManager />}
+
+        {/* Trading View - stays mounted, just hidden */}
+        <div className="chart-section" style={{ display: currentView === 'trading' ? 'flex' : 'none' }}>
           <div className="toolbar">
             {/* 市场类型切换 */}
             <div style={{ display: 'flex', gap: '4px', marginRight: '1rem' }}>
@@ -899,7 +892,7 @@ export default function App() {
           </div>
         </div>
 
-        <aside className="signal-panel">
+        <aside className="signal-panel" style={{ display: currentView === 'trading' ? 'flex' : 'none' }}>
           {/* 实时价格显示 */}
           <PriceDisplay
             symbol={symbol}
@@ -937,9 +930,7 @@ export default function App() {
               </div>
             )}
           </div>
-            </aside>
-          </>
-        )}
+        </aside>
       </main>
     </div>
   );
