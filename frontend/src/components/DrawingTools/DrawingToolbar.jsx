@@ -31,7 +31,7 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
     {
       id: 'fibonacci',
       name: '斐波那契',
-      icon: '⌬',
+      icon: 'φ',
       tooltip: '绘制斐波那契回撤'
     }
   ];
