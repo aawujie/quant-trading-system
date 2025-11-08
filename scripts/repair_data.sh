@@ -5,7 +5,33 @@ echo "  Data Integrity Repair Tool"
 echo "========================================="
 echo ""
 
-cd "$(dirname "$0")/../backend"
+# Change to project root
+cd "$(dirname "$0")/.."
+
+# Check if PostgreSQL is running
+echo "🔍 Checking PostgreSQL status..."
+if ! docker ps | grep -q quant-postgres; then
+    echo "⚠️  PostgreSQL is not running, starting it..."
+    docker-compose up -d postgres
+    
+    # Wait for PostgreSQL to be ready
+    echo "⏳ Waiting for PostgreSQL to be ready..."
+    sleep 5
+    
+    # Verify it's running
+    if docker ps | grep -q quant-postgres; then
+        echo "✅ PostgreSQL started successfully"
+    else
+        echo "❌ Failed to start PostgreSQL"
+        exit 1
+    fi
+else
+    echo "✅ PostgreSQL is already running"
+fi
+
+echo ""
+
+cd backend
 
 # 解析参数（使用默认值）
 SYMBOLS="${1:-BTCUSDT,ETHUSDT}"
