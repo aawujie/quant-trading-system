@@ -69,6 +69,28 @@ export default function DataStats() {
     );
   }
 
+  // 统计指标种类数
+  const getUniqueIndicatorCount = () => {
+    const indicatorNames = new Set();
+    if (!stats?.by_market) return 0;
+    
+    Object.values(stats.by_market).forEach(marketData => {
+      Object.values(marketData).forEach(symbolData => {
+        if (symbolData.timeframes) {
+          Object.values(symbolData.timeframes).forEach(tfData => {
+            if (tfData.indicators) {
+              Object.keys(tfData.indicators).forEach(indicatorName => {
+                indicatorNames.add(indicatorName);
+              });
+            }
+          });
+        }
+      });
+    });
+    
+    return indicatorNames.size;
+  };
+
   const renderSymbolStats = (marketType) => {
     const marketData = stats?.by_market?.[marketType];
     if (!marketData || Object.keys(marketData).length === 0) {
@@ -102,7 +124,7 @@ export default function DataStats() {
                   {/* 时间周期、K线数量、时间范围 - 同一行 */}
                   {tfData.klines && (
                     <div className="flex items-center gap-3 mb-2 text-sm">
-                      <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded font-mono text-blue-400">
+                      <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/30 rounded font-mono text-red-400 font-semibold">
                         {timeframe}
                       </span>
                       <span className="text-gray-400">
@@ -147,20 +169,12 @@ export default function DataStats() {
   return (
     <div className="space-y-6">
       <div className="bg-[#1a1a24] rounded-lg border border-[#2a2a3a] p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <h3 className="text-lg font-semibold text-white">数据库统计</h3>
-          <button 
-            onClick={loadStats} 
-            className="px-3 py-1.5 bg-[#0f0f17] hover:bg-[#2a2a3a] border border-[#2a2a3a] rounded-md text-sm text-gray-300 transition-colors"
-            title="刷新"
-            disabled={loading}
-          >
-            {loading ? '⏳ 加载中...' : '🔄 刷新'}
-          </button>
         </div>
 
         {/* 总览卡片 */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-[#0f0f17] border border-[#2a2a3a] rounded-lg p-4 text-center">
             <div className="text-2xl mb-1">💰</div>
             <div className="text-xs text-gray-400 mb-1">交易对</div>
@@ -171,6 +185,12 @@ export default function DataStats() {
             <div className="text-2xl mb-1">⏱️</div>
             <div className="text-xs text-gray-400 mb-1">时间周期</div>
             <div className="text-xl font-semibold text-white">{stats?.timeframes?.length || 0}</div>
+          </div>
+
+          <div className="bg-[#0f0f17] border border-[#2a2a3a] rounded-lg p-4 text-center">
+            <div className="text-2xl mb-1">📊</div>
+            <div className="text-xs text-gray-400 mb-1">指标种类</div>
+            <div className="text-xl font-semibold text-white">{getUniqueIndicatorCount()}</div>
           </div>
         </div>
 
