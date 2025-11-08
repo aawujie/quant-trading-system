@@ -43,6 +43,7 @@ class BinanceExchange(ExchangeBase):
             'apiKey': api_key,
             'secret': api_secret,
             'enableRateLimit': True,  # Respect rate limits
+            'verbose': False,
             'options': {
                 'defaultType': ccxt_market_type,
             }

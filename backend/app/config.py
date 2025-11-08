@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     proxy_password: str = ""
     
     # System Configuration
-    log_level: str = "INFO"
+    log_level: str = "DEBUG"
     
     # K-line Data Fetching Configuration
-    kline_fetch_interval: int = 2  # K线数据获取间隔（秒）
+    kline_fetch_interval: int = 4  # K线数据获取间隔（秒）
     market_type: str = "future"  # 市场类型: spot, future, delivery
     
     class Config:
