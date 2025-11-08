@@ -46,16 +46,9 @@ export default function DataManager() {
         </div>
 
         {/* Tab内容 */}
-        {activeTab === 'stats' ? (
-          <DataStats />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              {activeTab === 'download' && <HistoricalDownload />}
-              {activeTab === 'repair' && <DataRepair />}
-            </div>
-          </div>
-        )}
+        {activeTab === 'stats' && <DataStats />}
+        {activeTab === 'download' && <HistoricalDownload />}
+        {activeTab === 'repair' && <DataRepair />}
       </div>
     </div>
   );

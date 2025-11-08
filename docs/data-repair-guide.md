@@ -93,7 +93,7 @@ K-line gaps found: 0
 K-lines filled: 0
 Indicator gaps found: 907
 Indicators filled: 907
-Status: ✅ All gaps have been repaired
+   Status: ✅ All gaps have been repaired
 ============================================================
 
 ✅ Deep repair completed!

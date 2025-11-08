@@ -185,14 +185,14 @@ export default function DataStats() {
             <div className="text-2xl mb-1">⏱️</div>
             <div className="text-xs text-gray-400 mb-1">时间周期</div>
             <div className="text-xl font-semibold text-white">{stats?.timeframes?.length || 0}</div>
-          </div>
+        </div>
 
           <div className="bg-[#0f0f17] border border-[#2a2a3a] rounded-lg p-4 text-center">
             <div className="text-2xl mb-1">📊</div>
             <div className="text-xs text-gray-400 mb-1">指标种类</div>
             <div className="text-xl font-semibold text-white">{getUniqueIndicatorCount()}</div>
+            </div>
           </div>
-        </div>
 
         {/* 市场类型切换标签 */}
         <div className="flex gap-2 mb-4 border-b border-[#2a2a3a]">
@@ -207,7 +207,7 @@ export default function DataStats() {
             🔮 永续合约
             {activeTab === 'future' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
-            )}
+              )}
           </button>
           <button
             onClick={() => setActiveTab('spot')}
@@ -220,7 +220,7 @@ export default function DataStats() {
             💎 现货市场
             {activeTab === 'spot' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
-            )}
+              )}
           </button>
         </div>
 

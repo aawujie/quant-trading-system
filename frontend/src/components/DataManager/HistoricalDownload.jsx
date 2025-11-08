@@ -281,7 +281,7 @@ export default function HistoricalDownload() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
           >
             {isSubmitting ? '创建中...' : '开始下载'}
           </button>

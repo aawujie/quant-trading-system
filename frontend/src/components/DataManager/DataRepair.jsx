@@ -206,14 +206,14 @@ export default function DataRepair() {
             <button
               onClick={handleCheckStatus}
               disabled={isChecking}
-              className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+              className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
             >
               {isChecking ? '检查中...' : '🔍 检查状态'}
             </button>
             <button
               onClick={handleRepair}
               disabled={isRepairing}
-              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
             >
               {isRepairing ? '修复中...' : '🔧 开始修复'}
             </button>
