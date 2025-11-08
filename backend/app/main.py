@@ -52,7 +52,8 @@ async def start_kline_node(bus: MessageBus, db: Database, args):
     exchange = BinanceExchange(
         api_key=settings.binance_api_key,
         api_secret=settings.binance_api_secret,
-        proxy_config=proxy_config
+        proxy_config=proxy_config,
+        market_type=settings.market_type
     )
     
     # Parse symbols and timeframes
@@ -61,6 +62,7 @@ async def start_kline_node(bus: MessageBus, db: Database, args):
     
     logger.info(f"Symbols: {symbols}")
     logger.info(f"Timeframes: {timeframes}")
+    logger.info(f"Market type: {settings.market_type}")
     
     # Create and start node
     node = KlineNode(
@@ -69,6 +71,7 @@ async def start_kline_node(bus: MessageBus, db: Database, args):
         db=db,
         symbols=symbols,
         timeframes=timeframes,
+        market_type=settings.market_type,
         fetch_interval=args.fetch_interval
     )
     

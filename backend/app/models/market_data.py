@@ -1,7 +1,7 @@
 """Market data models"""
 
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class KlineData(BaseModel):
@@ -14,6 +14,7 @@ class KlineData(BaseModel):
     symbol: str = Field(..., description="Trading pair symbol (e.g., 'BTCUSDT')")
     timeframe: str = Field(..., description="Timeframe (e.g., '1h', '1d')")
     timestamp: int = Field(..., description="Unix timestamp in seconds")
+    market_type: str = Field(default='spot', description="Market type: 'spot', 'future', 'delivery'")
     beijing_time: Optional[str] = Field(None, description="Beijing time (UTC+8) in ISO format")
     open: float = Field(..., description="Opening price")
     high: float = Field(..., description="Highest price")
@@ -21,12 +22,13 @@ class KlineData(BaseModel):
     close: float = Field(..., description="Closing price")
     volume: float = Field(..., description="Trading volume")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "symbol": "BTCUSDT",
                 "timeframe": "1h",
                 "timestamp": 1705320000,
+                "market_type": "future",
                 "open": 35000.0,
                 "high": 35500.0,
                 "low": 34800.0,
@@ -34,6 +36,7 @@ class KlineData(BaseModel):
                 "volume": 1250.5
             }
         }
+    )
     
     def __repr__(self) -> str:
         return (

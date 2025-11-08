@@ -93,7 +93,8 @@ async def get_klines(
     symbol: str,
     timeframe: str,
     limit: int = Query(100, ge=1, le=1000, description="Number of K-lines to fetch"),
-    before: Optional[int] = Query(None, description="Fetch K-lines before this timestamp (for pagination)")
+    before: Optional[int] = Query(None, description="Fetch K-lines before this timestamp (for pagination)"),
+    market_type: str = Query('future', description="Market type: spot, future, delivery")
 ):
     """
     Get recent K-line data
@@ -103,12 +104,23 @@ async def get_klines(
         timeframe: Timeframe (e.g., 1h, 1d)
         limit: Number of K-lines to fetch (max 1000)
         before: Optional timestamp - fetch K-lines before this timestamp (for infinite scroll)
+        market_type: Market type (spot, future, delivery)
         
     Returns:
         List of K-line data
     """
     try:
-        klines = await db.get_recent_klines(symbol, timeframe, limit, before)
+        klines = await db.get_recent_klines(symbol, timeframe, limit, before, market_type)
+        # 调试：打印到控制台
+        if klines:
+            import json
+            print(f"\n{'='*80}")
+            print(f"🔍 API Query: symbol={symbol}, timeframe={timeframe}, market_type={market_type}")
+            print(f"🔍 Result: {len(klines)} klines")
+            print(f"🔍 First kline market_type: {klines[0].market_type}")
+            print(f"🔍 Serialized:")
+            print(json.dumps(klines[0].model_dump(), indent=2))
+            print(f"{'='*80}\n")
         return klines
     except Exception as e:
         logger.error(f"Failed to fetch K-lines: {e}")
@@ -118,7 +130,8 @@ async def get_klines(
 @app.get("/api/klines/{symbol}/{timeframe}/latest", response_model=Optional[KlineData])
 async def get_latest_kline(
     symbol: str,
-    timeframe: str
+    timeframe: str,
+    market_type: str = Query('future', description="Market type: spot, future, delivery")
 ):
     """
     Get the latest K-line
@@ -126,12 +139,13 @@ async def get_latest_kline(
     Args:
         symbol: Trading symbol
         timeframe: Timeframe
+        market_type: Market type (spot, future, delivery)
         
     Returns:
         Latest K-line data or None
     """
     try:
-        klines = await db.get_recent_klines(symbol, timeframe, limit=1)
+        klines = await db.get_recent_klines(symbol, timeframe, limit=1, market_type=market_type)
         return klines[0] if klines else None
     except Exception as e:
         logger.error(f"Failed to fetch latest K-line: {e}")

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class BinanceExchange(ExchangeBase):
     """Binance exchange implementation using ccxt"""
     
-    def __init__(self, api_key: str = "", api_secret: str = "", proxy_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, api_key: str = "", api_secret: str = "", proxy_config: Optional[Dict[str, Any]] = None, market_type: str = 'spot'):
         """
         Initialize Binance exchange
         
@@ -24,15 +24,27 @@ class BinanceExchange(ExchangeBase):
             api_key: Binance API key
             api_secret: Binance API secret
             proxy_config: Proxy configuration dict
+            market_type: Market type - 'spot', 'future', 'delivery' (default: 'spot')
         """
         super().__init__(api_key, api_secret)
+        
+        # Store market_type for use in KlineData creation
+        self.market_type = market_type
+        
+        # Map our market_type to CCXT's defaultType
+        market_type_map = {
+            'spot': 'spot',
+            'future': 'future',  # USDT-M perpetual/futures
+            'delivery': 'delivery'  # Coin-M futures
+        }
+        ccxt_market_type = market_type_map.get(market_type, 'spot')
         
         config = {
             'apiKey': api_key,
             'secret': api_secret,
             'enableRateLimit': True,  # Respect rate limits
             'options': {
-                'defaultType': 'swap',  # Use USDT-M perpetual swap contracts
+                'defaultType': ccxt_market_type,
             }
         }
         
@@ -117,6 +129,7 @@ class BinanceExchange(ExchangeBase):
                     symbol=symbol.replace('/', ''),  # BTC/USDT -> BTCUSDT
                     timeframe=timeframe,
                     timestamp=int(candle[0] / 1000),  # Convert ms to seconds
+                    market_type=self.market_type,  # Use configured market type
                     open=float(candle[1]),
                     high=float(candle[2]),
                     low=float(candle[3]),

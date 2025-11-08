@@ -29,6 +29,7 @@ class KlineDB(Base):
     symbol = Column(String(20), nullable=False, index=True)
     timeframe = Column(String(10), nullable=False, index=True)
     timestamp = Column(BigInteger, nullable=False, index=True)
+    market_type = Column(String(20), nullable=False, server_default='spot', index=True)  # spot, future, delivery
     open = Column(Float, nullable=False)
     high = Column(Float, nullable=False)
     low = Column(Float, nullable=False)
@@ -38,7 +39,7 @@ class KlineDB(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     __table_args__ = (
-        Index('idx_klines_lookup', 'symbol', 'timeframe', 'timestamp', unique=True),
+        Index('idx_klines_lookup', 'symbol', 'timeframe', 'timestamp', 'market_type', unique=True),
     )
 
 
@@ -202,6 +203,7 @@ class Database:
                         symbol=kline.symbol,
                         timeframe=kline.timeframe,
                         timestamp=kline.timestamp,
+                        market_type=kline.market_type,
                         open=kline.open,
                         high=kline.high,
                         low=kline.low,
@@ -211,7 +213,7 @@ class Database:
                     )
                     # On conflict (duplicate), update the OHLCV values and beijing_time
                     stmt = stmt.on_conflict_do_update(
-                        index_elements=['symbol', 'timeframe', 'timestamp'],
+                        index_elements=['symbol', 'timeframe', 'timestamp', 'market_type'],
                         set_=dict(
                             open=stmt.excluded.open,
                             high=stmt.excluded.high,
@@ -232,34 +234,46 @@ class Database:
                 logger.error(f"Failed to upsert klines: {e}")
                 return 0
     
-    async def get_last_kline_time(self, symbol: str, timeframe: str) -> Optional[int]:
-        """Get the timestamp of the last K-line for a symbol/timeframe"""
+    async def get_last_kline_time(self, symbol: str, timeframe: str, market_type: str = 'spot') -> Optional[int]:
+        """Get the timestamp of the last K-line for a symbol/timeframe/market_type"""
         async with self.SessionLocal() as session:
             result = await session.execute(
                 select(KlineDB.timestamp)
-                .where(KlineDB.symbol == symbol, KlineDB.timeframe == timeframe)
+                .where(
+                    KlineDB.symbol == symbol, 
+                    KlineDB.timeframe == timeframe,
+                    KlineDB.market_type == market_type
+                )
                 .order_by(KlineDB.timestamp.desc())
                 .limit(1)
             )
             row = result.scalar_one_or_none()
             return row if row else None
     
-    async def count_klines(self, symbol: str, timeframe: str) -> int:
-        """Count the number of K-lines for a symbol/timeframe"""
+    async def count_klines(self, symbol: str, timeframe: str, market_type: str = 'spot') -> int:
+        """Count the number of K-lines for a symbol/timeframe/market_type"""
         async with self.SessionLocal() as session:
             from sqlalchemy import func
             result = await session.execute(
                 select(func.count(KlineDB.id))
-                .where(KlineDB.symbol == symbol, KlineDB.timeframe == timeframe)
+                .where(
+                    KlineDB.symbol == symbol, 
+                    KlineDB.timeframe == timeframe,
+                    KlineDB.market_type == market_type
+                )
             )
             return result.scalar() or 0
     
-    async def get_earliest_kline_time(self, symbol: str, timeframe: str) -> Optional[int]:
-        """Get the timestamp of the earliest K-line for a symbol/timeframe"""
+    async def get_earliest_kline_time(self, symbol: str, timeframe: str, market_type: str = 'spot') -> Optional[int]:
+        """Get the timestamp of the earliest K-line for a symbol/timeframe/market_type"""
         async with self.SessionLocal() as session:
             result = await session.execute(
                 select(KlineDB.timestamp)
-                .where(KlineDB.symbol == symbol, KlineDB.timeframe == timeframe)
+                .where(
+                    KlineDB.symbol == symbol, 
+                    KlineDB.timeframe == timeframe,
+                    KlineDB.market_type == market_type
+                )
                 .order_by(KlineDB.timestamp.asc())
                 .limit(1)
             )
@@ -271,7 +285,8 @@ class Database:
         symbol: str, 
         timeframe: str, 
         limit: int = 200,
-        before: Optional[int] = None
+        before: Optional[int] = None,
+        market_type: str = 'spot'
     ) -> List[KlineData]:
         """
         Get recent K-lines
@@ -281,11 +296,13 @@ class Database:
             timeframe: Timeframe
             limit: Number of K-lines to fetch
             before: Optional timestamp - fetch K-lines before this timestamp
+            market_type: Market type (spot, future, delivery)
         """
         async with self.SessionLocal() as session:
             query = select(KlineDB).where(
                 KlineDB.symbol == symbol, 
-                KlineDB.timeframe == timeframe
+                KlineDB.timeframe == timeframe,
+                KlineDB.market_type == market_type
             )
             
             # If before timestamp is specified, only get K-lines before it
@@ -303,6 +320,7 @@ class Database:
                     symbol=row.symbol,
                     timeframe=row.timeframe,
                     timestamp=row.timestamp,
+                    market_type=row.market_type,
                     beijing_time=row.beijing_time.isoformat() if row.beijing_time else None,
                     open=row.open,
                     high=row.high,

@@ -38,6 +38,7 @@ class KlineNode(ProducerNode):
         db: Database,
         symbols: List[str],
         timeframes: List[str],
+        market_type: str = 'spot',
         fetch_interval: int = 5,
         buffer_size: int = 100,
         flush_interval: int = 10
@@ -51,6 +52,7 @@ class KlineNode(ProducerNode):
             db: Database instance
             symbols: List of symbols (e.g., ['BTCUSDT', 'ETHUSDT'])
             timeframes: List of timeframes (e.g., ['1h', '1d'])
+            market_type: Market type - 'spot', 'future', 'delivery' (default: 'spot')
             fetch_interval: Fetch interval in seconds (default: 5)
             buffer_size: Max buffer size per (symbol, timeframe) (default: 100)
             flush_interval: Auto-flush interval in seconds (default: 10)
@@ -61,6 +63,7 @@ class KlineNode(ProducerNode):
         self.db = db
         self.symbols = symbols
         self.timeframes = timeframes
+        self.market_type = market_type
         self.fetch_interval = fetch_interval
         
         # ========== Memory Cursor (t3) ==========
@@ -118,20 +121,20 @@ class KlineNode(ProducerNode):
                 
                 try:
                     # t1: Latest timestamp from DB
-                    t1 = await self.db.get_last_kline_time(symbol, timeframe)
-                    kline_count = await self.db.count_klines(symbol, timeframe)
+                    t1 = await self.db.get_last_kline_time(symbol, timeframe, self.market_type)
+                    kline_count = await self.db.count_klines(symbol, timeframe, self.market_type)
                     
                     if t1 is None:
                         # No data: Fetch initial dataset (500 bars)
                         logger.info(f"🆕 {symbol} {timeframe}: No data, fetching initial 500 bars")
                         await self._fetch_initial_data(symbol, timeframe, limit=500)
-                        t1 = await self.db.get_last_kline_time(symbol, timeframe)
+                        t1 = await self.db.get_last_kline_time(symbol, timeframe, self.market_type)
                     
                     elif kline_count < 500:
                         # Insufficient data: Fill to 7 days ago
                         logger.info(f"📥 {symbol} {timeframe}: {kline_count} bars, filling gaps...")
                         await self._fill_gap(symbol, timeframe, t1)
-                        t1 = await self.db.get_last_kline_time(symbol, timeframe)
+                        t1 = await self.db.get_last_kline_time(symbol, timeframe, self.market_type)
                     
                     else:
                         # Sufficient data: Fill gap from t1 to now
@@ -143,7 +146,7 @@ class KlineNode(ProducerNode):
                                 f"🔄 {symbol} {timeframe}: Gap of {gap_seconds//60} minutes, filling..."
                             )
                             await self._fill_gap(symbol, timeframe, t1)
-                            t1 = await self.db.get_last_kline_time(symbol, timeframe)
+                            t1 = await self.db.get_last_kline_time(symbol, timeframe, self.market_type)
                     
                     # t3: Initialize memory cursor
                     self.memory_cursor[key] = t1 if t1 else int(time.time())
@@ -277,7 +280,7 @@ class KlineNode(ProducerNode):
             # Fallback: If cursor missing, get from DB (should not happen after initialization)
             if t3 is None:
                 logger.warning(f"⚠️ Missing cursor for {symbol} {timeframe}, querying DB...")
-                t3 = await self.db.get_last_kline_time(symbol, timeframe)
+                t3 = await self.db.get_last_kline_time(symbol, timeframe, self.market_type)
                 if t3 is None:
                     t3 = int(time.time())
                 self.memory_cursor[key] = t3
