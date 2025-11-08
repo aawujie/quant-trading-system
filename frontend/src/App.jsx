@@ -123,7 +123,7 @@ export default function App() {
     }
 
     try {
-      console.log('🔄 Resetting to show all loaded bars...');
+      console.log('🔄 Resetting chart view and price scale...');
       const candlestickData = seriesRef.current.candlestick.data();
       const totalBars = candlestickData.length;
       const barsToShow = 500;
@@ -132,9 +132,16 @@ export default function App() {
       const from = Math.max(0, totalBars - barsToShow);
       const to = totalBars + barsToShow * 0.1;
       
+      // 重置时间轴范围
       timeScale.setVisibleLogicalRange({ from, to });
       
-      console.log(`✅ Reset: showing latest ${Math.min(totalBars, barsToShow)} bars (${from.toFixed(0)} to ${to.toFixed(1)})`);
+      // 重置价格轴缩放（竖坐标）
+      const priceScale = chartRef.current.priceScale('right');
+      priceScale.applyOptions({
+        autoScale: true,
+      });
+      
+      console.log(`✅ Reset: showing latest ${Math.min(totalBars, barsToShow)} bars (${from.toFixed(0)} to ${to.toFixed(1)}), price scale auto-adjusted`);
     } catch (err) {
       console.error('❌ Failed to reset chart:', err);
     }
@@ -821,20 +828,22 @@ export default function App() {
               style={{
                 marginLeft: '0.5rem',
                 marginRight: '1rem',
-                padding: '0.5rem 1rem',
+                padding: '0.5rem',
                 background: '#2196F3',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                fontSize: '14px',
+                fontSize: '18px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.3rem'
+                justifyContent: 'center',
+                minWidth: '36px',
+                minHeight: '36px'
               }}
               title="重置图表到初始状态"
             >
-              🔄 重置
+              🔄
             </button>
 
             {/* 绘图工具栏 */}
