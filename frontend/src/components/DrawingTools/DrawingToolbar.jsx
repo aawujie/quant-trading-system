@@ -75,17 +75,16 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '0.5rem',
+    padding: '8px 12px',
     backgroundColor: '#3a3a4a',
     color: '#d1d4dc',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
-    fontSize: '0.875rem',
+    fontSize: '13px',
     transition: 'all 0.2s',
     outline: 'none',
-    minWidth: '36px',
-    minHeight: '36px'
+    minWidth: '42px'
   },
   activeButton: {
     backgroundColor: '#2962FF',
@@ -93,7 +92,7 @@ const styles = {
     boxShadow: '0 2px 4px rgba(41, 98, 255, 0.3)'
   },
   icon: {
-    fontSize: '1.25rem'
+    fontSize: '16px'
   }
 };
 
