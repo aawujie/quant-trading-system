@@ -112,7 +112,7 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
   // 验证绘图是否有效
   const validateDrawing = useCallback((tool) => {
     // 对于趋势线和矩形，检查两个点是否相同
-    if (tool.type === 'line' || tool.type === 'rectangle') {
+    if (tool.type === 'trend_line' || tool.type === 'rectangle') {
       const points = tool.getPoints();
       if (points.length === 2) {
         const [point1, point2] = points;
