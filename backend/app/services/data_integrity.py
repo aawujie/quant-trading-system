@@ -9,6 +9,7 @@ from typing import List, Tuple, Optional
 import logging
 
 from app.models.market_data import KlineData
+from app.models.indicators import get_min_required_klines, get_max_required_klines
 
 logger = logging.getLogger(__name__)
 
@@ -344,18 +345,23 @@ class DataIntegrityService:
         filled = 0
         skipped = 0
         
+        # 从元数据获取K线数量要求
+        min_required = get_min_required_klines()
+        max_required = get_max_required_klines()
+        
         for timestamp in missing_timestamps:
             try:
                 # 获取该时间点及之前的K线（用于计算）
+                # 使用 max_required + 余量，确保有足够数据
                 klines_before = await self.db.get_klines_before(
-                    symbol, timeframe, timestamp, limit=201
+                    symbol, timeframe, timestamp, limit=max_required + 10
                 )
                 
-                # 需要至少120根K线才能计算MA120
-                if len(klines_before) < 120:
+                # 至少需要 min_required 根K线才能开始计算指标
+                if len(klines_before) < min_required:
                     logger.debug(
                         f"   ⚠️  Skip {timestamp}: "
-                        f"insufficient K-lines ({len(klines_before)}/120)"
+                        f"insufficient K-lines ({len(klines_before)}/{min_required})"
                     )
                     skipped += 1
                     continue
