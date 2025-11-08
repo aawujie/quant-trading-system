@@ -7,7 +7,7 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
     {
       id: 'line',
       name: '趋势线',
-      icon: '📈',
+      icon: '/',
       tooltip: '绘制趋势线'
     },
     {
@@ -37,7 +37,7 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
     {
       id: 'parallel_line',
       name: '平行线',
-      icon: '∥',
+      icon: '||',
       tooltip: '绘制平行线'
     }
   ];
