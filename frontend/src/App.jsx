@@ -521,11 +521,11 @@ export default function App() {
   useEffect(() => {
     if (!chartRef.current) return;
 
-    console.log('🎨 Initializing indicator series...');
+    console.log('🎨 Initializing indicator series for:', indicatorManager.activeIndicators);
     
     // 使用 updateIndicators 来确保正确创建和保存系列
     indicatorManager.updateIndicators(indicatorManager.activeIndicators);
-  }, [chartRef.current]);
+  }, [chartRef.current, indicatorManager.activeIndicators]);
 
   // Load indicators has been moved above
 
