@@ -74,8 +74,15 @@ class DataIntegrityService:
         
         logger.info(f"Market type: {market_type}")
         logger.info(f"Auto fix: {auto_fix}")
-        logger.info(f"Repair K-line: {repair_kline}")
-        logger.info(f"Repair Indicator: {repair_indicator}")
+        
+        # 按数量模式时，K线修复不适用
+        if klines_count and repair_kline:
+            logger.info(f"Repair K-line: False (按数量模式不支持K线修复)")
+            logger.info(f"Repair Indicator: {repair_indicator}")
+        else:
+            logger.info(f"Repair K-line: {repair_kline}")
+            logger.info(f"Repair Indicator: {repair_indicator}")
+        
         logger.info("")
         
         total_kline_gaps = 0
@@ -91,7 +98,8 @@ class DataIntegrityService:
                 indicator_gaps = []
                 
                 # 1. 检测K线缺失（如果需要）
-                if repair_kline:
+                # 注意：按数量模式时，K线修复不适用，只修复指标
+                if repair_kline and days_back:
                     kline_gaps = await self.detect_kline_gaps(
                         symbol, timeframe, days_back, market_type
                     )
