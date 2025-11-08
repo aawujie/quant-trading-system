@@ -39,6 +39,7 @@ class IndicatorNode(ProcessorNode):
         db: Database,
         symbols: List[str],
         timeframes: List[str],
+        market_types: List[str] = None,
         lookback_periods: int = 200
     ):
         """
@@ -49,6 +50,7 @@ class IndicatorNode(ProcessorNode):
             db: Database instance
             symbols: List of symbols to track
             timeframes: List of timeframes
+            market_types: List of market types (e.g., ['spot', 'future']), None for all
             lookback_periods: Number of historical periods to use for calculations
         """
         super().__init__("indicator_node", bus)
@@ -56,16 +58,18 @@ class IndicatorNode(ProcessorNode):
         self.db = db
         self.symbols = symbols
         self.timeframes = timeframes
+        self.market_types = market_types or ['spot', 'future']  # 默认订阅所有市场
         self.lookback_periods = lookback_periods
         
-        # Subscribe to all K-line topics
+        # Subscribe to all K-line topics (with market_type)
         self.input_topics = [
-            f"kline:{symbol}:{tf}"
+            f"kline:{symbol}:{tf}:{mt}"
             for symbol in symbols
             for tf in timeframes
+            for mt in self.market_types
         ]
         
-        # Define output topics
+        # Define output topics (without market_type, indicators are unified)
         self.output_topics = [
             f"indicator:{symbol}:{tf}"
             for symbol in symbols
@@ -78,6 +82,7 @@ class IndicatorNode(ProcessorNode):
         logger.info(
             f"IndicatorNode initialized: {len(symbols)} symbols, "
             f"{len(timeframes)} timeframes, "
+            f"{len(self.market_types)} market_types, "
             f"lookback={lookback_periods}"
         )
     
@@ -86,17 +91,17 @@ class IndicatorNode(ProcessorNode):
         Process incoming K-line data and calculate indicators
         
         Args:
-            topic: Topic name (e.g., 'kline:BTCUSDT:1h')
+            topic: Topic name (e.g., 'kline:BTCUSDT:1h:future')
             data: K-line data dictionary
         """
         try:
             # Parse topic
             parts = topic.split(":")
-            if len(parts) != 3:
+            if len(parts) != 4:
                 logger.warning(f"Invalid topic format: {topic}")
                 return
             
-            _, symbol, timeframe = parts
+            _, symbol, timeframe, market_type = parts
             
             # Parse K-line data
             kline = KlineData(**data)
@@ -109,7 +114,8 @@ class IndicatorNode(ProcessorNode):
             recent_klines = await self.db.get_recent_klines(
                 symbol,
                 timeframe,
-                limit=self.lookback_periods
+                limit=self.lookback_periods,
+                market_type=market_type
             )
             
             if len(recent_klines) < 20:

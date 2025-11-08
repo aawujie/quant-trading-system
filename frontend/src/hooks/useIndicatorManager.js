@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { getDefaultIndicators, getIndicatorConfig } from '../components/Indicators/IndicatorConfig';
 
 /**
@@ -17,6 +17,14 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
   
   // 指标系列对象缓存（存储TradingView的line series）
   const [indicatorSeries, setIndicatorSeries] = useState({});
+  
+  // 使用 ref 追踪最新的 indicatorSeries，供清理函数使用
+  const indicatorSeriesRef = useRef(indicatorSeries);
+  
+  // 同步更新 ref
+  useEffect(() => {
+    indicatorSeriesRef.current = indicatorSeries;
+  }, [indicatorSeries]);
 
   /**
    * 创建指标线系列
@@ -108,11 +116,35 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
   }, [activeIndicators, indicatorSeries, createIndicatorSeries, removeIndicatorSeries, symbol, timeframe]);
 
   /**
+   * 确保指标系列存在
+   */
+  const ensureIndicatorSeries = useCallback((indicatorId) => {
+    if (indicatorSeries[indicatorId]) {
+      return indicatorSeries[indicatorId];
+    }
+    
+    // 系列不存在，创建它
+    console.log(`⚠️ Indicator series ${indicatorId} not found, creating...`);
+    const series = createIndicatorSeries(indicatorId);
+    if (series) {
+      setIndicatorSeries(prev => ({
+        ...prev,
+        [indicatorId]: series
+      }));
+      return series;
+    }
+    return null;
+  }, [indicatorSeries, createIndicatorSeries]);
+
+  /**
    * 设置指标数据
    */
   const setIndicatorData = useCallback((indicatorId, data) => {
-    const series = indicatorSeries[indicatorId];
-    if (series && data && data.length > 0) {
+    if (!data || data.length === 0) return;
+    
+    // 确保系列存在
+    const series = ensureIndicatorSeries(indicatorId);
+    if (series) {
       try {
         series.setData(data);
         console.log(`📈 Set data for indicator ${indicatorId}: ${data.length} points`);
@@ -120,7 +152,7 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
         console.error(`❌ Failed to set data for indicator ${indicatorId}:`, error);
       }
     }
-  }, [indicatorSeries]);
+  }, [ensureIndicatorSeries]);
 
   /**
    * 更新单个指标数据点
@@ -152,15 +184,30 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
   }, [symbol, timeframe]);
 
   /**
-   * 清理：图表销毁时移除所有指标系列
+   * 清理：组件卸载时移除所有指标系列
    */
   useEffect(() => {
     return () => {
-      Object.keys(indicatorSeries).forEach(id => {
-        removeIndicatorSeries(id);
+      // 使用 ref 获取最新的 indicatorSeries 值
+      const currentSeries = indicatorSeriesRef.current;
+      if (!chartRef.current || !currentSeries) return;
+      
+      Object.keys(currentSeries).forEach(id => {
+        const series = currentSeries[id];
+        if (series) {
+          try {
+            chartRef.current.removeSeries(series);
+            console.log(`🗑️ Cleanup: Removed indicator series ${id}`);
+          } catch (error) {
+            // 忽略清理时的错误，图表可能已经销毁
+            console.debug(`Cleanup: Could not remove series ${id}`, error);
+          }
+        }
       });
     };
-  }, [indicatorSeries, removeIndicatorSeries]);
+    // 空依赖数组：只在组件卸载时执行清理
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     // 状态

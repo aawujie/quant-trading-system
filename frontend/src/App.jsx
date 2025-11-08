@@ -387,19 +387,15 @@ export default function App() {
     loadHistoricalData();
   }, [loadHistoricalData]);
 
-  // 初始化指标系列（当图表和激活的指标列表变化时）
+  // 初始化指标系列（当图表准备好后）
   useEffect(() => {
     if (!chartRef.current) return;
 
     console.log('🎨 Initializing indicator series...');
     
-    // 为所有激活的指标创建系列
-    indicatorManager.activeIndicators.forEach(indicatorId => {
-      if (!indicatorManager.indicatorSeries[indicatorId]) {
-        indicatorManager.createIndicatorSeries(indicatorId);
-      }
-    });
-  }, [chartRef.current, indicatorManager.activeIndicators]);
+    // 使用 updateIndicators 来确保正确创建和保存系列
+    indicatorManager.updateIndicators(indicatorManager.activeIndicators);
+  }, [chartRef.current]);
 
   // Load indicators has been moved above
 
