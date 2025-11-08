@@ -88,20 +88,6 @@ export class FibonacciTool extends BaseTool {
       ctx.lineTo(canvasWidth, screenPos.y);
       ctx.stroke();
       ctx.setLineDash([]);
-      
-      // 绘制标签（价格和百分比）
-      ctx.fillStyle = level.color;
-      ctx.font = '12px Arial';
-      const label = `${level.label} (${price.toFixed(2)})`;
-      const textWidth = ctx.measureText(label).width;
-      
-      // 绘制文本背景
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(canvasWidth - textWidth - 10, screenPos.y - 16, textWidth + 8, 18);
-      
-      // 绘制文本
-      ctx.fillStyle = level.color;
-      ctx.fillText(label, canvasWidth - textWidth - 6, screenPos.y - 3);
     });
   }
 
