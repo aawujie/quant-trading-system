@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 
 # Check if PostgreSQL is running
 echo "🔍 Checking PostgreSQL status..."
-if ! docker ps | grep -q quant-postgres; then
+if ! docker ps | grep -q "postgres"; then
     echo "⚠️  PostgreSQL is not running, starting it..."
     docker-compose up -d postgres
     
@@ -19,10 +19,11 @@ if ! docker ps | grep -q quant-postgres; then
     sleep 5
     
     # Verify it's running
-    if docker ps | grep -q quant-postgres; then
+    if docker ps | grep -q "postgres"; then
         echo "✅ PostgreSQL started successfully"
     else
         echo "❌ Failed to start PostgreSQL"
+        echo "💡 Try manually: docker-compose up -d"
         exit 1
     fi
 else
