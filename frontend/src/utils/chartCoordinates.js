@@ -97,11 +97,24 @@ export class ChartCoordinates {
       const fromIndex = Math.max(0, Math.floor(visibleRange.from));
       const toIndex = Math.min(data.length - 1, Math.ceil(visibleRange.to));
       
+      // 安全检查：确保索引有效
+      if (fromIndex >= data.length || toIndex >= data.length) {
+        console.warn('索引超出范围:', { fromIndex, toIndex, dataLength: data.length });
+        return null;
+      }
+      if (!data[fromIndex] || !data[toIndex]) {
+        console.warn('数据点不存在:', { fromIndex, toIndex, hasFrom: !!data[fromIndex], hasTo: !!data[toIndex] });
+        return null;
+      }
+      
       // 获取边界时间
       const leftTime = data[fromIndex].time;
       const rightTime = data[toIndex].time;
       
-      if (!leftTime || !rightTime) return null;
+      if (!leftTime || !rightTime) {
+        console.warn('时间戳无效:', { leftTime, rightTime });
+        return null;
+      }
       
       // 如果目标时间在可见范围外，仍然计算（允许画出屏幕外的线）
       const timeRange = rightTime - leftTime;
@@ -192,11 +205,24 @@ export class ChartCoordinates {
       const fromIndex = Math.max(0, Math.floor(visibleRange.from));
       const toIndex = Math.min(data.length - 1, Math.ceil(visibleRange.to));
       
+      // 安全检查：确保索引有效
+      if (fromIndex >= data.length || toIndex >= data.length) {
+        console.warn('索引超出范围:', { fromIndex, toIndex, dataLength: data.length });
+        return null;
+      }
+      if (!data[fromIndex] || !data[toIndex]) {
+        console.warn('数据点不存在:', { fromIndex, toIndex, hasFrom: !!data[fromIndex], hasTo: !!data[toIndex] });
+        return null;
+      }
+      
       // 获取边界时间
       const leftTime = data[fromIndex].time;
       const rightTime = data[toIndex].time;
       
-      if (!leftTime || !rightTime) return null;
+      if (!leftTime || !rightTime) {
+        console.warn('时间戳无效:', { leftTime, rightTime });
+        return null;
+      }
       
       // 获取边界在屏幕上的坐标
       const leftCoord = timeScale.logicalToCoordinate(fromIndex);
