@@ -14,6 +14,7 @@ const WS_URL = 'ws://localhost:8001/ws';
 export default function App() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState('1h');
+  const [marketType, setMarketType] = useState('future'); // 市场类型：spot(现货) / future(永续)
   
   // Use refs to store latest symbol/timeframe for WebSocket callbacks
   const symbolRef = useRef(symbol);
@@ -166,9 +167,9 @@ export default function App() {
       setError(null);
 
       // Fetch K-lines
-      console.log(`📡 Fetching: ${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200`);
+      console.log(`📡 Fetching: ${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200&market_type=${marketType}`);
       const klinesResponse = await axios.get(
-        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200`
+        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200&market_type=${marketType}`
       );
 
       const klines = klinesResponse.data;
@@ -240,7 +241,7 @@ export default function App() {
       setError('Failed to load data. Please check if the backend is running.');
       setIsLoading(false);
     }
-  }, [symbol, timeframe, setInitialChartView]);
+  }, [symbol, timeframe, marketType, setInitialChartView]);
 
   // Load more historical data (for infinite scroll)
   const loadMoreData = useCallback(async (onComplete) => {
@@ -256,7 +257,7 @@ export default function App() {
       
       // Fetch older K-lines
       const klinesResponse = await axios.get(
-        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=100&before=${earliestTimestamp.current}`
+        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=100&before=${earliestTimestamp.current}&market_type=${marketType}`
       );
 
       const klines = klinesResponse.data;
@@ -295,7 +296,7 @@ export default function App() {
       // Always call the completion callback to reset loading flag
       if (onComplete) onComplete();
     }
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, marketType]);
 
   // Initialize chart
   const handleChartReady = useCallback((chart, series) => {
@@ -575,6 +576,44 @@ export default function App() {
       <main className="main-content">
         <div className="chart-section">
           <div className="toolbar">
+            {/* 市场类型切换 */}
+            <div style={{ display: 'flex', gap: '4px', marginRight: '1rem' }}>
+              <button
+                onClick={() => setMarketType('spot')}
+                style={{
+                  padding: '8px 16px',
+                  background: marketType === 'spot' ? '#2196F3' : 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  border: '1px solid ' + (marketType === 'spot' ? '#2196F3' : 'rgba(255,255,255,0.3)'),
+                  borderRadius: '6px 0 0 6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: marketType === 'spot' ? '600' : '400',
+                  transition: 'all 0.2s'
+                }}
+                title="现货市场"
+              >
+                💵 现货
+              </button>
+              <button
+                onClick={() => setMarketType('future')}
+                style={{
+                  padding: '8px 16px',
+                  background: marketType === 'future' ? '#2196F3' : 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  border: '1px solid ' + (marketType === 'future' ? '#2196F3' : 'rgba(255,255,255,0.3)'),
+                  borderRadius: '0 6px 6px 0',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: marketType === 'future' ? '600' : '400',
+                  transition: 'all 0.2s'
+                }}
+                title="永续合约"
+              >
+                📈 永续
+              </button>
+            </div>
+
             <select 
               value={symbol} 
               onChange={(e) => handleSymbolChange(e.target.value)}
