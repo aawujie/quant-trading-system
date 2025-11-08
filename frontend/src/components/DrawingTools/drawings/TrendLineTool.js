@@ -75,16 +75,6 @@ export class TrendLineTool extends BaseTool {
     
     // 重置虚线
     ctx.setLineDash([]);
-    
-    // 绘制端点（圆点）
-    ctx.fillStyle = this.style.color;
-    ctx.beginPath();
-    ctx.arc(start.x, start.y, 4, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.arc(end.x, end.y, 4, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   isComplete() {

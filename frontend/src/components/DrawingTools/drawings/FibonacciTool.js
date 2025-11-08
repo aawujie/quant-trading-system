@@ -103,16 +103,6 @@ export class FibonacciTool extends BaseTool {
       ctx.fillStyle = level.color;
       ctx.fillText(label, canvasWidth - textWidth - 6, screenPos.y - 3);
     });
-    
-    // 绘制起点和终点标记
-    ctx.fillStyle = '#2196F3';
-    ctx.beginPath();
-    ctx.arc(start.x, start.y, 5, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.arc(end.x, end.y, 5, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   isComplete() {
