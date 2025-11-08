@@ -99,6 +99,22 @@ export class BaseTool {
   }
 
   /**
+   * 获取可绘制区域（排除坐标轴刻度区域）
+   * @param {number} canvasWidth - 画布宽度
+   * @param {number} canvasHeight - 画布高度
+   * @returns {{left: number, right: number, top: number, bottom: number}}
+   */
+  getDrawableBounds(canvasWidth, canvasHeight) {
+    // 留出坐标轴刻度的空间
+    return {
+      left: 0,
+      right: canvasWidth - 70, // 右侧价格轴约70px
+      top: 0,
+      bottom: canvasHeight - 30 // 底部时间轴约30px
+    };
+  }
+
+  /**
    * 序列化为可保存的格式
    * @returns {object}
    */

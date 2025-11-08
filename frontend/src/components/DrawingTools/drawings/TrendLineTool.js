@@ -59,6 +59,20 @@ export class TrendLineTool extends BaseTool {
       return; // 坐标转换失败，不绘制
     }
 
+    // 获取可绘制区域
+    const bounds = this.getDrawableBounds(ctx.canvas.width, ctx.canvas.height);
+    
+    // 限制坐标在可绘制区域内
+    const clampedStart = {
+      x: Math.max(bounds.left, Math.min(bounds.right, start.x)),
+      y: Math.max(bounds.top, Math.min(bounds.bottom, start.y))
+    };
+    
+    const clampedEnd = {
+      x: Math.max(bounds.left, Math.min(bounds.right, end.x)),
+      y: Math.max(bounds.top, Math.min(bounds.bottom, end.y))
+    };
+
     // 应用样式
     ctx.strokeStyle = this.style.color;
     ctx.lineWidth = this.style.lineWidth;
@@ -69,8 +83,8 @@ export class TrendLineTool extends BaseTool {
     
     // 绘制线段
     ctx.beginPath();
-    ctx.moveTo(start.x, start.y);
-    ctx.lineTo(end.x, end.y);
+    ctx.moveTo(clampedStart.x, clampedStart.y);
+    ctx.lineTo(clampedEnd.x, clampedEnd.y);
     ctx.stroke();
     
     // 重置虚线

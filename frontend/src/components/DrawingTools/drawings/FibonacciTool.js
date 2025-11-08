@@ -66,11 +66,11 @@ export class FibonacciTool extends BaseTool {
     if (!start || start.x === null || start.y === null) return;
     if (!end || end.x === null || end.y === null) return;
 
+    // 获取可绘制区域
+    const bounds = this.getDrawableBounds(ctx.canvas.width, ctx.canvas.height);
+
     // 计算价格差
     const priceDiff = this.endPoint.price - this.startPoint.price;
-    
-    // 获取画布宽度
-    const canvasWidth = ctx.canvas.width;
     
     // 绘制每一个斐波那契回撤位
     this.levels.forEach(level => {
@@ -79,13 +79,16 @@ export class FibonacciTool extends BaseTool {
       
       if (!screenPos || screenPos.y === null) return;
       
+      // 限制Y坐标在可绘制区域内
+      const clampedY = Math.max(bounds.top, Math.min(bounds.bottom, screenPos.y));
+      
       // 绘制水平线
       ctx.strokeStyle = level.color;
       ctx.lineWidth = 1;
       ctx.setLineDash([5, 3]);
       ctx.beginPath();
-      ctx.moveTo(0, screenPos.y);
-      ctx.lineTo(canvasWidth, screenPos.y);
+      ctx.moveTo(bounds.left, clampedY);
+      ctx.lineTo(bounds.right, clampedY);
       ctx.stroke();
       ctx.setLineDash([]);
       
@@ -95,16 +98,16 @@ export class FibonacciTool extends BaseTool {
       const label = `${level.label} (${price.toFixed(2)})`;
       const textWidth = ctx.measureText(label).width;
       
-      // 标签位置：画布右侧，但留出竖坐标刻度的空间（约80px）
-      const labelX = canvasWidth - textWidth - 90;
+      // 标签位置：画布右侧，但留出竖坐标刻度的空间（约90px）
+      const labelX = Math.min(bounds.right - textWidth - 20, ctx.canvas.width - textWidth - 90);
       
       // 绘制文本背景
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(labelX - 4, screenPos.y - 16, textWidth + 8, 18);
+      ctx.fillRect(labelX - 4, clampedY - 16, textWidth + 8, 18);
       
       // 绘制文本
       ctx.fillStyle = level.color;
-      ctx.fillText(label, labelX, screenPos.y - 3);
+      ctx.fillText(label, labelX, clampedY - 3);
     });
   }
 

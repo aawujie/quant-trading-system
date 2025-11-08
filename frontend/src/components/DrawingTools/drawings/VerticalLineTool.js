@@ -49,10 +49,8 @@ export class VerticalLineTool extends BaseTool {
   }
 
   draw(ctx) {
-    // 获取图表高度
-    const chartElement = this.chart.chartElement();
-    if (!chartElement) return;
-    const chartHeight = chartElement.getBoundingClientRect().height;
+    // 获取可绘制区域
+    const bounds = this.getDrawableBounds(ctx.canvas.width, ctx.canvas.height);
 
     // 绘制确定的垂直线（只使用时间坐标）
     if (this.time !== null) {
@@ -60,6 +58,9 @@ export class VerticalLineTool extends BaseTool {
       if (x === null) {
         return; // 转换失败，不绘制
       }
+      
+      // 限制X坐标在可绘制区域内
+      const clampedX = Math.max(bounds.left, Math.min(bounds.right, x));
       
       ctx.strokeStyle = this.style.color;
       ctx.lineWidth = this.style.lineWidth;
@@ -69,8 +70,8 @@ export class VerticalLineTool extends BaseTool {
       }
       
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, chartHeight);
+      ctx.moveTo(clampedX, bounds.top);
+      ctx.lineTo(clampedX, bounds.bottom);
       ctx.stroke();
       
       ctx.setLineDash([]);
@@ -78,7 +79,7 @@ export class VerticalLineTool extends BaseTool {
       // 绘制时间标签（如果有label）
       if (this.label) {
         ctx.save();
-        ctx.translate(x + 5, 15);
+        ctx.translate(clampedX + 5, 15);
         ctx.fillStyle = this.style.color;
         ctx.font = '12px Arial';
         ctx.fillText(this.label, 0, 0);
@@ -90,14 +91,17 @@ export class VerticalLineTool extends BaseTool {
     if (this.time === null && this.previewTime !== null) {
       const x = this._timeToScreenX(this.previewTime);
       if (x !== null) {
+        // 限制X坐标在可绘制区域内
+        const clampedX = Math.max(bounds.left, Math.min(bounds.right, x));
+        
         ctx.strokeStyle = this.style.color;
         ctx.globalAlpha = 0.5; // 半透明
         ctx.lineWidth = this.style.lineWidth;
         ctx.setLineDash([5, 5]); // 虚线
         
         ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, chartHeight);
+        ctx.moveTo(clampedX, bounds.top);
+        ctx.lineTo(clampedX, bounds.bottom);
         ctx.stroke();
         
         ctx.setLineDash([]);

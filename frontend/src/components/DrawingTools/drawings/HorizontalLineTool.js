@@ -49,10 +49,8 @@ export class HorizontalLineTool extends BaseTool {
   }
 
   draw(ctx) {
-    // 获取图表宽度
-    const chartElement = this.chart.chartElement();
-    if (!chartElement) return;
-    const chartWidth = chartElement.getBoundingClientRect().width;
+    // 获取可绘制区域
+    const bounds = this.getDrawableBounds(ctx.canvas.width, ctx.canvas.height);
 
     // 绘制确定的水平线（只使用价格坐标）
     if (this.price !== null) {
@@ -60,6 +58,9 @@ export class HorizontalLineTool extends BaseTool {
       if (y === null) {
         return; // 转换失败，不绘制
       }
+      
+      // 限制Y坐标在可绘制区域内
+      const clampedY = Math.max(bounds.top, Math.min(bounds.bottom, y));
       
       ctx.strokeStyle = this.style.color;
       ctx.lineWidth = this.style.lineWidth;
@@ -69,8 +70,8 @@ export class HorizontalLineTool extends BaseTool {
       }
       
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(chartWidth, y);
+      ctx.moveTo(bounds.left, clampedY);
+      ctx.lineTo(bounds.right, clampedY);
       ctx.stroke();
       
       ctx.setLineDash([]);
@@ -79,21 +80,24 @@ export class HorizontalLineTool extends BaseTool {
       const priceText = `$${this.price.toFixed(2)}`;
       ctx.fillStyle = this.style.color;
       ctx.font = '12px Arial';
-      ctx.fillText(priceText, 5, y - 5);
+      ctx.fillText(priceText, 5, clampedY - 5);
     }
     
     // 绘制预览线（半透明、虚线）
     if (this.price === null && this.previewPrice !== null) {
       const y = this._priceToScreenY(this.previewPrice);
       if (y !== null) {
+        // 限制Y坐标在可绘制区域内
+        const clampedY = Math.max(bounds.top, Math.min(bounds.bottom, y));
+        
         ctx.strokeStyle = this.style.color;
         ctx.globalAlpha = 0.5; // 半透明
         ctx.lineWidth = this.style.lineWidth;
         ctx.setLineDash([5, 5]); // 虚线
         
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(chartWidth, y);
+        ctx.moveTo(bounds.left, clampedY);
+        ctx.lineTo(bounds.right, clampedY);
         ctx.stroke();
         
         ctx.setLineDash([]);
@@ -104,7 +108,7 @@ export class HorizontalLineTool extends BaseTool {
         ctx.fillStyle = this.style.color;
         ctx.globalAlpha = 0.7;
         ctx.font = '12px Arial';
-        ctx.fillText(priceText, 5, y - 5);
+        ctx.fillText(priceText, 5, clampedY - 5);
         ctx.globalAlpha = 1.0;
       }
     }

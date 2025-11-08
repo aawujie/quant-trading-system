@@ -55,8 +55,22 @@ export class RectangleTool extends BaseTool {
 
     if (!end || end.x === null || end.y === null) return;
 
+    // 获取可绘制区域
+    const bounds = this.getDrawableBounds(ctx.canvas.width, ctx.canvas.height);
+    
+    // 限制坐标在可绘制区域内
+    const clampedStart = {
+      x: Math.max(bounds.left, Math.min(bounds.right, start.x)),
+      y: Math.max(bounds.top, Math.min(bounds.bottom, start.y))
+    };
+    
+    const clampedEnd = {
+      x: Math.max(bounds.left, Math.min(bounds.right, end.x)),
+      y: Math.max(bounds.top, Math.min(bounds.bottom, end.y))
+    };
+
     // 标准化矩形坐标
-    const rect = normalizeRect(start, end);
+    const rect = normalizeRect(clampedStart, clampedEnd);
 
     // 绘制半透明填充
     ctx.fillStyle = `rgba(${this.hexToRgb(this.style.color)}, ${this.style.fillOpacity})`;
