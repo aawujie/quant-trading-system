@@ -772,18 +772,48 @@ export default function App() {
               <option value="ETHUSDT">ETH/USDT</option>
             </select>
 
-            <select 
-              value={timeframe} 
-              onChange={(e) => handleTimeframeChange(e.target.value)}
-            >
-              <option value="3m">3分钟</option>
-              <option value="5m">5分钟</option>
-              <option value="15m">15分钟</option>
-              <option value="30m">30分钟</option>
-              <option value="1h">1小时</option>
-              <option value="4h">4小时</option>
-              <option value="1d">1天</option>
-            </select>
+            {/* 时间级别按钮组 */}
+            <div style={{ display: 'flex', gap: '4px', marginRight: '1rem' }}>
+              {[
+                { value: '3m', label: '3m' },
+                { value: '5m', label: '5m' },
+                { value: '15m', label: '15m' },
+                { value: '30m', label: '30m' },
+                { value: '1h', label: '1h' },
+                { value: '4h', label: '4h' },
+                { value: '1d', label: '1d' }
+              ].map((tf, index, arr) => (
+                <button
+                  key={tf.value}
+                  onClick={() => handleTimeframeChange(tf.value)}
+                  style={{
+                    padding: '8px 12px',
+                    background: timeframe === tf.value ? '#4CAF50' : 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    border: '1px solid ' + (timeframe === tf.value ? '#4CAF50' : 'rgba(255,255,255,0.3)'),
+                    borderRadius: index === 0 ? '6px 0 0 6px' : (index === arr.length - 1 ? '0 6px 6px 0' : '0'),
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: timeframe === tf.value ? '600' : '400',
+                    transition: 'all 0.2s',
+                    minWidth: '42px'
+                  }}
+                  onMouseOver={(e) => {
+                    if (timeframe !== tf.value) {
+                      e.target.style.background = 'rgba(255,255,255,0.15)';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (timeframe !== tf.value) {
+                      e.target.style.background = 'rgba(255,255,255,0.1)';
+                    }
+                  }}
+                  title={tf.label}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
 
             {/* 重置图表按钮 */}
             <button 
