@@ -780,7 +780,7 @@ export default function App() {
             </select>
 
             {/* 时间级别按钮组 */}
-            <div style={{ display: 'flex', gap: '4px', marginRight: '1rem' }}>
+            <div style={{ display: 'flex', gap: '4px' }}>
               {[
                 { value: '3m', label: '3m' },
                 { value: '5m', label: '5m' },
@@ -822,14 +822,19 @@ export default function App() {
               ))}
             </div>
 
-            {/* 重置图表按钮 */}
+            {/* 绘图工具栏 */}
+            <DrawingToolbar
+              activeTool={drawingManager.activeTool}
+              onToolSelect={drawingManager.activateTool}
+            />
+
+            {/* 重置图表按钮 - 放在最右边 */}
             <button 
               onClick={resetChart}
               style={{
-                marginLeft: '0.5rem',
-                marginRight: '1rem',
+                marginLeft: 'auto',
                 padding: '0.5rem',
-                background: '#2196F3',
+                background: '#FF5722',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
@@ -839,18 +844,15 @@ export default function App() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 minWidth: '36px',
-                minHeight: '36px'
+                minHeight: '36px',
+                transition: 'all 0.2s'
               }}
+              onMouseOver={(e) => e.target.style.background = '#E64A19'}
+              onMouseOut={(e) => e.target.style.background = '#FF5722'}
               title="重置图表到初始状态"
             >
               🔄
             </button>
-
-            {/* 绘图工具栏 */}
-            <DrawingToolbar
-              activeTool={drawingManager.activeTool}
-              onToolSelect={drawingManager.activateTool}
-            />
           </div>
 
           {error && (

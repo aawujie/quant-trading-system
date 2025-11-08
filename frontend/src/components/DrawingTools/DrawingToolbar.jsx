@@ -46,7 +46,6 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
           }}
         >
           <span style={styles.icon}>{tool.icon}</span>
-          <span>{tool.name}</span>
         </button>
       ))}
     </div>
@@ -71,8 +70,8 @@ const styles = {
   button: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.25rem',
-    padding: '0.5rem 0.75rem',
+    justifyContent: 'center',
+    padding: '0.5rem',
     backgroundColor: '#3a3a4a',
     color: '#d1d4dc',
     border: 'none',
@@ -80,7 +79,9 @@ const styles = {
     cursor: 'pointer',
     fontSize: '0.875rem',
     transition: 'all 0.2s',
-    outline: 'none'
+    outline: 'none',
+    minWidth: '36px',
+    minHeight: '36px'
   },
   activeButton: {
     backgroundColor: '#2962FF',
@@ -88,7 +89,7 @@ const styles = {
     boxShadow: '0 2px 4px rgba(41, 98, 255, 0.3)'
   },
   icon: {
-    fontSize: '1rem'
+    fontSize: '1.25rem'
   }
 };
 
