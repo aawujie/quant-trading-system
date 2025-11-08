@@ -790,16 +790,16 @@ export default function App() {
                 { value: '4h', label: '4h' },
                 { value: '1d', label: '1d' }
               ].map((tf, index, arr) => (
-                <button
+            <button 
                   key={tf.value}
                   onClick={() => handleTimeframeChange(tf.value)}
-                  style={{
+              style={{
                     padding: '8px 12px',
                     background: timeframe === tf.value ? '#4CAF50' : 'rgba(255,255,255,0.1)',
-                    color: 'white',
+                color: 'white',
                     border: '1px solid ' + (timeframe === tf.value ? '#4CAF50' : 'rgba(255,255,255,0.3)'),
                     borderRadius: index === 0 ? '6px 0 0 6px' : (index === arr.length - 1 ? '0 6px 6px 0' : '0'),
-                    cursor: 'pointer',
+                cursor: 'pointer',
                     fontSize: '13px',
                     fontWeight: timeframe === tf.value ? '600' : '400',
                     transition: 'all 0.2s',
@@ -814,11 +814,11 @@ export default function App() {
                     if (timeframe !== tf.value) {
                       e.target.style.background = 'rgba(255,255,255,0.1)';
                     }
-                  }}
+              }}
                   title={tf.label}
-                >
+            >
                   {tf.label}
-                </button>
+            </button>
               ))}
             </div>
 
