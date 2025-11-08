@@ -18,6 +18,7 @@ export class FibonacciTool extends BaseTool {
       { ratio: 0.382, label: '38.2%', color: '#FF9800' },
       { ratio: 0.5, label: '50.0%', color: '#9C27B0' },
       { ratio: 0.618, label: '61.8%', color: '#2962FF' },
+      { ratio: 0.786, label: '78.6%', color: '#E91E63' },
       { ratio: 1, label: '100.0%', color: '#4CAF50' }
     ];
   }
