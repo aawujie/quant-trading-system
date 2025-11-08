@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     proxy_password: str = ""
     
     # System Configuration
-    log_level: str = "DEBUG"
+    log_level: str = "INFO"  # DEBUG会显示所有详细日志，INFO只显示重要信息
     
     # K-line Data Fetching Configuration
     kline_fetch_interval: int = 4  # K线数据获取间隔（秒）
