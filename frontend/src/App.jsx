@@ -31,6 +31,29 @@ export default function App() {
     timeframe
   );
 
+  // Generate future ghost bars for time scale marks (不可见的未来K线，只为生成刻度)
+  const generateFutureBars = useCallback((lastBar, timeframe, count = 50) => {
+    const timeframeSeconds = {
+      '3m': 180, '5m': 300, '15m': 900, '30m': 1800,
+      '1h': 3600, '4h': 14400, '1d': 86400
+    };
+    
+    const interval = timeframeSeconds[timeframe] || 3600;
+    const futureBars = [];
+    
+    for (let i = 1; i <= count; i++) {
+      futureBars.push({
+        time: lastBar.time + interval * i,
+        open: lastBar.close,
+        high: lastBar.close,
+        low: lastBar.close,
+        close: lastBar.close,
+      });
+    }
+    
+    return futureBars;
+  }, []);
+
   // Set chart to show latest 200 bars (or all if less than 200)
   const setInitialChartView = useCallback(() => {
     if (!chartRef.current || !seriesRef.current?.candlestick) {
@@ -125,6 +148,33 @@ export default function App() {
 
         console.log('📊 Setting candlestick data...');
         seriesRef.current.candlestick.setData(candlestickData);
+        
+        // Add invisible helper line to extend time scale with full data points
+        if (!seriesRef.current.futureHelper) {
+          const lastBar = candlestickData[candlestickData.length - 1];
+          const futureBars = generateFutureBars(lastBar, timeframe, 50);
+          
+          // Create an invisible line series that extends to the future
+          const helperSeries = chartRef.current.addLineSeries({
+            color: 'transparent',
+            lineWidth: 0,
+            lastValueVisible: false,
+            priceLineVisible: false,
+            crosshairMarkerVisible: false,
+          });
+          
+          // Add ALL future points (not just 2) to generate time scale marks
+          const helperData = [
+            { time: lastBar.time, value: lastBar.close },
+            ...futureBars.map(bar => ({ time: bar.time, value: lastBar.close }))
+          ];
+          
+          helperSeries.setData(helperData);
+          
+          seriesRef.current.futureHelper = helperSeries;
+          console.log(`✅ Extended time scale with ${helperData.length} future points`);
+        }
+
 
         console.log(`✅ Loaded ${klines.length} K-lines for ${symbol} ${timeframe}`);
 
@@ -278,6 +328,12 @@ export default function App() {
       seriesRef.current.candlestick.setData([]);
       seriesRef.current.ma5.setData([]);
       seriesRef.current.ma20.setData([]);
+      
+      // Remove future helper series
+      if (seriesRef.current.futureHelper && chartRef.current) {
+        chartRef.current.removeSeries(seriesRef.current.futureHelper);
+        seriesRef.current.futureHelper = null;
+      }
     }
   };
 
@@ -293,6 +349,12 @@ export default function App() {
       seriesRef.current.candlestick.setData([]);
       seriesRef.current.ma5.setData([]);
       seriesRef.current.ma20.setData([]);
+      
+      // Remove future helper series
+      if (seriesRef.current.futureHelper && chartRef.current) {
+        chartRef.current.removeSeries(seriesRef.current.futureHelper);
+        seriesRef.current.futureHelper = null;
+      }
     }
   };
 

@@ -59,6 +59,14 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
         borderColor: '#3a3a4a',
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 50, // 右侧预留空间（可以画未来的线）
+        barSpacing: 6, // K线间距
+        minBarSpacing: 0.5, // 最小K线间距
+        fixLeftEdge: false, // 不固定左边界
+        fixRightEdge: false, // 不固定右边界（允许滚动到未来）
+        lockVisibleTimeRangeOnResize: false, // 窗口大小变化时不锁定可见范围
+        rightBarStaysOnScroll: false, // 滚动时最右边的K线可以移动
+        shiftVisibleRangeOnNewBar: false, // 新K线不自动移动视图
       },
       rightPriceScale: {
         borderColor: '#3a3a4a',
