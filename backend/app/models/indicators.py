@@ -1,23 +1,51 @@
 """Technical indicator data models"""
 
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+import logging
+from pydantic import BaseModel, Field, field_validator
 
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# 指标版本控制
+# ============================================================================
+
+INDICATOR_VERSION = "v2.0.0"  # 指标计算版本号
+INDICATOR_CHANGELOG = {
+    "v2.0.0": "增量计算版本，添加边界检查和验证",
+    "v1.0.0": "传统批量计算版本"
+}
 
 # ============================================================================
 # 指标元数据配置
 # ============================================================================
 
 class IndicatorMetadata(BaseModel):
-    """指标元数据 - 定义每个指标的计算参数"""
+    """
+    指标元数据 - 定义每个指标的计算参数
+    
+    支持单参数和多参数指标：
+    - 单参数：MA, EMA, RSI（只需 period）
+    - 多参数：MACD, BOLL（需要额外参数）
+    """
     name: str  # 指标名称
-    period: int  # 需要的基本周期数
+    period: int  # 需要的基本周期数（单参数指标）
     warmup: int  # 预热期（确保指标计算准确）
     description: str  # 描述
+    
+    # 多参数支持（可选）
+    params: Optional[Dict[str, Any]] = None  # 额外参数，如 {'fast': 12, 'slow': 26}
     
     def get_required_klines(self) -> int:
         """获取该指标需要的总 K 线数量"""
         return self.period + self.warmup
+    
+    def get_param(self, key: str, default: Any = None) -> Any:
+        """获取参数值"""
+        if self.params and key in self.params:
+            return self.params[key]
+        return default
 
 
 # 指标配置字典 - 所有指标的元数据集中管理
@@ -74,13 +102,15 @@ INDICATOR_CONFIGS: Dict[str, IndicatorMetadata] = {
         name='MACD',
         period=35,  # slowperiod(26) + signalperiod(9)
         warmup=50,  # MACD 基于 EMA，需要预热
-        description='MACD指标 (12,26,9)'
+        description='MACD指标 (12,26,9)',
+        params={'fast_period': 12, 'slow_period': 26, 'signal_period': 9}
     ),
     'boll': IndicatorMetadata(
         name='BOLL',
         period=20,
         warmup=0,
-        description='布林带 (20,2)'
+        description='布林带 (20,2)',
+        params={'nbdev': 2.0}  # 标准差倍数
     ),
     'atr14': IndicatorMetadata(
         name='ATR14',
@@ -215,6 +245,54 @@ class IndicatorData(BaseModel):
     
     # Volume indicators
     volume_ma5: Optional[float] = Field(None, description="5-period volume moving average")
+    
+    @field_validator('rsi14')
+    @classmethod
+    def validate_rsi(cls, v: Optional[float]) -> Optional[float]:
+        """验证 RSI 值在 0-100 范围内"""
+        if v is not None:
+            if v < 0 or v > 100:
+                logger.warning(f"Invalid RSI value: {v}, should be in [0, 100]. Setting to None.")
+                return None
+        return v
+    
+    @field_validator('atr14')
+    @classmethod
+    def validate_atr(cls, v: Optional[float]) -> Optional[float]:
+        """验证 ATR 值为正数"""
+        if v is not None and v < 0:
+            logger.warning(f"Invalid ATR value: {v}, should be >= 0. Setting to None.")
+            return None
+        return v
+    
+    @field_validator('volume_ma5')
+    @classmethod
+    def validate_volume(cls, v: Optional[float]) -> Optional[float]:
+        """验证成交量为正数"""
+        if v is not None and v < 0:
+            logger.warning(f"Invalid volume MA value: {v}, should be >= 0. Setting to None.")
+            return None
+        return v
+    
+    @field_validator('bb_upper', 'bb_middle', 'bb_lower')
+    @classmethod
+    def validate_bollinger(cls, v: Optional[float]) -> Optional[float]:
+        """验证布林带值的合理性"""
+        if v is not None:
+            # 检查是否为有限数字
+            if not (-1e10 < v < 1e10):  # 防止极端值
+                logger.warning(f"Invalid Bollinger Band value: {v}. Setting to None.")
+                return None
+        return v
+    
+    @field_validator('ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'ema12', 'ema26')
+    @classmethod
+    def validate_moving_average(cls, v: Optional[float]) -> Optional[float]:
+        """验证移动平均线值为正数"""
+        if v is not None and v <= 0:
+            logger.warning(f"Invalid MA/EMA value: {v}, price should be > 0. Setting to None.")
+            return None
+        return v
     
     class Config:
         json_schema_extra = {
