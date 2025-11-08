@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     
     # K-line Data Fetching Configuration
-    kline_fetch_interval: int = 5  # K线数据获取间隔（秒）
+    kline_fetch_interval: int = 2  # K线数据获取间隔（秒）
     
     class Config:
         env_file = ".env"

@@ -32,7 +32,7 @@ class BinanceExchange(ExchangeBase):
             'secret': api_secret,
             'enableRateLimit': True,  # Respect rate limits
             'options': {
-                'defaultType': 'spot',  # Use spot trading by default
+                'defaultType': 'swap',  # Use USDT-M perpetual swap contracts
             }
         }
         
