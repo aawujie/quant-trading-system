@@ -749,6 +749,16 @@ export default function App() {
                   transition: 'all 0.2s',
                   minWidth: '42px'
                 }}
+                onMouseOver={(e) => {
+                  if (marketType !== 'spot') {
+                    e.target.style.background = 'rgba(255,255,255,0.15)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (marketType !== 'spot') {
+                    e.target.style.background = 'rgba(255,255,255,0.1)';
+                  }
+                }}
                 title="现货市场"
               >
                 S
@@ -766,6 +776,16 @@ export default function App() {
                   fontWeight: marketType === 'future' ? '600' : '400',
                   transition: 'all 0.2s',
                   minWidth: '42px'
+                }}
+                onMouseOver={(e) => {
+                  if (marketType !== 'future') {
+                    e.target.style.background = 'rgba(255,255,255,0.15)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (marketType !== 'future') {
+                    e.target.style.background = 'rgba(255,255,255,0.1)';
+                  }
                 }}
                 title="永续合约"
               >
