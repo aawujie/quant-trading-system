@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     
     # 混合修复模式：K线按时间，指标按数量
     repair_days_back: int = 30  # K线修复：检查最近N天（确保时间连续性）
-    repair_klines_count: int = 2000  # 指标修复：每个周期修复N根K线（统一样本量）
+    repair_klines_count: int = 200  # 指标修复：每个周期修复N根K线（统一样本量）
     
     class Config:
         env_file = ".env"
