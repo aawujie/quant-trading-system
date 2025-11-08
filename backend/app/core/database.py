@@ -384,10 +384,18 @@ class Database:
     # Indicator operations
     
     async def insert_indicator(self, indicator: IndicatorData) -> bool:
-        """Insert indicator data"""
+        """
+        Insert or update indicator data (UPSERT)
+        
+        如果记录已存在（相同 symbol, timeframe, timestamp, market_type），则更新；
+        否则插入新记录。
+        """
+        from sqlalchemy.dialects.postgresql import insert
+        
         async with self.SessionLocal() as session:
             try:
-                db_indicator = IndicatorDB(
+                # 构造插入语句
+                stmt = insert(IndicatorDB).values(
                     symbol=indicator.symbol,
                     timeframe=indicator.timeframe,
                     timestamp=indicator.timestamp,
@@ -409,12 +417,37 @@ class Database:
                     atr14=indicator.atr14,
                     volume_ma5=indicator.volume_ma5
                 )
-                session.add(db_indicator)
+                
+                # ON CONFLICT DO UPDATE
+                # 如果记录已存在，更新所有指标值
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['symbol', 'timeframe', 'timestamp', 'market_type'],
+                    set_={
+                        'ma5': stmt.excluded.ma5,
+                        'ma10': stmt.excluded.ma10,
+                        'ma20': stmt.excluded.ma20,
+                        'ma60': stmt.excluded.ma60,
+                        'ma120': stmt.excluded.ma120,
+                        'ema12': stmt.excluded.ema12,
+                        'ema26': stmt.excluded.ema26,
+                        'rsi14': stmt.excluded.rsi14,
+                        'macd_line': stmt.excluded.macd_line,
+                        'macd_signal': stmt.excluded.macd_signal,
+                        'macd_histogram': stmt.excluded.macd_histogram,
+                        'bb_upper': stmt.excluded.bb_upper,
+                        'bb_middle': stmt.excluded.bb_middle,
+                        'bb_lower': stmt.excluded.bb_lower,
+                        'atr14': stmt.excluded.atr14,
+                        'volume_ma5': stmt.excluded.volume_ma5
+                    }
+                )
+                
+                await session.execute(stmt)
                 await session.commit()
                 return True
             except Exception as e:
                 await session.rollback()
-                logger.error(f"Failed to insert indicator: {e}")
+                logger.error(f"Failed to upsert indicator: {e}")
                 return False
     
     async def get_indicator_at(
