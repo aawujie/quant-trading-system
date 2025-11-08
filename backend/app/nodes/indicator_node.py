@@ -259,11 +259,14 @@ class IndicatorNode(ProcessorNode):
                 volume_ma5=float(volume_ma5[latest_idx]) if not np.isnan(volume_ma5[latest_idx]) else None
             )
             
+            # Format indicator values for logging
+            ma5_str = f"{indicator.ma5:.2f}" if indicator.ma5 is not None else "None"
+            ma20_str = f"{indicator.ma20:.2f}" if indicator.ma20 is not None else "None"
+            rsi_str = f"{indicator.rsi14:.2f}" if indicator.rsi14 is not None else "None"
+            
             logger.debug(
                 f"Calculated indicators for {symbol} {timeframe}: "
-                f"MA5={indicator.ma5:.2f if indicator.ma5 else None}, "
-                f"MA20={indicator.ma20:.2f if indicator.ma20 else None}, "
-                f"RSI={indicator.rsi14:.2f if indicator.rsi14 else None}"
+                f"MA5={ma5_str}, MA20={ma20_str}, RSI={rsi_str}"
             )
             
             return indicator
