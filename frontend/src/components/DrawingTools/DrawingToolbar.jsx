@@ -37,7 +37,7 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
   ];
 
   return (
-    <div className="drawing-toolbar" style={styles.toolbar}>
+    <>
       {tools.map(tool => (
         <button
           key={tool.id}
@@ -52,25 +52,11 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
           <span style={styles.icon}>{tool.icon}</span>
         </button>
       ))}
-    </div>
+    </>
   );
 }
 
 const styles = {
-  toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem',
-    backgroundColor: '#2a2a2a',
-    borderRadius: '4px',
-    marginLeft: '1rem'
-  },
-  label: {
-    color: '#d1d4dc',
-    fontSize: '0.875rem',
-    fontWeight: '500'
-  },
   button: {
     display: 'flex',
     alignItems: 'center',

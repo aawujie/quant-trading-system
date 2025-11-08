@@ -823,10 +823,12 @@ export default function App() {
             </div>
 
             {/* 绘图工具栏 */}
-            <DrawingToolbar
-              activeTool={drawingManager.activeTool}
-              onToolSelect={drawingManager.activateTool}
-            />
+            <div style={{ display: 'flex', gap: '4px', marginLeft: '1rem' }}>
+              <DrawingToolbar
+                activeTool={drawingManager.activeTool}
+                onToolSelect={drawingManager.activateTool}
+              />
+            </div>
 
             {/* 重置图表按钮 - 放在最右边 */}
             <button 
