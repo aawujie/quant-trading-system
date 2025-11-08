@@ -12,7 +12,8 @@ export default function DrawingCanvas({
   onMouseUp,
   onMouseLeave,
   redrawCanvas,
-  isDrawingMode // 新增：是否处于绘图模式
+  isDrawingMode, // 是否处于绘图模式
+  activeTool // 当前激活的绘图工具
 }) {
   const containerRef = useRef();
   const crosshairPos = useRef({ x: null, y: null }); // 存储十字星位置
@@ -107,8 +108,13 @@ export default function DrawingCanvas({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       redrawCanvas();
       
-      // 在绘图模式下绘制十字星
-      if (isDrawingMode && crosshairPos.current.x !== null) {
+      // 在绘图模式下绘制十字星（水平线和垂直线工具除外）
+      const shouldShowCrosshair = isDrawingMode && 
+        activeTool !== 'horizontal_line' && 
+        activeTool !== 'vertical_line' &&
+        crosshairPos.current.x !== null;
+      
+      if (shouldShowCrosshair) {
         drawCrosshair(ctx, crosshairPos.current.x, crosshairPos.current.y);
       }
     };
@@ -158,7 +164,7 @@ export default function DrawingCanvas({
         }
       }
     };
-  }, [chart, canvasRef, redrawCanvas, onMouseDown, onMouseMove, onMouseUp, onMouseLeave, isDrawingMode]);
+  }, [chart, canvasRef, redrawCanvas, onMouseDown, onMouseMove, onMouseUp, onMouseLeave, isDrawingMode, activeTool]);
 
   // 当绘图模式改变时，动态更新canvas的事件接收状态
   useEffect(() => {

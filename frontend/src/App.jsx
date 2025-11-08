@@ -964,6 +964,7 @@ export default function App() {
                 onMouseLeave={drawingManager.handleMouseLeave}
                 redrawCanvas={drawingManager.redrawCanvas}
                 isDrawingMode={drawingManager.activeTool !== null}
+                activeTool={drawingManager.activeTool}
               />
             )}
           </div>
