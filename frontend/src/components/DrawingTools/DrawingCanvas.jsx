@@ -32,14 +32,39 @@ export default function DrawingCanvas({
     // 关键：只在绘图模式时接收事件，否则让事件穿透到底层图表
     canvas.style.pointerEvents = isDrawingMode ? 'auto' : 'none';
     canvas.style.zIndex = '10';
-    canvas.style.cursor = isDrawingMode ? 'crosshair' : 'default';
+    // 不设置 cursor，让图表库的十字星正常显示
+    canvas.style.cursor = 'default';
 
     containerRef.current.appendChild(canvas);
     canvasRef.current = canvas;
 
+    // 包装 mousemove 事件，同时更新图表十字星
+    const handleMouseMove = (e) => {
+      // 调用绘图的 mousemove 处理
+      onMouseMove(e);
+      
+      // 如果在绘图模式，手动触发图表的十字星更新
+      if (isDrawingMode) {
+        const chartContainer = chart.chartElement();
+        const rect = chartContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // 触发图表的鼠标移动事件，使十字星跟随
+        const mouseEvent = new MouseEvent('mousemove', {
+          bubbles: true,
+          cancelable: true,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          view: window
+        });
+        chartContainer.dispatchEvent(mouseEvent);
+      }
+    };
+    
     // 绑定鼠标事件到 canvas
     canvas.addEventListener('mousedown', onMouseDown);
-    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('mouseleave', onMouseLeave);
 
@@ -78,7 +103,7 @@ export default function DrawingCanvas({
     return () => {
       // 移除事件监听
       canvas.removeEventListener('mousedown', onMouseDown);
-      canvas.removeEventListener('mousemove', onMouseMove);
+      canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mouseup', onMouseUp);
       canvas.removeEventListener('mouseleave', onMouseLeave);
       
@@ -94,7 +119,7 @@ export default function DrawingCanvas({
         }
       }
     };
-  }, [chart, canvasRef, redrawCanvas, onMouseDown, onMouseMove, onMouseUp, onMouseLeave]);
+  }, [chart, canvasRef, redrawCanvas, onMouseDown, onMouseMove, onMouseUp, onMouseLeave, isDrawingMode]);
 
   // 当绘图模式改变时，动态更新canvas的事件接收状态
   useEffect(() => {
@@ -103,7 +128,8 @@ export default function DrawingCanvas({
 
     // 只在绘图模式时接收事件，否则让事件穿透
     canvas.style.pointerEvents = isDrawingMode ? 'auto' : 'none';
-    canvas.style.cursor = isDrawingMode ? 'crosshair' : 'default';
+    // 保持默认光标，不覆盖图表库的十字星
+    canvas.style.cursor = 'default';
   }, [isDrawingMode, canvasRef]);
 
   return (
