@@ -200,9 +200,9 @@ async def main():
     
     parser.add_argument(
         "--node",
-        choices=["kline", "indicator", "strategy", "all"],
+        choices=["kline", "indicator", "strategy", "all", "repair"],
         required=True,
-        help="Node type to start"
+        help="Node type to start (use 'repair' for deep data integrity check)"
     )
     
     parser.add_argument(
@@ -294,7 +294,8 @@ async def main():
     # Check and repair data integrity (if enabled)
     if settings.auto_repair_data and args.node in ["kline", "indicator", "all"]:
         logger.info("")
-        logger.info("🔍 Running data integrity check...")
+        logger.info("🔍 Running quick data integrity check...")
+        logger.info(f"   Checking last {settings.repair_hours_back_on_startup} hour(s)")
         
         try:
             from app.services.data_integrity import DataIntegrityService
@@ -323,13 +324,22 @@ async def main():
             symbols = args.symbols.split(",")
             timeframes = args.timeframes.split(",")
             
-            # Run repair
+            # 根据节点类型决定修复什么数据
+            repair_kline = args.node in ["kline", "all"]
+            repair_indicator = args.node in ["indicator", "all"]
+            
+            # Run quick repair (只检查最近几小时)
+            # 使用小时而不是天数进行快速检查
+            hours_back = settings.repair_hours_back_on_startup
+            
             await service.check_and_repair_all(
                 symbols=symbols,
                 timeframes=timeframes,
-                days_back=settings.repair_days_back,
+                days_back=hours_back / 24,  # 转换为天数（支持小数）
                 auto_fix=True,
-                market_type=settings.market_type
+                market_type=settings.market_type,
+                repair_kline=repair_kline,
+                repair_indicator=repair_indicator
             )
             
             await exchange.close()
@@ -339,6 +349,68 @@ async def main():
             logger.info("Continuing with node startup...")
         
         logger.info("")
+    
+    # Handle repair node (runs once and exits)
+    if args.node == "repair":
+        logger.info("")
+        logger.info("🔧 Running DEEP data integrity repair...")
+        logger.info(f"   Checking last {settings.repair_days_back} day(s)")
+        
+        try:
+            from app.services.data_integrity import DataIntegrityService
+            
+            # Initialize exchange for repair
+            proxy_config = None
+            if settings.proxy_enabled:
+                proxy_config = {
+                    'enabled': settings.proxy_enabled,
+                    'host': settings.proxy_host,
+                    'port': settings.proxy_port,
+                    'username': settings.proxy_username,
+                    'password': settings.proxy_password
+                }
+            
+            exchange = BinanceExchange(
+                api_key=settings.binance_api_key or "",
+                api_secret=settings.binance_api_secret or "",
+                proxy_config=proxy_config,
+                market_type=settings.market_type
+            )
+            
+            service = DataIntegrityService(db, exchange)
+            
+            # Get symbols and timeframes from args
+            symbols = args.symbols.split(",")
+            timeframes = args.timeframes.split(",")
+            
+            # Deep repair: check both K-line and indicator data
+            await service.check_and_repair_all(
+                symbols=symbols,
+                timeframes=timeframes,
+                days_back=settings.repair_days_back,  # 使用完整的天数配置
+                auto_fix=True,
+                market_type=settings.market_type,
+                repair_kline=True,
+                repair_indicator=True
+            )
+            
+            await exchange.close()
+            
+            logger.info("")
+            logger.info("✅ Deep repair completed!")
+            logger.info("")
+            
+        except Exception as e:
+            logger.error(f"❌ Deep repair failed: {e}", exc_info=True)
+            sys.exit(1)
+        
+        finally:
+            # Cleanup and exit
+            await bus.close()
+            await db.close()
+            logger.info("Repair node exiting...")
+        
+        return  # Exit after repair
     
     # Start appropriate node
     try:

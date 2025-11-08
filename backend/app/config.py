@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     
     # Data Integrity Configuration
     auto_repair_data: bool = True  # 启动时自动修复数据
-    repair_days_back: int = 7  # 检查最近N天的数据
+    repair_hours_back_on_startup: int = 1  # 节点启动时检查最近N小时的数据（快速检查）
+    repair_days_back: int = 7  # 手动修复时检查最近N天的数据（深度修复）
     
     class Config:
         env_file = ".env"

@@ -133,7 +133,7 @@ class KlineNode(ProducerNode):
                     elif kline_count < 500:
                         # Insufficient data: Fill to 7 days ago
                         logger.info(f"📥 {symbol} {timeframe}: {kline_count} bars, filling gaps...")
-                        await self._fill_gap(symbol, timeframe, t1)
+                        await self._fill_gap(symbol, timeframe, t1, publish_to_bus=False)
                         t1 = await self.db.get_last_kline_time(symbol, timeframe, self.market_type)
                     
                     else:
@@ -145,7 +145,8 @@ class KlineNode(ProducerNode):
                             logger.info(
                                 f"🔄 {symbol} {timeframe}: Gap of {gap_seconds//60} minutes, filling..."
                             )
-                            await self._fill_gap(symbol, timeframe, t1)
+                            # 🔥 关键修改：启动时补gap要发布消息，这样指标节点能收到并计算指标
+                            await self._fill_gap(symbol, timeframe, t1, publish_to_bus=True)
                             t1 = await self.db.get_last_kline_time(symbol, timeframe, self.market_type)
                     
                     # t3: Initialize memory cursor
@@ -179,7 +180,7 @@ class KlineNode(ProducerNode):
             await self.db.bulk_insert_klines(klines)
             logger.info(f"📊 Inserted {len(klines)} initial klines for {symbol} {timeframe}")
     
-    async def _fill_gap(self, symbol: str, timeframe: str, from_ts: int):
+    async def _fill_gap(self, symbol: str, timeframe: str, from_ts: int, publish_to_bus: bool = False):
         """
         Fill missing data gap from from_ts to current time
         
@@ -187,6 +188,7 @@ class KlineNode(ProducerNode):
             symbol: Trading symbol
             timeframe: Timeframe
             from_ts: Start timestamp (t1)
+            publish_to_bus: Whether to publish filled klines to message bus (for indicator calculation)
         """
         exchange_symbol = self._format_symbol_for_exchange(symbol)
         interval_seconds = self._timeframe_to_seconds(timeframe)
@@ -200,10 +202,13 @@ class KlineNode(ProducerNode):
             return
         
         logger.info(f"📥 Filling ~{missing_bars} missing bars for {symbol} {timeframe}")
+        if publish_to_bus:
+            logger.info(f"   Will publish to message bus for indicator calculation")
         
         # Fetch in batches (max 1000 per request)
         current_since = from_ts
         total_fetched = 0
+        all_klines = []  # 收集所有K线用于发布
         
         for batch_num in range(10):  # Max 10 batches (10,000 bars = ~400 days for 1h)
             klines = await self.exchange.fetch_klines(
@@ -220,6 +225,10 @@ class KlineNode(ProducerNode):
             await self.db.bulk_insert_klines(klines)
             total_fetched += len(klines)
             
+            # 收集K线用于发布
+            if publish_to_bus:
+                all_klines.extend(klines)
+            
             # Update since for next batch
             last_ts = max(k.timestamp for k in klines)
             current_since = last_ts + interval_seconds
@@ -232,6 +241,21 @@ class KlineNode(ProducerNode):
         
         if total_fetched > 0:
             logger.info(f"✅ Filled {total_fetched} bars for {symbol} {timeframe}")
+            
+            # 发布到消息总线（如果需要）
+            if publish_to_bus and all_klines:
+                logger.info(f"📤 Publishing {len(all_klines)} filled klines to message bus...")
+                topic = f"kline:{symbol}:{timeframe}"
+                
+                for kline in all_klines:
+                    try:
+                        await self.emit(topic, kline.model_dump())
+                        # 稍微延迟避免消息洪泛
+                        await asyncio.sleep(0.01)
+                    except Exception as e:
+                        logger.error(f"Failed to publish kline: {e}")
+                
+                logger.info(f"✅ Published {len(all_klines)} klines to '{topic}'")
     
     async def produce(self) -> None:
         """

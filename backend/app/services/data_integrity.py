@@ -31,9 +31,11 @@ class DataIntegrityService:
         self, 
         symbols: List[str],
         timeframes: List[str],
-        days_back: int = 30,
+        days_back: float = 30,
         auto_fix: bool = True,
-        market_type: str = 'future'
+        market_type: str = 'future',
+        repair_kline: bool = True,
+        repair_indicator: bool = True
     ):
         """
         检查并修复所有数据缺失
@@ -41,18 +43,29 @@ class DataIntegrityService:
         Args:
             symbols: 交易对列表
             timeframes: 时间周期列表
-            days_back: 检查最近N天的数据
+            days_back: 检查最近N天的数据（支持小数，如0.042 = 1小时）
             auto_fix: 是否自动修复
             market_type: 市场类型
+            repair_kline: 是否修复K线数据
+            repair_indicator: 是否修复指标数据
         """
         logger.info("=" * 60)
         logger.info("🔍 Starting Data Integrity Check")
         logger.info("=" * 60)
         logger.info(f"Symbols: {symbols}")
         logger.info(f"Timeframes: {timeframes}")
-        logger.info(f"Look back: {days_back} days")
+        
+        # 显示时间范围（区分小时和天）
+        if days_back < 1:
+            hours_back = days_back * 24
+            logger.info(f"Look back: {hours_back:.1f} hour(s)")
+        else:
+            logger.info(f"Look back: {days_back:.1f} day(s)")
+        
         logger.info(f"Market type: {market_type}")
         logger.info(f"Auto fix: {auto_fix}")
+        logger.info(f"Repair K-line: {repair_kline}")
+        logger.info(f"Repair Indicator: {repair_indicator}")
         logger.info("")
         
         total_kline_gaps = 0
@@ -64,39 +77,44 @@ class DataIntegrityService:
             for timeframe in timeframes:
                 logger.info(f"📊 Checking {symbol} {timeframe}...")
                 
-                # 1. 检测K线缺失
-                kline_gaps = await self.detect_kline_gaps(
-                    symbol, timeframe, days_back, market_type
-                )
-                total_kline_gaps += len(kline_gaps)
+                kline_gaps = []
+                indicator_gaps = []
                 
-                if kline_gaps:
-                    logger.warning(f"   ⚠️  Found {len(kline_gaps)} K-line gap(s)")
-                    
-                    if auto_fix:
-                        filled = await self.backfill_klines(
-                            symbol, timeframe, kline_gaps, market_type
-                        )
-                        total_klines_filled += filled
-                
-                # 2. 检测指标缺失
-                indicator_gaps = await self.detect_indicator_gaps(
-                    symbol, timeframe, days_back
-                )
-                total_indicator_gaps += len(indicator_gaps)
-                
-                if indicator_gaps:
-                    logger.warning(
-                        f"   ⚠️  Found {len(indicator_gaps)} indicator gap(s)"
+                # 1. 检测K线缺失（如果需要）
+                if repair_kline:
+                    kline_gaps = await self.detect_kline_gaps(
+                        symbol, timeframe, days_back, market_type
                     )
+                    total_kline_gaps += len(kline_gaps)
                     
-                    if auto_fix:
-                        filled = await self.backfill_indicators(
-                            symbol, timeframe, indicator_gaps
-                        )
-                        total_indicators_filled += filled
+                    if kline_gaps:
+                        logger.warning(f"   ⚠️  Found {len(kline_gaps)} K-line gap(s)")
+                        
+                        if auto_fix:
+                            filled = await self.backfill_klines(
+                                symbol, timeframe, kline_gaps, market_type
+                            )
+                            total_klines_filled += filled
                 
-                if not kline_gaps and not indicator_gaps:
+                # 2. 检测指标缺失（如果需要）
+                if repair_indicator:
+                    indicator_gaps = await self.detect_indicator_gaps(
+                        symbol, timeframe, days_back
+                    )
+                    total_indicator_gaps += len(indicator_gaps)
+                    
+                    if indicator_gaps:
+                        logger.warning(
+                            f"   ⚠️  Found {len(indicator_gaps)} indicator gap(s)"
+                        )
+                        
+                        if auto_fix:
+                            filled = await self.backfill_indicators(
+                                symbol, timeframe, indicator_gaps
+                            )
+                            total_indicators_filled += filled
+                
+                if (not repair_kline or not kline_gaps) and (not repair_indicator or not indicator_gaps):
                     logger.info(f"   ✅ Data is complete")
                 
                 logger.info("")
@@ -105,15 +123,21 @@ class DataIntegrityService:
         logger.info("=" * 60)
         logger.info("📈 Data Integrity Check Complete")
         logger.info("=" * 60)
-        logger.info(f"K-line gaps found: {total_kline_gaps}")
-        logger.info(f"Indicator gaps found: {total_indicator_gaps}")
         
-        if auto_fix:
-            logger.info(f"K-lines filled: {total_klines_filled}")
-            logger.info(f"Indicators filled: {total_indicators_filled}")
+        if repair_kline:
+            logger.info(f"K-line gaps found: {total_kline_gaps}")
+            if auto_fix:
+                logger.info(f"K-lines filled: {total_klines_filled}")
+        
+        if repair_indicator:
+            logger.info(f"Indicator gaps found: {total_indicator_gaps}")
+            if auto_fix:
+                logger.info(f"Indicators filled: {total_indicators_filled}")
+        
+        if auto_fix and (repair_kline or repair_indicator):
             logger.info(f"Status: ✅ All gaps have been repaired")
         else:
-            logger.info(f"Status: ⚠️  Gaps detected, run with auto_fix=True to repair")
+            logger.info(f"Status: ⚠️  Gaps detected")
         
         logger.info("=" * 60)
         logger.info("")
@@ -122,7 +146,7 @@ class DataIntegrityService:
         self,
         symbol: str,
         timeframe: str,
-        days_back: int,
+        days_back: float,
         market_type: str = 'future'
     ) -> List[Tuple[int, int]]:
         """
@@ -134,7 +158,7 @@ class DataIntegrityService:
         # 计算时间范围
         interval_seconds = self._get_interval_seconds(timeframe)
         end_time = int(datetime.now().timestamp())
-        start_time = end_time - (days_back * 86400)
+        start_time = end_time - int(days_back * 86400)
         
         # 从数据库获取现有K线
         existing_klines = await self.db.get_recent_klines(
@@ -182,7 +206,7 @@ class DataIntegrityService:
         self,
         symbol: str,
         timeframe: str,
-        days_back: int
+        days_back: float
     ) -> List[int]:
         """
         检测指标数据缺失
@@ -191,7 +215,7 @@ class DataIntegrityService:
             List of missing timestamps
         """
         # 计算时间范围
-        cutoff = int(datetime.now().timestamp()) - (days_back * 86400)
+        cutoff = int(datetime.now().timestamp()) - int(days_back * 86400)
         
         # 获取K线时间戳（基准）
         klines = await self.db.get_recent_klines(

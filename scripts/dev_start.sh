@@ -122,4 +122,7 @@ echo "💡 To check logs:"
 echo "   tail -f logs/kline_node.log"
 echo "   tail -f logs/websocket.log"
 echo ""
+echo "💡 To run deep data repair (7 days):"
+echo "   ./scripts/repair_data.sh"
+echo ""
 
