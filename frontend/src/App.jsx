@@ -853,9 +853,9 @@ export default function App() {
                 e.target.style.color = '#888';
                 e.target.style.borderColor = '#444';
               }}
-              title="重置图表到初始状态"
+              title="Reset chart view"
             >
-              重置
+              Reset
             </button>
           </div>
 
