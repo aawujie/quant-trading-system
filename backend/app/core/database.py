@@ -409,6 +409,67 @@ class Database:
                 volume_ma5=row.volume_ma5
             )
     
+    async def get_recent_indicators(
+        self,
+        symbol: str,
+        timeframe: str,
+        limit: int = 500,
+        before: Optional[int] = None
+    ) -> List[IndicatorData]:
+        """
+        Get recent indicators
+        
+        Args:
+            symbol: Trading symbol
+            timeframe: Timeframe
+            limit: Number of indicators to fetch
+            before: Optional timestamp - fetch indicators before this timestamp
+            
+        Returns:
+            List of indicator data, sorted by timestamp ascending
+        """
+        async with self.SessionLocal() as session:
+            query = select(IndicatorDB).where(
+                IndicatorDB.symbol == symbol,
+                IndicatorDB.timeframe == timeframe
+            )
+            
+            if before:
+                query = query.where(IndicatorDB.timestamp < before)
+            
+            query = query.order_by(IndicatorDB.timestamp.desc()).limit(limit)
+            
+            result = await session.execute(query)
+            rows = result.scalars().all()
+            
+            # Convert to IndicatorData and reverse to get ascending order
+            indicators = [
+                IndicatorData(
+                    symbol=row.symbol,
+                    timeframe=row.timeframe,
+                    timestamp=row.timestamp,
+                    ma5=row.ma5,
+                    ma10=row.ma10,
+                    ma20=row.ma20,
+                    ma60=row.ma60,
+                    ma120=row.ma120,
+                    ema12=row.ema12,
+                    ema26=row.ema26,
+                    rsi14=row.rsi14,
+                    macd_line=row.macd_line,
+                    macd_signal=row.macd_signal,
+                    macd_histogram=row.macd_histogram,
+                    bb_upper=row.bb_upper,
+                    bb_middle=row.bb_middle,
+                    bb_lower=row.bb_lower,
+                    atr14=row.atr14,
+                    volume_ma5=row.volume_ma5
+                )
+                for row in reversed(rows)
+            ]
+            
+            return indicators
+    
     # Signal operations
     
     async def insert_signal(self, signal: SignalData) -> bool:

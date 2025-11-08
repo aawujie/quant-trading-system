@@ -182,6 +182,33 @@ async def get_ticker(symbol: str):
 
 # Indicator endpoints
 
+@app.get("/api/indicators/{symbol}/{timeframe}", response_model=List[IndicatorData])
+async def get_indicators(
+    symbol: str,
+    timeframe: str,
+    limit: int = Query(500, ge=1, le=1000, description="Number of indicators to fetch"),
+    before: Optional[int] = Query(None, description="Fetch indicators before this timestamp")
+):
+    """
+    Get recent indicator data (batch)
+    
+    Args:
+        symbol: Trading symbol (e.g., BTCUSDT)
+        timeframe: Timeframe (e.g., 1h, 1d)
+        limit: Number of indicators to fetch (max 1000)
+        before: Optional timestamp - fetch indicators before this timestamp
+        
+    Returns:
+        List of indicator data, sorted by timestamp ascending
+    """
+    try:
+        indicators = await db.get_recent_indicators(symbol, timeframe, limit, before)
+        return indicators
+    except Exception as e:
+        logger.error(f"Failed to fetch indicators: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/indicators/{symbol}/{timeframe}/latest", response_model=Optional[IndicatorData])
 async def get_latest_indicator(
     symbol: str,

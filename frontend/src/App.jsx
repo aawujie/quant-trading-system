@@ -379,20 +379,56 @@ export default function App() {
   // Load indicator data
   const loadIndicators = useCallback(async (klines) => {
     try {
-      // For each K-line timestamp, try to get indicator data
-      const timestamps = klines.map(k => k.timestamp);
-
-      // In a real app, you'd have a batch API endpoint
-      // For now, just get the latest indicator
+      console.log('📊 Loading indicators...');
+      
+      // 使用批量API加载指标数据
       const response = await axios.get(
-        `${API_BASE_URL}/api/indicators/${symbol}/${timeframe}/latest`
+        `${API_BASE_URL}/api/indicators/${symbol}/${timeframe}?limit=500`
       );
 
-      // Note: This is a simplified version
-      // In production, you'd load all indicators for all timestamps
-      console.log('Latest indicator:', response.data);
+      const indicators = response.data;
+      console.log(`✅ Received ${indicators.length} indicators`);
+
+      if (indicators.length === 0) {
+        console.warn('⚠️ No indicator data available');
+        return;
+      }
+
+      // 为MA5和MA20准备数据
+      const ma5Data = [];
+      const ma20Data = [];
+
+      indicators.forEach(ind => {
+        if (ind.ma5 !== null && ind.ma5 !== undefined) {
+          ma5Data.push({
+            time: ind.timestamp,
+            value: ind.ma5
+          });
+        }
+        
+        if (ind.ma20 !== null && ind.ma20 !== undefined) {
+          ma20Data.push({
+            time: ind.timestamp,
+            value: ind.ma20
+          });
+        }
+      });
+
+      // 设置MA线数据
+      if (seriesRef.current && chartRef.current) {
+        if (seriesRef.current.ma5 && ma5Data.length > 0) {
+          seriesRef.current.ma5.setData(ma5Data);
+          console.log(`✅ Set ${ma5Data.length} MA5 points`);
+        }
+        
+        if (seriesRef.current.ma20 && ma20Data.length > 0) {
+          seriesRef.current.ma20.setData(ma20Data);
+          console.log(`✅ Set ${ma20Data.length} MA20 points`);
+        }
+      }
+
     } catch (err) {
-      console.error('Failed to load indicators:', err);
+      console.error('❌ Failed to load indicators:', err);
     }
   }, [symbol, timeframe]);
 
