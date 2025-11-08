@@ -122,8 +122,7 @@ async def start_indicator_node(bus: MessageBus, db: Database, args):
         db=db,
         symbols=symbols,
         timeframes=timeframes,
-        market_types=market_types,
-        lookback_periods=args.lookback
+        market_types=market_types
     )
     
     await node.start()
@@ -238,13 +237,6 @@ async def main():
         type=int,
         default=settings.kline_fetch_interval,
         help=f"K-line fetch interval in seconds (default: {settings.kline_fetch_interval})"
-    )
-    
-    parser.add_argument(
-        "--lookback",
-        type=int,
-        default=200,
-        help="Number of historical periods for indicators (default: 200)"
     )
     
     parser.add_argument(

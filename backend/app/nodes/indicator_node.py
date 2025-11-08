@@ -11,7 +11,11 @@ from app.core.node_base import ProcessorNode
 from app.core.message_bus import MessageBus
 from app.core.database import Database
 from app.models.market_data import KlineData
-from app.models.indicators import IndicatorData
+from app.models.indicators import (
+    IndicatorData, 
+    get_max_required_klines,
+    get_min_required_klines
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +43,7 @@ class IndicatorNode(ProcessorNode):
         db: Database,
         symbols: List[str],
         timeframes: List[str],
-        market_types: List[str] = None,
-        lookback_periods: int = 200
+        market_types: List[str] = None
     ):
         """
         Initialize indicator node
@@ -51,7 +54,6 @@ class IndicatorNode(ProcessorNode):
             symbols: List of symbols to track
             timeframes: List of timeframes
             market_types: List of market types (e.g., ['spot', 'future']), None for all
-            lookback_periods: Number of historical periods to use for calculations
         """
         super().__init__("indicator_node", bus)
         
@@ -59,7 +61,15 @@ class IndicatorNode(ProcessorNode):
         self.symbols = symbols
         self.timeframes = timeframes
         self.market_types = market_types or ['spot', 'future']  # 默认订阅所有市场
-        self.lookback_periods = lookback_periods
+        
+        # 自动从元数据计算需要的 K 线数量
+        self.lookback_periods = get_max_required_klines()
+        self.min_required_klines = get_min_required_klines()
+        
+        logger.info(
+            f"📊 Indicator K-line requirements: "
+            f"min={self.min_required_klines}, max={self.lookback_periods}"
+        )
         
         # Subscribe to all K-line topics (with market_type)
         self.input_topics = [
@@ -82,8 +92,7 @@ class IndicatorNode(ProcessorNode):
         logger.info(
             f"IndicatorNode initialized: {len(symbols)} symbols, "
             f"{len(timeframes)} timeframes, "
-            f"{len(self.market_types)} market_types, "
-            f"lookback={lookback_periods}"
+            f"{len(self.market_types)} market_types"
         )
     
     async def process(self, topic: str, data: dict) -> None:
@@ -118,10 +127,11 @@ class IndicatorNode(ProcessorNode):
                 market_type=market_type
             )
             
-            if len(recent_klines) < 20:
+            # 检查是否有足够的K线数据计算任何指标
+            if len(recent_klines) < self.min_required_klines:
                 logger.debug(
                     f"Insufficient data for {symbol} {timeframe}: "
-                    f"{len(recent_klines)} K-lines (need at least 20)"
+                    f"{len(recent_klines)} K-lines (need at least {self.min_required_klines})"
                 )
                 return
             
@@ -234,13 +244,11 @@ class IndicatorNode(ProcessorNode):
             # Get latest values (last row)
             latest_idx = -1
             
-            # Check if MA20 is ready (minimum requirement)
-            if np.isnan(ma20[latest_idx]):
-                logger.debug(
-                    f"MA20 not ready for {symbol} {timeframe} "
-                    f"(need at least 20 periods)"
-                )
-                return None
+            # 检查数据量，记录能计算哪些指标
+            data_count = len(df)
+            logger.debug(
+                f"Calculating indicators with {data_count} K-lines for {symbol} {timeframe}"
+            )
             
             # Create IndicatorData object
             indicator = IndicatorData(
