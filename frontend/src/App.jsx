@@ -402,6 +402,27 @@ export default function App() {
     }
   };
 
+  // Handle market type change
+  const handleMarketTypeChange = (newMarketType) => {
+    console.log('🔄 Switching market type to:', newMarketType);
+    setMarketType(newMarketType);
+    setSignals([]);
+    hasLoadedData.current = false; // Reset to allow data reload
+    earliestTimestamp.current = null; // Reset earliest timestamp
+    if (seriesRef.current) {
+      // Clear chart data
+      seriesRef.current.candlestick.setData([]);
+      seriesRef.current.ma5.setData([]);
+      seriesRef.current.ma20.setData([]);
+      
+      // Remove future helper series
+      if (seriesRef.current.futureHelper && chartRef.current) {
+        chartRef.current.removeSeries(seriesRef.current.futureHelper);
+        seriesRef.current.futureHelper = null;
+      }
+    }
+  };
+
   // Load ticker data when symbol changes (独立于timeframe)
   useEffect(() => {
     loadTickerData(true); // 初次加载，会设置currentPrice
@@ -414,13 +435,13 @@ export default function App() {
     return () => clearInterval(tickerInterval);
   }, [symbol, loadTickerData]);
 
-  // Reload data when symbol or timeframe changes
+  // Reload data when symbol, timeframe, or market type changes
   useEffect(() => {
     if (seriesRef.current && !hasLoadedData.current) {
-      console.log('📥 Reloading data for', symbol, timeframe);
+      console.log('📥 Reloading data for', symbol, timeframe, marketType);
       loadHistoricalData();
     }
-  }, [symbol, timeframe, loadHistoricalData]);
+  }, [symbol, timeframe, marketType, loadHistoricalData]);
 
   // WebSocket message handler
   const handleWebSocketMessage = (message) => {
@@ -579,7 +600,7 @@ export default function App() {
             {/* 市场类型切换 */}
             <div style={{ display: 'flex', gap: '4px', marginRight: '1rem' }}>
               <button
-                onClick={() => setMarketType('spot')}
+                onClick={() => handleMarketTypeChange('spot')}
                 style={{
                   padding: '8px 16px',
                   background: marketType === 'spot' ? '#2196F3' : 'rgba(255,255,255,0.1)',
@@ -596,7 +617,7 @@ export default function App() {
                 💵 现货
               </button>
               <button
-                onClick={() => setMarketType('future')}
+                onClick={() => handleMarketTypeChange('future')}
                 style={{
                   padding: '8px 16px',
                   background: marketType === 'future' ? '#2196F3' : 'rgba(255,255,255,0.1)',
