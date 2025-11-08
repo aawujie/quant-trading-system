@@ -109,6 +109,24 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
     currentTool.current = null;
   }, []);
 
+  // 验证绘图是否有效
+  const validateDrawing = useCallback((tool) => {
+    // 对于趋势线和矩形，检查两个点是否相同
+    if (tool.type === 'line' || tool.type === 'rectangle') {
+      const points = tool.getPoints();
+      if (points.length === 2) {
+        const [point1, point2] = points;
+        // 如果时间和价格都相同，则无效
+        if (point1.time === point2.time && point1.price === point2.price) {
+          return false;
+        }
+      }
+    }
+    
+    // 其他类型或有效的绘图
+    return true;
+  }, []);
+
   // 保存绘图到后端
   const saveDrawing = useCallback(async (tool) => {
     try {
@@ -209,23 +227,30 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
     if (currentTool.current.isComplete()) {
       const completedTool = currentTool.current;
       
-      // 保存到后端
-      saveDrawing(completedTool);
+      // 验证绘图是否有效（对于趋势线和矩形，检查两个点是否相同）
+      const isValidDrawing = validateDrawing(completedTool);
       
-      // 添加到绘图列表
-      setDrawings(prev => [...prev, completedTool]);
+      if (isValidDrawing) {
+        // 保存到后端
+        saveDrawing(completedTool);
+        
+        // 添加到绘图列表
+        setDrawings(prev => [...prev, completedTool]);
+        
+        console.log('✅ 绘图完成并添加到列表，当前绘图数量:', drawings.length + 1);
+      } else {
+        console.log('⚠️ 绘图无效（两个点相同），已丢弃');
+      }
       
       // 自动停用工具（画完一次就退出绘图模式）
       setActiveTool(null);
       currentTool.current = null;
-      
-      console.log('✅ 绘图完成并添加到列表，当前绘图数量:', drawings.length + 1);
       console.log('🎨 绘图工具已自动停用');
     }
 
     // 触发重绘
     redrawCanvas();
-  }, [saveDrawing, redrawCanvas, drawings.length]);
+  }, [saveDrawing, redrawCanvas, drawings.length, validateDrawing]);
 
   const handleMouseLeave = useCallback(() => {
     if (!currentTool.current) return;
