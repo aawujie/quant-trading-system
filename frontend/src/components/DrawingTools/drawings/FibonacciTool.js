@@ -13,12 +13,12 @@ export class FibonacciTool extends BaseTool {
     
     // 斐波那契回撤位
     this.levels = [
-      { ratio: 0, label: '0.0%', color: '#787B86' },
+      { ratio: 0, label: '0.0%', color: '#00BCD4' },
       { ratio: 0.236, label: '23.6%', color: '#F23645' },
       { ratio: 0.382, label: '38.2%', color: '#FF9800' },
       { ratio: 0.5, label: '50.0%', color: '#9C27B0' },
       { ratio: 0.618, label: '61.8%', color: '#2962FF' },
-      { ratio: 1, label: '100.0%', color: '#787B86' }
+      { ratio: 1, label: '100.0%', color: '#4CAF50' }
     ];
   }
 
