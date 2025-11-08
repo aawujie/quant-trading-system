@@ -9,7 +9,8 @@ export default function DrawingList({ drawings, onDelete }) {
       'rectangle': '矩形',
       'horizontal_line': '水平线',
       'vertical_line': '垂直线',
-      'fibonacci': '斐波那契'
+      'fibonacci': '斐波那契',
+      'parallel_line': '平行线'
     };
     return typeMap[type] || type;
   };
@@ -20,7 +21,8 @@ export default function DrawingList({ drawings, onDelete }) {
       'rectangle': '▭',
       'horizontal_line': '—',
       'vertical_line': '│',
-      'fibonacci': 'φ'
+      'fibonacci': 'φ',
+      'parallel_line': '||'
     };
     return iconMap[type] || '🎨';
   };

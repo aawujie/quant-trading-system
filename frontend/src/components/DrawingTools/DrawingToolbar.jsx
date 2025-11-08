@@ -33,6 +33,12 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
       name: '斐波那契',
       icon: 'φ',
       tooltip: '绘制斐波那契回撤'
+    },
+    {
+      id: 'parallel_line',
+      name: '平行线',
+      icon: '∥',
+      tooltip: '绘制平行线'
     }
   ];
 

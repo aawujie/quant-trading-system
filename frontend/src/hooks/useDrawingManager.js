@@ -5,6 +5,7 @@ import { RectangleTool } from '../components/DrawingTools/drawings/RectangleTool
 import { HorizontalLineTool } from '../components/DrawingTools/drawings/HorizontalLineTool';
 import { VerticalLineTool } from '../components/DrawingTools/drawings/VerticalLineTool';
 import { FibonacciTool } from '../components/DrawingTools/drawings/FibonacciTool';
+import { ParallelLineTool } from '../components/DrawingTools/drawings/ParallelLineTool';
 import { drawingApi } from '../services/drawingApi';
 
 /**
@@ -65,6 +66,8 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         return new VerticalLineTool(chart, series, coordinates.current);
       case 'fibonacci':
         return new FibonacciTool(chart, series, coordinates.current);
+      case 'parallel_line':
+        return new ParallelLineTool(chart, series, coordinates.current);
       default:
         return null;
     }
@@ -121,6 +124,23 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         const [point1, point2] = points;
         // 如果时间和价格都相同，则无效
         if (point1.time === point2.time && point1.price === point2.price) {
+          return false;
+        }
+      }
+    }
+    
+    // 对于平行线，检查三个点的有效性
+    if (tool.type === 'parallel_line') {
+      const points = tool.getPoints();
+      if (points.length === 3) {
+        const [point1, point2, point3] = points;
+        // 前两个点不能相同
+        if (point1.time === point2.time && point1.price === point2.price) {
+          return false;
+        }
+        // 第三个点不能与前两个点中的任何一个相同
+        if ((point3.time === point1.time && point3.price === point1.price) ||
+            (point3.time === point2.time && point3.price === point2.price)) {
           return false;
         }
       }

@@ -93,7 +93,7 @@ export default function DrawingCanvas({
       // 重绘
       redrawWithCrosshair();
     };
-    
+
     // 绑定鼠标事件到 canvas
     canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

@@ -12,6 +12,7 @@ class DrawingType(str, Enum):
     HORIZONTAL_LINE = "horizontal_line"
     VERTICAL_LINE = "vertical_line"
     FIBONACCI = "fibonacci"
+    PARALLEL_LINE = "parallel_line"
 
 
 class DrawingPoint(BaseModel):

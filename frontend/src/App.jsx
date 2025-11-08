@@ -752,16 +752,16 @@ export default function App() {
                 { value: '4h', label: '4h' },
                 { value: '1d', label: '1d' }
               ].map((tf, index, arr) => (
-            <button 
+              <button
                   key={tf.value}
                   onClick={() => handleTimeframeChange(tf.value)}
-              style={{
+                style={{
                     padding: '8px 12px',
                     background: timeframe === tf.value ? '#4CAF50' : 'rgba(255,255,255,0.1)',
-                color: 'white',
+                  color: 'white',
                     border: '1px solid ' + (timeframe === tf.value ? '#4CAF50' : 'rgba(255,255,255,0.3)'),
                     borderRadius: index === 0 ? '6px 0 0 6px' : (index === arr.length - 1 ? '0 6px 6px 0' : '0'),
-                cursor: 'pointer',
+                  cursor: 'pointer',
                     fontSize: '13px',
                     fontWeight: timeframe === tf.value ? '600' : '400',
                     transition: 'all 0.2s',
@@ -776,11 +776,11 @@ export default function App() {
                     if (timeframe !== tf.value) {
                       e.target.style.background = 'rgba(255,255,255,0.1)';
                     }
-              }}
+                }}
                   title={tf.label}
-            >
+              >
                   {tf.label}
-            </button>
+              </button>
               ))}
             </div>
 
@@ -797,25 +797,26 @@ export default function App() {
               onClick={() => handleMarketTypeChange(marketType === 'spot' ? 'future' : 'spot')}
               style={{
                 marginLeft: 'auto',
-                padding: '8px 12px',
-                background: '#2196F3',
-                color: 'white',
-                border: '1px solid #2196F3',
-                borderRadius: '6px',
+                padding: '0.5rem 1rem',
+                background: 'transparent',
+                color: '#888',
+                border: '1px solid #444',
+                borderRadius: '4px',
                 cursor: 'pointer',
                 fontSize: '13px',
-                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 transition: 'all 0.2s',
-                minWidth: '42px',
                 marginRight: '0.5rem'
               }}
               onMouseOver={(e) => {
-                e.target.style.background = '#1976D2';
-                e.target.style.borderColor = '#1976D2';
+                e.target.style.color = '#fff';
+                e.target.style.borderColor = '#666';
               }}
               onMouseOut={(e) => {
-                e.target.style.background = '#2196F3';
-                e.target.style.borderColor = '#2196F3';
+                e.target.style.color = '#888';
+                e.target.style.borderColor = '#444';
               }}
               title={marketType === 'spot' ? '切换到合约' : '切换到现货'}
             >
