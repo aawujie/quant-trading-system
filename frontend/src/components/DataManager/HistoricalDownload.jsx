@@ -8,8 +8,8 @@ import {
 
 export default function HistoricalDownload() {
   const [formData, setFormData] = useState({
-    symbol: 'BTCUSDT',
-    timeframe: '1h',
+    symbols: ['BTCUSDT'],
+    timeframes: ['1h'],
     startDate: '',
     endDate: '',
     marketType: 'future'
@@ -18,6 +18,9 @@ export default function HistoricalDownload() {
   const [tasks, setTasks] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  const availableSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'ADAUSDT', 'XRPUSDT', 'DOGEUSDT', 'MATICUSDT'];
+  const availableTimeframes = ['1m', '3m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
   // 加载任务列表
   useEffect(() => {
@@ -47,9 +50,38 @@ export default function HistoricalDownload() {
     }));
   };
 
+  const toggleSymbol = (symbol) => {
+    setFormData(prev => {
+      const symbols = prev.symbols.includes(symbol)
+        ? prev.symbols.filter(s => s !== symbol)
+        : [...prev.symbols, symbol];
+      return { ...prev, symbols };
+    });
+  };
+
+  const toggleTimeframe = (timeframe) => {
+    setFormData(prev => {
+      const timeframes = prev.timeframes.includes(timeframe)
+        ? prev.timeframes.filter(t => t !== timeframe)
+        : [...prev.timeframes, timeframe];
+      return { ...prev, timeframes };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    
+    if (formData.symbols.length === 0) {
+      setError('请至少选择一个币种');
+      return;
+    }
+    
+    if (formData.timeframes.length === 0) {
+      setError('请至少选择一个时间周期');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -63,23 +95,28 @@ export default function HistoricalDownload() {
         return;
       }
 
-      const response = await createDownloadTask({
-        symbol: formData.symbol,
-        timeframe: formData.timeframe,
-        startTime,
-        endTime,
-        marketType: formData.marketType,
-        autoStart: true
-      });
-
-      if (response.status === 'success') {
-        console.log('✅ 下载任务已创建:', response.task);
-        // 重新加载任务列表
-        await loadTasks();
-        
-        // 清空表单（可选）
-        // setFormData({ ...formData, startDate: '', endDate: '' });
+      // 为每个币种和时间周期组合创建任务
+      const tasks = [];
+      for (const symbol of formData.symbols) {
+        for (const timeframe of formData.timeframes) {
+          tasks.push(
+            createDownloadTask({
+              symbol,
+              timeframe,
+              startTime,
+              endTime,
+              marketType: formData.marketType,
+              autoStart: true
+            })
+          );
+        }
       }
+
+      await Promise.all(tasks);
+      console.log(`✅ 已创建 ${tasks.length} 个下载任务`);
+      
+      // 重新加载任务列表
+      await loadTasks();
     } catch (err) {
       console.error('Failed to create download task:', err);
       setError(err.response?.data?.detail || '创建任务失败');
@@ -123,169 +160,187 @@ export default function HistoricalDownload() {
   };
 
   return (
-    <div className="historical-download">
-      <div className="download-form-section">
-        <h3>创建下载任务</h3>
-        <form onSubmit={handleSubmit} className="download-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label>币种</label>
-              <select
-                name="symbol"
-                value={formData.symbol}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="BTCUSDT">BTCUSDT</option>
-                <option value="ETHUSDT">ETHUSDT</option>
-                <option value="BNBUSDT">BNBUSDT</option>
-                <option value="SOLUSDT">SOLUSDT</option>
-                <option value="ADAUSDT">ADAUSDT</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>时间周期</label>
-              <select
-                name="timeframe"
-                value={formData.timeframe}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="1m">1分钟</option>
-                <option value="3m">3分钟</option>
-                <option value="5m">5分钟</option>
-                <option value="15m">15分钟</option>
-                <option value="30m">30分钟</option>
-                <option value="1h">1小时</option>
-                <option value="4h">4小时</option>
-                <option value="1d">1天</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>市场类型</label>
-              <select
-                name="marketType"
-                value={formData.marketType}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="spot">现货</option>
-                <option value="future">永续合约</option>
-              </select>
+    <div className="space-y-6">
+      <div className="bg-[#1a1a24] rounded-lg border border-[#2a2a3a] p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">创建下载任务</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              币种 (已选 {formData.symbols.length})
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {availableSymbols.map(symbol => (
+                <label
+                  key={symbol}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md cursor-pointer hover:bg-[#1a1a24] transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.symbols.includes(symbol)}
+                    onChange={() => toggleSymbol(symbol)}
+                    className="w-4 h-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+                  />
+                  <span className="text-sm text-gray-200">{symbol}</span>
+                </label>
+              ))}
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>开始时间</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              时间周期 (已选 {formData.timeframes.length})
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {availableTimeframes.map(tf => (
+                <label
+                  key={tf}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md cursor-pointer hover:bg-[#1a1a24] transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.timeframes.includes(tf)}
+                    onChange={() => toggleTimeframe(tf)}
+                    className="w-4 h-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+                  />
+                  <span className="text-sm text-gray-200">{tf}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              市场类型
+            </label>
+            <select
+              name="marketType"
+              value={formData.marketType}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="spot">现货</option>
+              <option value="future">永续合约</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                开始时间
+              </label>
               <input
                 type="datetime-local"
                 name="startDate"
                 value={formData.startDate}
                 onChange={handleInputChange}
                 required
+                className="w-full px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:dark]"
               />
             </div>
 
-            <div className="form-group">
-              <label>结束时间</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                结束时间
+              </label>
               <input
                 type="datetime-local"
                 name="endDate"
                 value={formData.endDate}
                 onChange={handleInputChange}
                 required
+                className="w-full px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:dark]"
               />
             </div>
           </div>
 
           {error && (
-            <div className="error-message">
-              ⚠️ {error}
+            <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 text-sm">
+              {error}
             </div>
           )}
 
+          <div className="px-4 py-3 bg-blue-500/10 border border-blue-500/20 rounded-md text-blue-300 text-sm">
+            将创建 <span className="font-semibold">{formData.symbols.length} × {formData.timeframes.length} = {formData.symbols.length * formData.timeframes.length}</span> 个下载任务
+          </div>
+
           <button
             type="submit"
-            className="submit-button"
             disabled={isSubmitting}
+            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
           >
-            {isSubmitting ? '创建中...' : '🚀 开始下载'}
+            {isSubmitting ? '创建中...' : '开始下载'}
           </button>
         </form>
       </div>
 
-      <div className="tasks-section">
-        <h3>下载任务列表 ({tasks.length})</h3>
+      <div className="bg-[#1a1a24] rounded-lg border border-[#2a2a3a] p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">下载任务列表 ({tasks.length})</h3>
         {tasks.length === 0 ? (
-          <div className="no-tasks">
-            <p>暂无下载任务</p>
-            <p style={{ fontSize: '0.9em', color: '#888' }}>
+          <div className="text-center py-12">
+            <p className="text-gray-400 mb-2">暂无下载任务</p>
+            <p className="text-sm text-gray-500">
               创建第一个任务开始下载历史数据
             </p>
           </div>
         ) : (
-          <div className="tasks-list">
+          <div className="space-y-3">
             {tasks.map(task => (
-              <div key={task.task_id} className="task-card">
-                <div className="task-header">
-                  <div className="task-title">
-                    <strong>{task.symbol}</strong>
-                    <span className="task-timeframe">{task.timeframe}</span>
-                    <span className="task-market-type">
+              <div key={task.task_id} className="bg-[#0f0f17] border border-[#2a2a3a] rounded-lg p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white">{task.symbol}</span>
+                    <span className="px-2 py-0.5 bg-[#2a2a3a] rounded text-xs text-gray-300">{task.timeframe}</span>
+                    <span className="px-2 py-0.5 bg-[#2a2a3a] rounded text-xs text-gray-300">
                       {task.market_type === 'spot' ? '现货' : '永续'}
                     </span>
                   </div>
                   <div
-                    className="task-status"
-                    style={{ color: getStatusColor(task.status) }}
+                    className="px-2 py-0.5 rounded text-xs font-medium"
+                    style={{ 
+                      color: getStatusColor(task.status),
+                      backgroundColor: `${getStatusColor(task.status)}20`
+                    }}
                   >
                     {getStatusText(task.status)}
                   </div>
                 </div>
 
-                <div className="task-time-range">
+                <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
                   <span>📅 {formatTimestamp(task.start_time)}</span>
                   <span>→</span>
                   <span>{formatTimestamp(task.end_time)}</span>
                 </div>
 
                 {task.status === 'downloading' && (
-                  <div className="task-progress">
-                    <div className="progress-bar">
+                  <div className="space-y-2">
+                    <div className="w-full bg-[#2a2a3a] rounded-full h-2 overflow-hidden">
                       <div
-                        className="progress-fill"
+                        className="h-full bg-blue-500 transition-all duration-300"
                         style={{ width: `${task.progress}%` }}
                       />
                     </div>
-                    <div className="progress-text">
+                    <div className="text-xs text-gray-400 text-center">
                       {task.progress}% ({task.downloaded_count.toLocaleString()} / {task.total_count.toLocaleString()})
                     </div>
+                    <button
+                      onClick={() => handleCancel(task.task_id)}
+                      className="w-full px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 text-red-400 text-sm rounded transition-colors"
+                    >
+                      取消
+                    </button>
                   </div>
                 )}
 
                 {task.status === 'completed' && (
-                  <div className="task-result">
+                  <div className="text-sm text-green-400">
                     ✅ 已完成 - 下载了 {task.downloaded_count.toLocaleString()} 条K线
                   </div>
                 )}
 
                 {task.status === 'failed' && task.error_message && (
-                  <div className="task-error">
+                  <div className="text-sm text-red-400">
                     ❌ 错误: {task.error_message}
-                  </div>
-                )}
-
-                {task.status === 'downloading' && (
-                  <div className="task-actions">
-                    <button
-                      onClick={() => handleCancel(task.task_id)}
-                      className="cancel-button"
-                    >
-                      取消
-                    </button>
                   </div>
                 )}
               </div>

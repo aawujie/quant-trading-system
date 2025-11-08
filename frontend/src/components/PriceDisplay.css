@@ -96,18 +96,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .stat-label {
-  color: #999;
-  font-weight: 500;
+  color: #aaa;
+  font-weight: 400;
+  font-size: 11px;
 }
 
 .stat-value {
-  color: #fff;
-  font-weight: 600;
+  color: #aaa;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
+  font-size: 11px;
 }
 
 /* 响应式 */

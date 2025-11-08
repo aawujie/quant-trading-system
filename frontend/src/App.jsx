@@ -29,6 +29,15 @@ export default function App() {
     timeframeRef.current = timeframe;
     marketTypeRef.current = marketType;
   }, [symbol, timeframe, marketType]);
+
+  // Clear series ref when switching away from trading view
+  useEffect(() => {
+    if (currentView !== 'trading') {
+      seriesRef.current = null;
+      chartRef.current = null;
+    }
+  }, [currentView]);
+
   const [signals, setSignals] = useState([]);
   const [isLoading, setIsLoading] = useState(false); // Changed to false
   const [error, setError] = useState(null);
@@ -489,6 +498,11 @@ export default function App() {
 
   // Handle K-line update
   const handleKlineUpdate = (kline) => {
+    // Skip if not in trading view
+    if (currentView !== 'trading') {
+      return;
+    }
+
     // Use refs to get latest symbol/timeframe/marketType (avoid closure issues)
     const currentSymbol = symbolRef.current;
     const currentTimeframe = timeframeRef.current;
@@ -514,6 +528,11 @@ export default function App() {
       }
       
       try {
+        // Check if chart is still valid before updating
+        if (!seriesRef.current || !seriesRef.current.candlestick) {
+          return;
+        }
+
         // Use timestamp directly - chart will display based on browser timezone
         seriesRef.current.candlestick.update({
           time: kline.timestamp,
@@ -531,6 +550,10 @@ export default function App() {
 
         console.log('✅ Updated K-line:', kline.timestamp);
       } catch (error) {
+        // Silently ignore errors from disposed chart
+        if (error.message && error.message.includes('disposed')) {
+          return;
+        }
         console.error('❌ Failed to update K-line:', error);
       }
     }
@@ -538,50 +561,81 @@ export default function App() {
 
   // Handle indicator update
   const handleIndicatorUpdate = (indicator) => {
+    // Skip if not in trading view
+    if (currentView !== 'trading') {
+      return;
+    }
+
     const currentSymbol = symbolRef.current;
     const currentTimeframe = timeframeRef.current;
     
     if (seriesRef.current && indicator.symbol === currentSymbol && indicator.timeframe === currentTimeframe) {
-      if (indicator.ma5) {
-        seriesRef.current.ma5.update({
-          time: indicator.timestamp,
-          value: indicator.ma5,
-        });
-      }
+      try {
+        // Check if chart is still valid
+        if (!seriesRef.current || !seriesRef.current.ma5 || !seriesRef.current.ma20) {
+          return;
+        }
 
-      if (indicator.ma20) {
-        seriesRef.current.ma20.update({
-          time: indicator.timestamp,
-          value: indicator.ma20,
-        });
-      }
+        if (indicator.ma5) {
+          seriesRef.current.ma5.update({
+            time: indicator.timestamp,
+            value: indicator.ma5,
+          });
+        }
 
-      console.log('Updated indicators:', indicator.timestamp);
+        if (indicator.ma20) {
+          seriesRef.current.ma20.update({
+            time: indicator.timestamp,
+            value: indicator.ma20,
+          });
+        }
+
+        console.log('Updated indicators:', indicator.timestamp);
+      } catch (error) {
+        // Silently ignore errors from disposed chart
+        if (error.message && error.message.includes('disposed')) {
+          return;
+        }
+        console.error('❌ Failed to update indicators:', error);
+      }
     }
   };
 
   // Handle signal update
   const handleSignalUpdate = (signal) => {
+    // Skip if not in trading view
+    if (currentView !== 'trading') {
+      return;
+    }
+
     const currentSymbol = symbolRef.current;
     
     if (signal.symbol === currentSymbol) {
       setSignals(prev => [signal, ...prev].slice(0, 50));
 
       // Add marker to chart
-      if (seriesRef.current) {
-        const newMarker = {
-          time: signal.timestamp,
-          position: signal.signal_type === 'BUY' ? 'belowBar' : 'aboveBar',
-          color: signal.signal_type === 'BUY' ? '#26a69a' : '#ef5350',
-          shape: signal.signal_type === 'BUY' ? 'arrowUp' : 'arrowDown',
-          text: signal.signal_type,
-        };
+      if (seriesRef.current && seriesRef.current.candlestick) {
+        try {
+          const newMarker = {
+            time: signal.timestamp,
+            position: signal.signal_type === 'BUY' ? 'belowBar' : 'aboveBar',
+            color: signal.signal_type === 'BUY' ? '#26a69a' : '#ef5350',
+            shape: signal.signal_type === 'BUY' ? 'arrowUp' : 'arrowDown',
+            text: signal.signal_type,
+          };
 
-        const allMarkers = [...markersRef.current, newMarker];
-        seriesRef.current.candlestick.setMarkers(allMarkers);
-        markersRef.current = allMarkers;
+          const allMarkers = [...markersRef.current, newMarker];
+          seriesRef.current.candlestick.setMarkers(allMarkers);
+          markersRef.current = allMarkers;
 
-        console.log('New signal:', signal.signal_type, signal.price);
+          console.log('New signal:', signal.signal_type, signal.price);
+        } catch (error) {
+          // Silently ignore errors from disposed chart
+          if (error.message && error.message.includes('disposed')) {
+            return;
+          }
+          console.error('❌ Failed to add signal marker:', error);
+        }
       }
     }
   };

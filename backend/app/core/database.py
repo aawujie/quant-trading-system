@@ -586,7 +586,7 @@ class Database:
                 await session.rollback()
                 logger.error(f"Failed to delete drawing: {e}")
                 return False
-    
+
     # 数据统计方法
     
     async def get_kline_stats(self) -> dict:
