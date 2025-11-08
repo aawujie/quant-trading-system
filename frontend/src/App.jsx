@@ -16,6 +16,74 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:8000';
 const WS_URL = 'ws://localhost:8001/ws';
 
+// 缓存配置
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5分钟过期
+const CACHE_VERSION = 'v1'; // 缓存版本，方便清理旧缓存
+
+// 缓存工具函数
+const getCacheKey = (type, symbol, timeframe, marketType) => 
+  `${CACHE_VERSION}_${type}_${symbol}_${timeframe}_${marketType}`;
+
+const getCachedData = (key) => {
+  try {
+    const cached = localStorage.getItem(key);
+    if (!cached) return null;
+    
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp > CACHE_EXPIRY) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.warn('Failed to get cached data:', err);
+    return null;
+  }
+};
+
+const setCachedData = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      data,
+      timestamp: Date.now()
+    }));
+  } catch (err) {
+    console.warn('Failed to set cached data:', err);
+    // 如果localStorage满了，清理旧缓存
+    if (err.name === 'QuotaExceededError') {
+      clearOldCache();
+    }
+  }
+};
+
+const clearOldCache = () => {
+  const keys = Object.keys(localStorage);
+  keys.forEach(key => {
+    if (key.startsWith(CACHE_VERSION + '_klines_') || 
+        key.startsWith(CACHE_VERSION + '_indicators_')) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(key));
+        if (Date.now() - cached.timestamp > CACHE_EXPIRY) {
+          localStorage.removeItem(key);
+        }
+      } catch (e) {
+        localStorage.removeItem(key);
+      }
+    }
+  });
+};
+
+// 预加载策略：相邻时间级别
+const PRELOAD_TIMEFRAMES = {
+  '3m': ['5m'],
+  '5m': ['3m', '15m'],
+  '15m': ['5m', '30m'],
+  '30m': ['15m', '1h'],
+  '1h': ['30m', '4h'],
+  '4h': ['1h', '1d'],
+  '1d': ['4h']
+};
+
 export default function App() {
   const [currentView, setCurrentView] = useState('trading'); // trading, dataManager
   const [symbol, setSymbol] = useState('BTCUSDT');
@@ -201,103 +269,164 @@ export default function App() {
     
     try {
       console.log('🔄 Loading historical data...');
-      // 不显示"加载数据中"，提升切换体验
-      // setIsLoading(true);
       setError(null);
-      setNoDataMessage(null); // 清除之前的提示
+      setNoDataMessage(null);
 
-      // Fetch K-lines from API (increase limit to load more historical data)
-      console.log(`📡 Fetching: ${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=500&market_type=${marketType}`);
-      const klinesResponse = await axios.get(
-        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=500&market_type=${marketType}`
-      );
-
-      const klines = klinesResponse.data;
-      console.log(`✅ Received ${klines.length} K-lines`);
-
-      // Re-check refs after async operations (they might be null if component unmounted)
-      if (klines.length > 0 && seriesRef.current && chartRef.current) {
-        // Track the earliest timestamp
-        earliestTimestamp.current = klines[0].timestamp;
-        console.log(`📌 Initial earliest timestamp set to: ${earliestTimestamp.current}`);
+      // 生成缓存key
+      const klinesCacheKey = getCacheKey('klines', symbol, timeframe, marketType);
+      const indicatorsCacheKey = getCacheKey('indicators', symbol, timeframe, marketType);
+      
+      // 尝试从缓存获取
+      const cachedKlines = getCachedData(klinesCacheKey);
+      const cachedIndicators = getCachedData(indicatorsCacheKey);
+      
+      // 如果有缓存，立即显示
+      if (cachedKlines && cachedKlines.length > 0 && seriesRef.current && chartRef.current) {
+        console.log(`⚡ Using cached klines (${cachedKlines.length} bars)`);
         
-        // Update candlestick chart - use timestamp directly
-        // The chart will display time based on user's browser timezone
-        const candlestickData = klines.map(k => ({
+        const candlestickData = cachedKlines.map(k => ({
           time: k.timestamp,
           open: k.open,
           high: k.high,
           low: k.low,
           close: k.close,
         }));
-
-        console.log('📊 Setting candlestick data...');
+        
         seriesRef.current.candlestick.setData(candlestickData);
+        earliestTimestamp.current = cachedKlines[0].timestamp;
         
-        // Add invisible helper line to extend time scale with full data points
+        // 添加未来辅助线（带错误处理）
         if (!seriesRef.current.futureHelper && chartRef.current) {
-          const lastBar = candlestickData[candlestickData.length - 1];
-          const futureBars = generateFutureBars(lastBar, timeframe, 50);
-          
-          // Create an invisible line series that extends to the future
-          const helperSeries = chartRef.current.addLineSeries({
-            color: 'transparent',
-            lineWidth: 0,
-            lastValueVisible: false,
-            priceLineVisible: false,
-            crosshairMarkerVisible: false,
-          });
-          
-          // Add ALL future points (not just 2) to generate time scale marks
-          const helperData = [
-            { time: lastBar.time, value: lastBar.close },
-            ...futureBars.map(bar => ({ time: bar.time, value: lastBar.close }))
-          ];
-          
-          helperSeries.setData(helperData);
-          
-          seriesRef.current.futureHelper = helperSeries;
-          console.log(`✅ Extended time scale with ${helperData.length} future points`);
+          try {
+            const lastBar = candlestickData[candlestickData.length - 1];
+            const futureBars = generateFutureBars(lastBar, timeframe, 50);
+            const helperSeries = chartRef.current.addLineSeries({
+              color: 'transparent',
+              lineWidth: 0,
+              lastValueVisible: false,
+              priceLineVisible: false,
+              crosshairMarkerVisible: false,
+            });
+            helperSeries.setData([
+              { time: lastBar.time, value: lastBar.close },
+              ...futureBars.map(bar => ({ time: bar.time, value: lastBar.close }))
+            ]);
+            seriesRef.current.futureHelper = helperSeries;
+          } catch (err) {
+            console.warn('⚠️ Failed to add future helper (chart may be recreating):', err.message);
+          }
         }
-
-
-        console.log(`✅ Loaded ${klines.length} K-lines for ${symbol} ${timeframe}`);
-
-        // Set initial chart view
-        setInitialChartView();
-
-        // Load indicators (MA5, MA20)
-        await loadIndicators(klines);
-
-        // Load signals
-        await loadSignals();
-      } else if (klines.length === 0) {
-        // 没有数据，显示友好提示
-        console.warn('⚠️ No K-line data available for this market type');
-        const marketTypeName = marketType === 'spot' ? '现货' : marketType === 'future' ? '永续合约' : marketType;
-        const otherMarketType = marketType === 'spot' ? 'future' : 'spot';
-        const otherMarketTypeName = otherMarketType === 'spot' ? '现货' : '永续合约';
         
-        setNoDataMessage({
-          type: marketType,
-          typeName: marketTypeName,
-          otherType: otherMarketType,
-          otherTypeName: otherMarketTypeName
-        });
-      } else {
-        console.warn('⚠️ Chart not ready:', {
-          hasKlines: klines.length > 0,
-          hasSeriesRef: !!seriesRef.current,
-          hasChartRef: !!chartRef.current
-        });
+        setInitialChartView();
+        
+        // 如果有缓存的指标数据，也立即显示（延迟一点避免图表初始化冲突）
+        if (cachedIndicators && cachedIndicators.length > 0) {
+          console.log(`⚡ Using cached indicators (${cachedIndicators.length} points)`);
+          // 延迟50ms，等待图表完全初始化
+          setTimeout(() => {
+            try {
+              if (chartRef.current && seriesRef.current) {
+                loadIndicatorsFromData(cachedIndicators);
+              }
+            } catch (err) {
+              console.debug('Cached indicator display failed, will retry on fresh load:', err.message);
+            }
+          }, 50);
+        }
+        
+        console.log('⚡ Cache hit! Data displayed instantly');
       }
 
+      // 并行请求新数据（无论是否有缓存，都在后台更新）
+      console.log(`📡 Fetching fresh data (parallel)...`);
+      const [klinesResponse, indicatorsResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=500&market_type=${marketType}`),
+        axios.get(`${API_BASE_URL}/api/indicators/${symbol}/${timeframe}?limit=500&market_type=${marketType}`)
+      ]);
+
+      const klines = klinesResponse.data;
+      const indicators = indicatorsResponse.data;
+      console.log(`✅ Received ${klines.length} K-lines, ${indicators.length} indicators`);
+
+      // 保存到缓存
+      if (klines.length > 0) {
+        setCachedData(klinesCacheKey, klines);
+      }
+      if (indicators.length > 0) {
+        setCachedData(indicatorsCacheKey, indicators);
+      }
+
+      // 如果没有缓存或数据有更新，更新UI
+      if (!cachedKlines || klines.length !== cachedKlines.length) {
+        if (klines.length > 0 && seriesRef.current && chartRef.current) {
+          earliestTimestamp.current = klines[0].timestamp;
+          
+          const candlestickData = klines.map(k => ({
+            time: k.timestamp,
+            open: k.open,
+            high: k.high,
+            low: k.low,
+            close: k.close,
+          }));
+
+          seriesRef.current.candlestick.setData(candlestickData);
+          
+          // 添加未来辅助线（带错误处理）
+          if (!seriesRef.current.futureHelper && chartRef.current) {
+            try {
+              const lastBar = candlestickData[candlestickData.length - 1];
+              const futureBars = generateFutureBars(lastBar, timeframe, 50);
+              const helperSeries = chartRef.current.addLineSeries({
+                color: 'transparent',
+                lineWidth: 0,
+                lastValueVisible: false,
+                priceLineVisible: false,
+                crosshairMarkerVisible: false,
+              });
+              helperSeries.setData([
+                { time: lastBar.time, value: lastBar.close },
+                ...futureBars.map(bar => ({ time: bar.time, value: lastBar.close }))
+              ]);
+              seriesRef.current.futureHelper = helperSeries;
+            } catch (err) {
+              console.warn('⚠️ Failed to add future helper (chart may be recreating):', err.message);
+            }
+          }
+
+          setInitialChartView();
+          
+          // 加载指标数据
+          if (indicators.length > 0) {
+            loadIndicatorsFromData(indicators);
+          }
+          
+          console.log(`✅ Updated ${klines.length} K-lines for ${symbol} ${timeframe}`);
+        } else if (klines.length === 0) {
+          // 没有数据，显示友好提示
+          console.warn('⚠️ No K-line data available for this market type');
+          const marketTypeName = marketType === 'spot' ? '现货' : marketType === 'future' ? '永续合约' : marketType;
+          const otherMarketType = marketType === 'spot' ? 'future' : 'spot';
+          const otherMarketTypeName = otherMarketType === 'spot' ? '现货' : '永续合约';
+          
+          setNoDataMessage({
+            type: marketType,
+            typeName: marketTypeName,
+            otherType: otherMarketType,
+            otherTypeName: otherMarketTypeName
+          });
+        }
+      }
+
+      // 异步加载信号（不阻塞主流程）
+      loadSignals().catch(err => console.warn('Failed to load signals:', err));
+      
+      // 预加载相邻时间级别（不阻塞）
+      preloadAdjacentTimeframes();
+
       console.log('✅ Data loading complete');
-      // setIsLoading(false);
     } catch (err) {
       console.error('❌ Failed to load historical data:', err);
       setError('Failed to load data. Please check if the backend is running.');
-      // setIsLoading(false);
     }
   }, [symbol, timeframe, marketType, setInitialChartView]);
 
@@ -400,31 +529,13 @@ export default function App() {
 
   // Load indicators has been moved above
 
-  // Load indicator data
-  const loadIndicators = useCallback(async (klines, indicatorIds = null) => {
+  // 从指标数据加载到图表（用于缓存快速显示）
+  const loadIndicatorsFromData = useCallback((indicators, indicatorIds = null) => {
     try {
-      console.log('📊 Loading indicators...');
-      
-      // 使用传入的指标列表，或者使用当前激活的指标
       const targetIndicators = indicatorIds || indicatorManager.activeIndicators;
-      console.log(`🎯 Target indicators: ${targetIndicators.join(', ')}`);
       
-      // 使用批量API加载指标数据
-      const response = await axios.get(
-        `${API_BASE_URL}/api/indicators/${symbol}/${timeframe}?limit=500&market_type=${marketType}`
-      );
-
-      const indicators = response.data;
-      console.log(`✅ Received ${indicators.length} indicators`);
-
-      if (indicators.length === 0) {
-        console.warn('⚠️ No indicator data available');
-        return;
-      }
-
       // 为所有激活的指标准备数据
       const indicatorDataMap = {};
-      
       targetIndicators.forEach(indicatorId => {
         indicatorDataMap[indicatorId] = [];
       });
@@ -449,14 +560,80 @@ export default function App() {
         const data = indicatorDataMap[indicatorId];
         if (data.length > 0) {
           indicatorManager.setIndicatorData(indicatorId, data);
-          console.log(`✅ Set ${data.length} ${indicatorId} points`);
         }
       });
+    } catch (err) {
+      console.error('❌ Failed to load indicators from data:', err);
+    }
+  }, [indicatorManager]);
+
+  // Load indicator data
+  const loadIndicators = useCallback(async (klines, indicatorIds = null) => {
+    try {
+      console.log('📊 Loading indicators...');
+      
+      // 使用传入的指标列表，或者使用当前激活的指标
+      const targetIndicators = indicatorIds || indicatorManager.activeIndicators;
+      console.log(`🎯 Target indicators: ${targetIndicators.join(', ')}`);
+      
+      // 使用批量API加载指标数据
+      const response = await axios.get(
+        `${API_BASE_URL}/api/indicators/${symbol}/${timeframe}?limit=500&market_type=${marketType}`
+      );
+
+      const indicators = response.data;
+      console.log(`✅ Received ${indicators.length} indicators`);
+
+      if (indicators.length === 0) {
+        console.warn('⚠️ No indicator data available');
+        return;
+      }
+
+      loadIndicatorsFromData(indicators, targetIndicators);
 
     } catch (err) {
       console.error('❌ Failed to load indicators:', err);
     }
-  }, [symbol, timeframe, indicatorManager]);
+  }, [symbol, timeframe, marketType, indicatorManager, loadIndicatorsFromData]);
+
+  // 预加载相邻时间级别（提升切换速度）
+  const preloadAdjacentTimeframes = useCallback(() => {
+    const toPreload = PRELOAD_TIMEFRAMES[timeframe] || [];
+    
+    console.log(`🔮 Preloading adjacent timeframes: ${toPreload.join(', ')}`);
+    
+    toPreload.forEach(tf => {
+      const klinesCacheKey = getCacheKey('klines', symbol, tf, marketType);
+      const indicatorsCacheKey = getCacheKey('indicators', symbol, tf, marketType);
+      
+      // 只预加载没有缓存的数据
+      if (!getCachedData(klinesCacheKey)) {
+        setTimeout(() => {
+          axios.get(`${API_BASE_URL}/api/klines/${symbol}/${tf}?limit=500&market_type=${marketType}`)
+            .then(res => {
+              if (res.data && res.data.length > 0) {
+                setCachedData(klinesCacheKey, res.data);
+                console.log(`✅ Preloaded ${tf} klines (${res.data.length} bars)`);
+              }
+            })
+            .catch(err => console.debug('Preload failed:', tf, err));
+        }, 500); // 延迟500ms避免阻塞
+      }
+      
+      if (!getCachedData(indicatorsCacheKey)) {
+        setTimeout(() => {
+          axios.get(`${API_BASE_URL}/api/indicators/${symbol}/${tf}?limit=500&market_type=${marketType}`)
+            .then(res => {
+              if (res.data && res.data.length > 0) {
+                setCachedData(indicatorsCacheKey, res.data);
+                console.log(`✅ Preloaded ${tf} indicators (${res.data.length} points)`);
+              }
+            })
+            .catch(err => console.debug('Preload failed:', tf, err));
+        }, 800); // 延迟800ms
+      }
+    });
+  }, [symbol, timeframe, marketType]);
 
   // Load trading signals
   const loadSignals = useCallback(async () => {
@@ -514,6 +691,12 @@ export default function App() {
 
   // Handle timeframe change
   const handleTimeframeChange = (newTimeframe) => {
+    // 如果是当前时间级别，直接返回
+    if (newTimeframe === timeframe) {
+      console.log('⏭️ Already on timeframe:', newTimeframe);
+      return;
+    }
+    
     console.log('🔄 Switching timeframe to:', newTimeframe);
     setTimeframe(newTimeframe);
     setSignals([]);
@@ -813,6 +996,7 @@ export default function App() {
               ].map((tf, index, arr) => (
               <button
                   key={tf.value}
+                  disabled={timeframe === tf.value}
                   onClick={() => handleTimeframeChange(tf.value)}
                 style={{
                     padding: '8px 12px',
@@ -836,7 +1020,7 @@ export default function App() {
                       e.target.style.background = 'rgba(255,255,255,0.1)';
                     }
                 }}
-                  title={tf.label}
+                  title={timeframe === tf.value ? `当前: ${tf.label}` : `切换到 ${tf.label}`}
               >
                   {tf.label}
               </button>

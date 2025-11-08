@@ -127,15 +127,19 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
       return indicatorSeries[indicatorId];
     }
     
-    // 系列不存在，创建它
-    console.log(`⚠️ Indicator series ${indicatorId} not found, creating...`);
-    const series = createIndicatorSeries(indicatorId);
-    if (series) {
-      setIndicatorSeries(prev => ({
-        ...prev,
-        [indicatorId]: series
-      }));
-      return series;
+    // 系列不存在，尝试创建它
+    try {
+      console.log(`⚠️ Indicator series ${indicatorId} not found, creating...`);
+      const series = createIndicatorSeries(indicatorId);
+      if (series) {
+        setIndicatorSeries(prev => ({
+          ...prev,
+          [indicatorId]: series
+        }));
+        return series;
+      }
+    } catch (err) {
+      console.debug(`Cannot create indicator series ${indicatorId} (chart may be initializing):`, err.message);
     }
     return null;
   }, [indicatorSeries, createIndicatorSeries]);
@@ -154,7 +158,7 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
         series.setData(data);
         console.log(`📈 Set data for indicator ${indicatorId}: ${data.length} points`);
       } catch (error) {
-        console.error(`❌ Failed to set data for indicator ${indicatorId}:`, error);
+        console.debug(`Cannot set data for indicator ${indicatorId}:`, error.message);
       }
     }
   }, [ensureIndicatorSeries]);
