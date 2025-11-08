@@ -14,6 +14,16 @@ const WS_URL = 'ws://localhost:8001/ws';
 export default function App() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState('1h');
+  
+  // Use refs to store latest symbol/timeframe for WebSocket callbacks
+  const symbolRef = useRef(symbol);
+  const timeframeRef = useRef(timeframe);
+  
+  // Update refs when symbol/timeframe changes
+  useEffect(() => {
+    symbolRef.current = symbol;
+    timeframeRef.current = timeframe;
+  }, [symbol, timeframe]);
   const [signals, setSignals] = useState([]);
   const [isLoading, setIsLoading] = useState(false); // Changed to false
   const [error, setError] = useState(null);
@@ -435,7 +445,19 @@ export default function App() {
 
   // Handle K-line update
   const handleKlineUpdate = (kline) => {
-    if (seriesRef.current && kline.symbol === symbol && kline.timeframe === timeframe) {
+    // Use refs to get latest symbol/timeframe (avoid closure issues)
+    const currentSymbol = symbolRef.current;
+    const currentTimeframe = timeframeRef.current;
+    
+    // Debug: log all received K-lines
+    console.log('🔍 Checking K-line:', {
+      received: `${kline.symbol}:${kline.timeframe}`,
+      expected: `${currentSymbol}:${currentTimeframe}`,
+      hasSeriesRef: !!seriesRef.current,
+      match: kline.symbol === currentSymbol && kline.timeframe === currentTimeframe
+    });
+
+    if (seriesRef.current && kline.symbol === currentSymbol && kline.timeframe === currentTimeframe) {
       // Debug: 检查数据格式
       if (typeof kline.timestamp !== 'number') {
         console.error('❌ Invalid timestamp type:', typeof kline.timestamp, kline.timestamp);
@@ -443,28 +465,35 @@ export default function App() {
         return;
       }
       
-      // Use timestamp directly - chart will display based on browser timezone
-      seriesRef.current.candlestick.update({
-        time: kline.timestamp,
-        open: kline.open,
-        high: kline.high,
-        low: kline.low,
-        close: kline.close,
-      });
+      try {
+        // Use timestamp directly - chart will display based on browser timezone
+        seriesRef.current.candlestick.update({
+          time: kline.timestamp,
+          open: kline.open,
+          high: kline.high,
+          low: kline.low,
+          close: kline.close,
+        });
 
-      // Update current price only (24h data comes from exchange ticker API)
-      setPriceData(prev => ({
-        ...prev,
-        currentPrice: kline.close,
-      }));
+        // Update current price only (24h data comes from exchange ticker API)
+        setPriceData(prev => ({
+          ...prev,
+          currentPrice: kline.close,
+        }));
 
-      console.log('Updated K-line:', kline.timestamp);
+        console.log('✅ Updated K-line:', kline.timestamp);
+      } catch (error) {
+        console.error('❌ Failed to update K-line:', error);
+      }
     }
   };
 
   // Handle indicator update
   const handleIndicatorUpdate = (indicator) => {
-    if (seriesRef.current && indicator.symbol === symbol && indicator.timeframe === timeframe) {
+    const currentSymbol = symbolRef.current;
+    const currentTimeframe = timeframeRef.current;
+    
+    if (seriesRef.current && indicator.symbol === currentSymbol && indicator.timeframe === currentTimeframe) {
       if (indicator.ma5) {
         seriesRef.current.ma5.update({
           time: indicator.timestamp,
@@ -485,7 +514,9 @@ export default function App() {
 
   // Handle signal update
   const handleSignalUpdate = (signal) => {
-    if (signal.symbol === symbol) {
+    const currentSymbol = symbolRef.current;
+    
+    if (signal.symbol === currentSymbol) {
       setSignals(prev => [signal, ...prev].slice(0, 50));
 
       // Add marker to chart
@@ -508,7 +539,7 @@ export default function App() {
   };
 
   // WebSocket connection
-  const { isConnected, subscribe } = useWebSocket(WS_URL, handleWebSocketMessage);
+  const { isConnected, subscribe, unsubscribe } = useWebSocket(WS_URL, handleWebSocketMessage);
 
   // Subscribe to topics when connected
   useEffect(() => {
@@ -521,8 +552,14 @@ export default function App() {
 
       subscribe(topics);
       console.log('📡 Subscribed to topics:', topics);
+
+      // Cleanup: unsubscribe when symbol/timeframe changes
+      return () => {
+        unsubscribe(topics);
+        console.log('📡 Unsubscribed from topics:', topics);
+      };
     }
-  }, [isConnected, symbol, timeframe, subscribe]);
+  }, [isConnected, symbol, timeframe, subscribe, unsubscribe]);
 
   return (
     <div className="app">

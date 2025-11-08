@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
  * WebSocket Hook for real-time data streaming
@@ -79,7 +79,7 @@ export function useWebSocket(url, onMessage) {
     };
   }, [url]);
 
-  const subscribe = (topics) => {
+  const subscribe = useCallback((topics) => {
     if (!Array.isArray(topics)) {
       topics = [topics];
     }
@@ -92,9 +92,9 @@ export function useWebSocket(url, onMessage) {
         topics: topics
       }));
     }
-  };
+  }, []);
 
-  const unsubscribe = (topics) => {
+  const unsubscribe = useCallback((topics) => {
     if (!Array.isArray(topics)) {
       topics = [topics];
     }
@@ -107,7 +107,7 @@ export function useWebSocket(url, onMessage) {
         topics: topics
       }));
     }
-  };
+  }, []);
 
   return { isConnected, subscribe, unsubscribe };
 }
