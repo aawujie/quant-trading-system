@@ -4,6 +4,7 @@ import { TrendLineTool } from '../components/DrawingTools/drawings/TrendLineTool
 import { RectangleTool } from '../components/DrawingTools/drawings/RectangleTool';
 import { HorizontalLineTool } from '../components/DrawingTools/drawings/HorizontalLineTool';
 import { VerticalLineTool } from '../components/DrawingTools/drawings/VerticalLineTool';
+import { FibonacciTool } from '../components/DrawingTools/drawings/FibonacciTool';
 import { drawingApi } from '../services/drawingApi';
 
 /**
@@ -62,6 +63,8 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         return new HorizontalLineTool(chart, series, coordinates.current);
       case 'vertical_line':
         return new VerticalLineTool(chart, series, coordinates.current);
+      case 'fibonacci':
+        return new FibonacciTool(chart, series, coordinates.current);
       default:
         return null;
     }
@@ -111,8 +114,8 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
 
   // 验证绘图是否有效
   const validateDrawing = useCallback((tool) => {
-    // 对于趋势线和矩形，检查两个点是否相同
-    if (tool.type === 'trend_line' || tool.type === 'rectangle') {
+    // 对于趋势线、矩形和斐波那契，检查两个点是否相同
+    if (tool.type === 'trend_line' || tool.type === 'rectangle' || tool.type === 'fibonacci') {
       const points = tool.getPoints();
       if (points.length === 2) {
         const [point1, point2] = points;
@@ -231,11 +234,11 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
       const isValidDrawing = validateDrawing(completedTool);
       
       if (isValidDrawing) {
-        // 保存到后端
-        saveDrawing(completedTool);
-        
-        // 添加到绘图列表
-        setDrawings(prev => [...prev, completedTool]);
+      // 保存到后端
+      saveDrawing(completedTool);
+      
+      // 添加到绘图列表
+      setDrawings(prev => [...prev, completedTool]);
         
         console.log('✅ 绘图完成并添加到列表，当前绘图数量:', drawings.length + 1);
       } else {

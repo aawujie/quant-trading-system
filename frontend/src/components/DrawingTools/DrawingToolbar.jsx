@@ -27,13 +27,17 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
       name: '垂直线',
       icon: '│',
       tooltip: '绘制垂直线（时间标记）'
+    },
+    {
+      id: 'fibonacci',
+      name: '斐波那契',
+      icon: '⌬',
+      tooltip: '绘制斐波那契回撤'
     }
   ];
 
   return (
     <div className="drawing-toolbar" style={styles.toolbar}>
-      <div style={styles.label}>绘图工具：</div>
-      
       {tools.map(tool => (
         <button
           key={tool.id}
