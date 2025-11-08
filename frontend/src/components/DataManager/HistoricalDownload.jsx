@@ -166,44 +166,44 @@ export default function HistoricalDownload() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              币种 (已选 {formData.symbols.length})
+              选择币种 ({formData.symbols.length} 个)
             </label>
             <div className="flex flex-wrap gap-2">
               {availableSymbols.map(symbol => (
-                <label
+                <button
                   key={symbol}
-                  className="flex items-center gap-2 px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md cursor-pointer hover:bg-[#1a1a24] transition-colors"
+                  type="button"
+                  onClick={() => toggleSymbol(symbol)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    formData.symbols.includes(symbol)
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-[#2a2a3a] text-gray-300 hover:bg-[#3a3a4a]'
+                  }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={formData.symbols.includes(symbol)}
-                    onChange={() => toggleSymbol(symbol)}
-                    className="w-4 h-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
-                  />
-                  <span className="text-sm text-gray-200">{symbol}</span>
-                </label>
+                  {symbol}
+                </button>
               ))}
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              时间周期 (已选 {formData.timeframes.length})
+              选择时间周期 ({formData.timeframes.length} 个)
             </label>
             <div className="flex flex-wrap gap-2">
               {availableTimeframes.map(tf => (
-                <label
+                <button
                   key={tf}
-                  className="flex items-center gap-2 px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md cursor-pointer hover:bg-[#1a1a24] transition-colors"
+                  type="button"
+                  onClick={() => toggleTimeframe(tf)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    formData.timeframes.includes(tf)
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-[#2a2a3a] text-gray-300 hover:bg-[#3a3a4a]'
+                  }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={formData.timeframes.includes(tf)}
-                    onChange={() => toggleTimeframe(tf)}
-                    className="w-4 h-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
-                  />
-                  <span className="text-sm text-gray-200">{tf}</span>
-                </label>
+                  {tf}
+                </button>
               ))}
             </div>
           </div>
@@ -212,16 +212,30 @@ export default function HistoricalDownload() {
             <label className="block text-sm font-medium text-gray-300 mb-2">
               市场类型
             </label>
-            <select
-              name="marketType"
-              value={formData.marketType}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="spot">现货</option>
-              <option value="future">永续合约</option>
-            </select>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, marketType: 'spot' }))}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  formData.marketType === 'spot'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#2a2a3a] text-gray-300 hover:bg-[#3a3a4a]'
+                }`}
+              >
+                现货
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, marketType: 'future' }))}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  formData.marketType === 'future'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#2a2a3a] text-gray-300 hover:bg-[#3a3a4a]'
+                }`}
+              >
+                永续合约
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
