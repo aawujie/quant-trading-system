@@ -76,11 +76,21 @@ export class HorizontalLineTool extends BaseTool {
       
       ctx.setLineDash([]);
       
-      // 绘制价格标签
-      const priceText = `$${this.price.toFixed(2)}`;
-      ctx.fillStyle = this.style.color;
+      // 绘制价格标签（与斐波那契样式一致）
+      const priceText = `${this.price.toFixed(2)}`;
       ctx.font = '12px Arial';
-      ctx.fillText(priceText, 5, clampedY - 5);
+      const textWidth = ctx.measureText(priceText).width;
+      
+      // 标签位置：画布右侧，但留出竖坐标刻度的空间（约90px）
+      const labelX = Math.min(bounds.right - textWidth - 20, ctx.canvas.width - textWidth - 90);
+      
+      // 绘制文本背景
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(labelX - 4, clampedY - 16, textWidth + 8, 18);
+      
+      // 绘制文本
+      ctx.fillStyle = this.style.color;
+      ctx.fillText(priceText, labelX, clampedY - 3);
     }
     
     // 绘制预览线（半透明、虚线）
@@ -103,12 +113,22 @@ export class HorizontalLineTool extends BaseTool {
         ctx.setLineDash([]);
         ctx.globalAlpha = 1.0; // 恢复透明度
         
-        // 绘制预览价格标签
-        const priceText = `$${this.previewPrice.toFixed(2)}`;
+        // 绘制预览价格标签（与斐波那契样式一致）
+        const priceText = `${this.previewPrice.toFixed(2)}`;
+        ctx.font = '12px Arial';
+        const textWidth = ctx.measureText(priceText).width;
+        
+        // 标签位置：画布右侧，但留出竖坐标刻度的空间（约90px）
+        const labelX = Math.min(bounds.right - textWidth - 20, ctx.canvas.width - textWidth - 90);
+        
+        // 绘制文本背景（半透明）
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(labelX - 4, clampedY - 16, textWidth + 8, 18);
+        
+        // 绘制文本
         ctx.fillStyle = this.style.color;
         ctx.globalAlpha = 0.7;
-        ctx.font = '12px Arial';
-        ctx.fillText(priceText, 5, clampedY - 5);
+        ctx.fillText(priceText, labelX, clampedY - 3);
         ctx.globalAlpha = 1.0;
       }
     }
