@@ -15,8 +15,8 @@ export class BaseTool {
     
     // 默认样式
     this.style = {
-      color: '#2962FF',
-      lineWidth: 2,
+      color: '#8AB4F8', // 浅蓝色
+      lineWidth: 1, // 更细的线条
       lineStyle: 'solid',
       fillOpacity: 0.1
     };
