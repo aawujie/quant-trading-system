@@ -833,25 +833,29 @@ export default function App() {
               onClick={resetChart}
               style={{
                 marginLeft: 'auto',
-                padding: '0.5rem',
-                background: '#FF5722',
-                color: 'white',
-                border: 'none',
+                padding: '0.5rem 1rem',
+                background: 'transparent',
+                color: '#888',
+                border: '1px solid #444',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                fontSize: '18px',
+                fontSize: '13px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                minWidth: '36px',
-                minHeight: '36px',
                 transition: 'all 0.2s'
               }}
-              onMouseOver={(e) => e.target.style.background = '#E64A19'}
-              onMouseOut={(e) => e.target.style.background = '#FF5722'}
+              onMouseOver={(e) => {
+                e.target.style.color = '#fff';
+                e.target.style.borderColor = '#666';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.color = '#888';
+                e.target.style.borderColor = '#444';
+              }}
               title="重置图表到初始状态"
             >
-              🔄
+              重置
             </button>
           </div>
 
