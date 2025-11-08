@@ -352,9 +352,8 @@ class DataIntegrityService:
         for timestamp in missing_timestamps:
             try:
                 # 获取该时间点及之前的K线（用于计算）
-                # 使用 max_required + 余量，确保有足够数据
                 klines_before = await self.db.get_klines_before(
-                    symbol, timeframe, timestamp, limit=max_required + 10
+                    symbol, timeframe, timestamp, limit=max_required
                 )
                 
                 # 至少需要 min_required 根K线才能开始计算指标
