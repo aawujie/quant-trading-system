@@ -738,36 +738,38 @@ export default function App() {
               <button
                 onClick={() => handleMarketTypeChange('spot')}
                 style={{
-                  padding: '8px 16px',
+                  padding: '8px 12px',
                   background: marketType === 'spot' ? '#2196F3' : 'rgba(255,255,255,0.1)',
                   color: 'white',
                   border: '1px solid ' + (marketType === 'spot' ? '#2196F3' : 'rgba(255,255,255,0.3)'),
                   borderRadius: '6px 0 0 6px',
                   cursor: 'pointer',
-                  fontSize: '14px',
+                  fontSize: '13px',
                   fontWeight: marketType === 'spot' ? '600' : '400',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  minWidth: '42px'
                 }}
                 title="现货市场"
               >
-                💵 现货
+                S
               </button>
               <button
                 onClick={() => handleMarketTypeChange('future')}
                 style={{
-                  padding: '8px 16px',
+                  padding: '8px 12px',
                   background: marketType === 'future' ? '#2196F3' : 'rgba(255,255,255,0.1)',
                   color: 'white',
                   border: '1px solid ' + (marketType === 'future' ? '#2196F3' : 'rgba(255,255,255,0.3)'),
                   borderRadius: '0 6px 6px 0',
                   cursor: 'pointer',
-                  fontSize: '14px',
+                  fontSize: '13px',
                   fontWeight: marketType === 'future' ? '600' : '400',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  minWidth: '42px'
                 }}
                 title="永续合约"
               >
-                📈 永续
+                F
               </button>
             </div>
 
@@ -824,10 +826,10 @@ export default function App() {
 
             {/* 绘图工具栏 */}
             <div style={{ display: 'flex', gap: '4px', marginLeft: '1rem' }}>
-              <DrawingToolbar
-                activeTool={drawingManager.activeTool}
-                onToolSelect={drawingManager.activateTool}
-              />
+            <DrawingToolbar
+              activeTool={drawingManager.activeTool}
+              onToolSelect={drawingManager.activateTool}
+            />
             </div>
 
             {/* 重置图表按钮 - 放在最右边 */}
@@ -941,7 +943,7 @@ export default function App() {
                 onMouseOver={(e) => e.target.style.background = '#1976D2'}
                 onMouseOut={(e) => e.target.style.background = '#2196F3'}
               >
-                {noDataMessage.otherType === 'spot' ? '💵' : '📈'} 切换到{noDataMessage.otherTypeName}
+                切换到{noDataMessage.otherTypeName}
               </button>
             </div>
           )}
