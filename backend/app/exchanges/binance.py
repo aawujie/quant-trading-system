@@ -146,6 +146,80 @@ class BinanceExchange(ExchangeBase):
             logger.error(f"Failed to fetch klines from Binance: {e}")
             raise
     
+    async def fetch_historical_klines(
+        self,
+        symbol: str,
+        interval: str,
+        start_time: int,
+        end_time: int,
+        limit: int = 1500,
+        market_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch historical K-lines from Binance
+        
+        Args:
+            symbol: Trading pair (e.g., 'BTCUSDT')
+            interval: Timeframe (e.g., '1h', '1d')
+            start_time: Start timestamp in milliseconds
+            end_time: End timestamp in milliseconds
+            limit: Maximum number of candles (max 1500)
+            market_type: Market type override
+            
+        Returns:
+            List of K-line dictionaries
+        """
+        try:
+            # Convert symbol format if needed
+            if '/' not in symbol:
+                # BTCUSDT -> BTC/USDT
+                # Simple conversion, might need improvement for other pairs
+                if symbol.endswith('USDT'):
+                    formatted_symbol = f"{symbol[:-4]}/USDT"
+                else:
+                    formatted_symbol = symbol
+            else:
+                formatted_symbol = symbol
+            
+            # Fetch OHLCV data
+            ohlcv = await self.exchange.fetch_ohlcv(
+                formatted_symbol,
+                interval,
+                since=start_time,
+                limit=limit
+            )
+            
+            # Filter by end_time
+            filtered_ohlcv = [
+                candle for candle in ohlcv 
+                if candle[0] <= end_time
+            ]
+            
+            # Convert to dictionary format
+            klines = []
+            for candle in filtered_ohlcv:
+                kline = {
+                    'symbol': symbol.replace('/', ''),
+                    'timeframe': interval,
+                    'timestamp': int(candle[0] / 1000),  # ms to seconds
+                    'open': float(candle[1]),
+                    'high': float(candle[2]),
+                    'low': float(candle[3]),
+                    'close': float(candle[4]),
+                    'volume': float(candle[5]),
+                    'market_type': market_type or self.market_type
+                }
+                klines.append(kline)
+            
+            logger.debug(
+                f"Fetched {len(klines)} historical klines for {symbol} {interval}"
+            )
+            return klines
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch historical klines: {e}")
+            raise
+    
     async def fetch_ticker(self, symbol: str) -> TickerData:
         """
         Fetch ticker data from Binance (包含24小时统计)

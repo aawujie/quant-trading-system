@@ -331,6 +331,55 @@ class Database:
                 for row in reversed(rows)
             ]
     
+    async def get_klines_before(
+        self,
+        symbol: str,
+        timeframe: str,
+        timestamp: int,
+        limit: int = 200,
+        market_type: str = 'spot'
+    ) -> List[KlineData]:
+        """
+        Get K-lines before (and including) a specific timestamp
+        
+        Args:
+            symbol: Trading symbol
+            timeframe: Timeframe
+            timestamp: Target timestamp
+            limit: Number of K-lines to fetch
+            market_type: Market type
+            
+        Returns:
+            List of K-lines in chronological order
+        """
+        async with self.SessionLocal() as session:
+            query = select(KlineDB).where(
+                KlineDB.symbol == symbol,
+                KlineDB.timeframe == timeframe,
+                KlineDB.timestamp <= timestamp,
+                KlineDB.market_type == market_type
+            ).order_by(KlineDB.timestamp.desc()).limit(limit)
+            
+            result = await session.execute(query)
+            rows = result.scalars().all()
+            
+            # Convert to Pydantic models (reverse to chronological order)
+            return [
+                KlineData(
+                    symbol=row.symbol,
+                    timeframe=row.timeframe,
+                    timestamp=row.timestamp,
+                    market_type=row.market_type,
+                    beijing_time=row.beijing_time.isoformat() if row.beijing_time else None,
+                    open=row.open,
+                    high=row.high,
+                    low=row.low,
+                    close=row.close,
+                    volume=row.volume
+                )
+                for row in reversed(rows)
+            ]
+    
     # Indicator operations
     
     async def insert_indicator(self, indicator: IndicatorData) -> bool:

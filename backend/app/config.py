@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     kline_fetch_interval: int = 4  # K线数据获取间隔（秒）
     market_type: str = "future"  # 市场类型: spot, future, delivery
     
+    # Data Integrity Configuration
+    auto_repair_data: bool = True  # 启动时自动修复数据
+    repair_days_back: int = 7  # 检查最近N天的数据
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -1,5 +1,6 @@
 """REST API endpoints"""
 
+import asyncio
 import logging
 from typing import List, Optional
 
@@ -604,5 +605,157 @@ async def get_data_stats():
         }
     except Exception as e:
         logger.error(f"Failed to get data stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Admin Endpoints - Data Integrity
+# =============================================================================
+
+@app.post("/api/admin/repair-data")
+async def trigger_data_repair(
+    symbols: str = Query('BTCUSDT,ETHUSDT', description="Comma-separated symbols"),
+    timeframes: str = Query('1h,4h,1d', description="Comma-separated timeframes"),
+    days: int = Query(7, ge=1, le=90, description="Check last N days"),
+    market_type: str = Query('future', description="Market type")
+):
+    """
+    手动触发数据修复任务
+    
+    Args:
+        symbols: 交易对列表（逗号分隔）
+        timeframes: 时间周期列表（逗号分隔）
+        days: 检查最近N天
+        market_type: 市场类型
+        
+    Returns:
+        任务启动状态
+    """
+    try:
+        from app.services.data_integrity import DataIntegrityService
+        from app.exchanges.binance import BinanceExchange
+        from app.config import settings
+        
+        # 在后台异步执行（不阻塞请求）
+        async def run_repair():
+            exchange = BinanceExchange(
+                api_key=settings.binance_api_key or "",
+                api_secret=settings.binance_api_secret or "",
+                market_type=market_type
+            )
+            
+            service = DataIntegrityService(db, exchange)
+            
+            try:
+                await service.check_and_repair_all(
+                    symbols=symbols.split(','),
+                    timeframes=timeframes.split(','),
+                    days_back=days,
+                    auto_fix=True,
+                    market_type=market_type
+                )
+            finally:
+                await exchange.close()
+        
+        # 启动后台任务
+        asyncio.create_task(run_repair())
+        
+        return {
+            "status": "started",
+            "message": "Data repair task started in background",
+            "parameters": {
+                "symbols": symbols.split(','),
+                "timeframes": timeframes.split(','),
+                "days": days,
+                "market_type": market_type
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start data repair: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/data-status")
+async def check_data_status(
+    symbols: str = Query('BTCUSDT', description="Comma-separated symbols"),
+    timeframes: str = Query('1h', description="Comma-separated timeframes"),
+    days: int = Query(7, ge=1, le=90, description="Check last N days"),
+    market_type: str = Query('future', description="Market type")
+):
+    """
+    检查数据完整性状态
+    
+    Args:
+        symbols: 交易对列表（逗号分隔）
+        timeframes: 时间周期列表（逗号分隔）
+        days: 检查最近N天
+        market_type: 市场类型
+        
+    Returns:
+        数据状态报告
+    """
+    try:
+        from app.services.data_integrity import DataIntegrityService
+        from app.exchanges.binance import BinanceExchange
+        from app.config import settings
+        
+        exchange = BinanceExchange(
+            api_key=settings.binance_api_key or "",
+            api_secret=settings.binance_api_secret or "",
+            market_type=market_type
+        )
+        
+        service = DataIntegrityService(db, exchange)
+        
+        result = {}
+        
+        for symbol in symbols.split(','):
+            for timeframe in timeframes.split(','):
+                key = f"{symbol}_{timeframe}"
+                
+                # 检测K线缺失
+                kline_gaps = await service.detect_kline_gaps(
+                    symbol.strip(), 
+                    timeframe.strip(), 
+                    days, 
+                    market_type
+                )
+                
+                # 检测指标缺失
+                indicator_gaps = await service.detect_indicator_gaps(
+                    symbol.strip(), 
+                    timeframe.strip(), 
+                    days
+                )
+                
+                # 计算缺失总数
+                kline_gap_count = sum(
+                    (end - start) // service._get_interval_seconds(timeframe.strip()) + 1
+                    for start, end in kline_gaps
+                )
+                
+                result[key] = {
+                    "kline_gaps": len(kline_gaps),
+                    "kline_missing_count": kline_gap_count,
+                    "indicator_gaps": len(indicator_gaps),
+                    "status": "complete" if not kline_gaps and not indicator_gaps else "incomplete"
+                }
+        
+        await exchange.close()
+        
+        return {
+            "status": "success",
+            "data": result,
+            "parameters": {
+                "symbols": symbols.split(','),
+                "timeframes": timeframes.split(','),
+                "days": days,
+                "market_type": market_type
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to check data status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

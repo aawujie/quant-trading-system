@@ -291,6 +291,55 @@ async def main():
         logger.error(f"✗ Failed to create database tables: {e}")
         sys.exit(1)
     
+    # Check and repair data integrity (if enabled)
+    if settings.auto_repair_data and args.node in ["kline", "indicator", "all"]:
+        logger.info("")
+        logger.info("🔍 Running data integrity check...")
+        
+        try:
+            from app.services.data_integrity import DataIntegrityService
+            
+            # Initialize exchange for repair
+            proxy_config = None
+            if settings.proxy_enabled:
+                proxy_config = {
+                    'enabled': settings.proxy_enabled,
+                    'host': settings.proxy_host,
+                    'port': settings.proxy_port,
+                    'username': settings.proxy_username,
+                    'password': settings.proxy_password
+                }
+            
+            exchange = BinanceExchange(
+                api_key=settings.binance_api_key or "",
+                api_secret=settings.binance_api_secret or "",
+                proxy_config=proxy_config,
+                market_type=settings.market_type
+            )
+            
+            service = DataIntegrityService(db, exchange)
+            
+            # Get symbols and timeframes from args
+            symbols = args.symbols.split(",")
+            timeframes = args.timeframes.split(",")
+            
+            # Run repair
+            await service.check_and_repair_all(
+                symbols=symbols,
+                timeframes=timeframes,
+                days_back=settings.repair_days_back,
+                auto_fix=True,
+                market_type=settings.market_type
+            )
+            
+            await exchange.close()
+            
+        except Exception as e:
+            logger.warning(f"⚠️  Data integrity check failed: {e}")
+            logger.info("Continuing with node startup...")
+        
+        logger.info("")
+    
     # Start appropriate node
     try:
         if args.node == "kline":
