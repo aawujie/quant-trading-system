@@ -4,9 +4,13 @@ import PriceDisplay from './components/PriceDisplay';
 import DataManager from './components/DataManager/DataManager';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDrawingManager } from './hooks/useDrawingManager';
+import { useIndicatorManager } from './hooks/useIndicatorManager';
 import DrawingToolbar from './components/DrawingTools/DrawingToolbar';
 import DrawingCanvas from './components/DrawingTools/DrawingCanvas';
 import DrawingList from './components/DrawingTools/DrawingList';
+import IndicatorButton from './components/Indicators/IndicatorButton';
+import IndicatorModal from './components/Indicators/IndicatorModal';
+import { getIndicatorConfig } from './components/Indicators/IndicatorConfig';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -58,6 +62,15 @@ export default function App() {
   const drawingManager = useDrawingManager(
     chartRef.current,
     seriesRef.current?.candlestick,
+    symbol,
+    timeframe
+  );
+
+  // 指标管理
+  const [showIndicatorModal, setShowIndicatorModal] = useState(false);
+  const indicatorManager = useIndicatorManager(
+    chartRef,
+    seriesRef,
     symbol,
     timeframe
   );
@@ -374,6 +387,20 @@ export default function App() {
     loadHistoricalData();
   }, [loadHistoricalData]);
 
+  // 初始化指标系列（当图表和激活的指标列表变化时）
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    console.log('🎨 Initializing indicator series...');
+    
+    // 为所有激活的指标创建系列
+    indicatorManager.activeIndicators.forEach(indicatorId => {
+      if (!indicatorManager.indicatorSeries[indicatorId]) {
+        indicatorManager.createIndicatorSeries(indicatorId);
+      }
+    });
+  }, [chartRef.current, indicatorManager.activeIndicators]);
+
   // Load indicators has been moved above
 
   // Load indicator data
@@ -394,43 +421,41 @@ export default function App() {
         return;
       }
 
-      // 为MA5和MA20准备数据
-      const ma5Data = [];
-      const ma20Data = [];
-
-      indicators.forEach(ind => {
-        if (ind.ma5 !== null && ind.ma5 !== undefined) {
-          ma5Data.push({
-            time: ind.timestamp,
-            value: ind.ma5
-          });
-        }
-        
-        if (ind.ma20 !== null && ind.ma20 !== undefined) {
-          ma20Data.push({
-            time: ind.timestamp,
-            value: ind.ma20
-          });
-        }
+      // 为所有激活的指标准备数据
+      const indicatorDataMap = {};
+      
+      indicatorManager.activeIndicators.forEach(indicatorId => {
+        indicatorDataMap[indicatorId] = [];
       });
 
-      // 设置MA线数据
-      if (seriesRef.current && chartRef.current) {
-        if (seriesRef.current.ma5 && ma5Data.length > 0) {
-          seriesRef.current.ma5.setData(ma5Data);
-          console.log(`✅ Set ${ma5Data.length} MA5 points`);
+      indicators.forEach(ind => {
+        indicatorManager.activeIndicators.forEach(indicatorId => {
+          const config = getIndicatorConfig(indicatorId);
+          if (config && config.field) {
+            const value = ind[config.field];
+            if (value !== null && value !== undefined) {
+              indicatorDataMap[indicatorId].push({
+                time: ind.timestamp,
+                value: value
+              });
+            }
+          }
+        });
+      });
+
+      // 设置所有指标数据
+      Object.keys(indicatorDataMap).forEach(indicatorId => {
+        const data = indicatorDataMap[indicatorId];
+        if (data.length > 0) {
+          indicatorManager.setIndicatorData(indicatorId, data);
+          console.log(`✅ Set ${data.length} ${indicatorId} points`);
         }
-        
-        if (seriesRef.current.ma20 && ma20Data.length > 0) {
-          seriesRef.current.ma20.setData(ma20Data);
-          console.log(`✅ Set ${ma20Data.length} MA20 points`);
-        }
-      }
+      });
 
     } catch (err) {
       console.error('❌ Failed to load indicators:', err);
     }
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, indicatorManager]);
 
   // Load trading signals
   const loadSignals = useCallback(async () => {
@@ -641,28 +666,23 @@ export default function App() {
     const currentSymbol = symbolRef.current;
     const currentTimeframe = timeframeRef.current;
     
-    if (seriesRef.current && indicator.symbol === currentSymbol && indicator.timeframe === currentTimeframe) {
+    if (indicator.symbol === currentSymbol && indicator.timeframe === currentTimeframe) {
       try {
-        // Check if chart is still valid
-        if (!seriesRef.current || !seriesRef.current.ma5 || !seriesRef.current.ma20) {
-          return;
-        }
+        // 更新所有激活的指标
+        indicatorManager.activeIndicators.forEach(indicatorId => {
+          const config = getIndicatorConfig(indicatorId);
+          if (config && config.field) {
+            const value = indicator[config.field];
+            if (value !== null && value !== undefined) {
+              indicatorManager.updateIndicatorPoint(indicatorId, {
+                time: indicator.timestamp,
+                value: value
+              });
+            }
+          }
+        });
 
-        if (indicator.ma5) {
-          seriesRef.current.ma5.update({
-            time: indicator.timestamp,
-            value: indicator.ma5,
-          });
-        }
-
-        if (indicator.ma20) {
-          seriesRef.current.ma20.update({
-            time: indicator.timestamp,
-            value: indicator.ma20,
-          });
-        }
-
-        console.log('Updated indicators:', indicator.timestamp);
+        console.log('✅ Updated indicators:', indicator.timestamp);
       } catch (error) {
         // Silently ignore errors from disposed chart
         if (error.message && error.message.includes('disposed')) {
@@ -828,17 +848,25 @@ export default function App() {
             />
             </div>
 
+            {/* 指标管理按钮 */}
+            <div style={{ marginLeft: '0.5rem' }}>
+              <IndicatorButton
+                onClick={() => setShowIndicatorModal(true)}
+                indicatorCount={indicatorManager.activeIndicators.length}
+              />
+            </div>
+
             {/* 市场类型切换 - 放在右侧 */}
-            <button
+              <button
               onClick={() => handleMarketTypeChange(marketType === 'spot' ? 'future' : 'spot')}
-              style={{
+                style={{
                 marginLeft: 'auto',
                 padding: '0.5rem 1rem',
                 background: 'transparent',
                 color: '#888',
                 border: '1px solid #444',
                 borderRadius: '4px',
-                cursor: 'pointer',
+                  cursor: 'pointer',
                 fontSize: '13px',
                 display: 'flex',
                 alignItems: 'center',
@@ -853,11 +881,11 @@ export default function App() {
               onMouseOut={(e) => {
                 e.target.style.color = '#888';
                 e.target.style.borderColor = '#444';
-              }}
+                }}
               title={marketType === 'spot' ? '切换到合约' : '切换到现货'}
-            >
+              >
               {marketType === 'spot' ? 'S' : 'F'}
-            </button>
+              </button>
 
             {/* 重置图表按钮 */}
             <button 
@@ -1038,6 +1066,18 @@ export default function App() {
           </div>
         </aside>
       </main>
+
+      {/* 指标选择弹窗 */}
+      <IndicatorModal
+        isOpen={showIndicatorModal}
+        onClose={() => setShowIndicatorModal(false)}
+        selectedIndicators={indicatorManager.activeIndicators}
+        onConfirm={(newIndicators) => {
+          indicatorManager.updateIndicators(newIndicators);
+          // 重新加载指标数据
+          loadIndicators();
+        }}
+      />
     </div>
   );
 }
