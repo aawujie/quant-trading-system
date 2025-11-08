@@ -86,23 +86,8 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
 
     seriesRef.current.candlestick = candlestickSeries;
 
-    // Create MA5 line series
-    const ma5Series = chart.addLineSeries({
-      color: '#FF6B6B',
-      lineWidth: 1,
-      title: 'MA5',
-    });
-
-    seriesRef.current.ma5 = ma5Series;
-
-    // Create MA20 line series
-    const ma20Series = chart.addLineSeries({
-      color: '#4ECDC4',
-      lineWidth: 1,
-      title: 'MA20',
-    });
-
-    seriesRef.current.ma20 = ma20Series;
+    // 注意：指标系列（MA5, MA20等）由 indicatorManager 动态创建和管理
+    // 不在这里硬编码创建，以支持灵活的指标配置
 
     // Subscribe to visible time range changes for infinite scroll
     const timeScale = chart.timeScale();

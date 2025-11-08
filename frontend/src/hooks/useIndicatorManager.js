@@ -176,7 +176,15 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
       const saved = localStorage.getItem(`indicators_${symbol}_${timeframe}`);
       if (saved) {
         const savedIndicators = JSON.parse(saved);
-        setActiveIndicators(savedIndicators);
+        // 如果保存的是空数组，使用默认指标，避免没有指标显示
+        if (savedIndicators && savedIndicators.length > 0) {
+          setActiveIndicators(savedIndicators);
+        } else {
+          // 恢复默认指标
+          const defaultIndicators = getDefaultIndicators();
+          setActiveIndicators(defaultIndicators);
+          console.log('📊 Restored default indicators:', defaultIndicators);
+        }
       }
     } catch (err) {
       console.warn('Failed to load indicator settings:', err);

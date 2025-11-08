@@ -494,10 +494,10 @@ export default function App() {
     isLoadingMore.current = false; // Reset loading flag
     hasMoreData.current = true; // Reset data availability flag
     if (seriesRef.current) {
-      // Clear chart data
+      // Clear candlestick data
       seriesRef.current.candlestick.setData([]);
-      seriesRef.current.ma5.setData([]);
-      seriesRef.current.ma20.setData([]);
+      
+      // 注意：指标系列由 indicatorManager 管理，切换symbol时会自动重建
       
       // Remove future helper series
       if (seriesRef.current.futureHelper && chartRef.current) {
@@ -518,10 +518,12 @@ export default function App() {
     isLoadingMore.current = false; // Reset loading flag
     hasMoreData.current = true; // Reset data availability flag
     if (seriesRef.current) {
-      // Clear chart data
+      // Clear candlestick data
       seriesRef.current.candlestick.setData([]);
-      seriesRef.current.ma5.setData([]);
-      seriesRef.current.ma20.setData([]);
+      
+      // 注意：指标系列由 indicatorManager 管理
+      // 切换时间级别时，indicatorManager 会从 localStorage 加载该时间级别的指标配置
+      // 并自动创建对应的指标系列
       
       // Remove future helper series
       if (seriesRef.current.futureHelper && chartRef.current) {
@@ -542,10 +544,10 @@ export default function App() {
     isLoadingMore.current = false; // Reset loading flag
     hasMoreData.current = true; // Reset data availability flag
     if (seriesRef.current) {
-      // Clear chart data
+      // Clear candlestick data
       seriesRef.current.candlestick.setData([]);
-      seriesRef.current.ma5.setData([]);
-      seriesRef.current.ma20.setData([]);
+      
+      // 注意：指标系列由 indicatorManager 管理，切换市场类型时会自动重建
       
       // Remove future helper series
       if (seriesRef.current.futureHelper && chartRef.current) {
