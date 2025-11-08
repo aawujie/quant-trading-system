@@ -100,7 +100,7 @@ class DataIntegrityService:
                 # 2. 检测指标缺失（如果需要）
                 if repair_indicator:
                     indicator_gaps = await self.detect_indicator_gaps(
-                        symbol, timeframe, days_back
+                        symbol, timeframe, days_back, market_type
                     )
                     total_indicator_gaps += len(indicator_gaps)
                     
@@ -207,10 +207,14 @@ class DataIntegrityService:
         self,
         symbol: str,
         timeframe: str,
-        days_back: float
+        days_back: float,
+        market_type: str = 'spot'
     ) -> List[int]:
         """
         检测指标数据缺失
+        
+        Args:
+            market_type: 市场类型 (spot, future, delivery)
         
         Returns:
             List of missing timestamps
@@ -220,7 +224,7 @@ class DataIntegrityService:
         
         # 获取K线时间戳（基准）
         klines = await self.db.get_recent_klines(
-            symbol, timeframe, limit=100000
+            symbol, timeframe, limit=100000, market_type=market_type
         )
         
         # 只考虑在时间范围内的K线

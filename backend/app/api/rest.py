@@ -726,7 +726,8 @@ async def check_data_status(
                 indicator_gaps = await service.detect_indicator_gaps(
                     symbol.strip(), 
                     timeframe.strip(), 
-                    days
+                    days,
+                    market_type
                 )
                 
                 # 计算缺失总数
