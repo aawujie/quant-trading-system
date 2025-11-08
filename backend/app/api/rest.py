@@ -726,7 +726,7 @@ async def check_data_status(
                     market_type
                 )
                 
-                # 检测指标缺失
+                # 检测指标缺失（也按时间）
                 indicator_gaps = await service.detect_indicator_gaps(
                     symbol.strip(), 
                     timeframe.strip(), 

@@ -40,21 +40,20 @@ class DataIntegrityService:
         repair_indicator: bool = True
     ):
         """
-        检查并修复所有数据缺失（混合模式）
+        检查并修复所有数据缺失
         
         Args:
             symbols: 交易对列表
             timeframes: 时间周期列表
-            days_back: K线修复用（天数，支持小数，如0.042 = 1小时）
-            klines_count: 指标修复用（K线数量）
+            days_back: 检查时间范围（天数，支持小数，如0.042 = 1小时）
+            klines_count: 保留参数（向后兼容，不再使用）
             auto_fix: 是否自动修复
             market_type: 市场类型
             repair_kline: 是否修复K线数据
             repair_indicator: 是否修复指标数据
         
-        固定模式：
-        - K线修复：固定用 days_back（按时间）
-        - 指标修复：固定用 klines_count（按数量）
+        统一模式：
+        - K线和指标都按时间范围（days_back）检查
         """
         logger.info("=" * 60)
         logger.info("🔍 Starting Data Integrity Check")
@@ -64,20 +63,22 @@ class DataIntegrityService:
         logger.info(f"Market type: {market_type}")
         logger.info("")
         
-        # 显示修复模式（固定：K线按时间，指标按数量）
-        logger.info("🔧 Repair Mode (Fixed):")
+        # 显示修复模式（统一：都按时间）
+        logger.info("🔧 Repair Mode:")
+        
+        if days_back < 1:
+            hours_back = days_back * 24
+            time_desc = f"{hours_back:.1f} hour(s)"
+        else:
+            time_desc = f"{days_back:.1f} day(s)"
         
         if repair_kline:
-            if days_back < 1:
-                hours_back = days_back * 24
-                logger.info(f"  K-line: ✅ By time - {hours_back:.1f} hour(s)")
-            else:
-                logger.info(f"  K-line: ✅ By time - {days_back:.1f} day(s)")
+            logger.info(f"  K-line: ✅ {time_desc}")
         else:
             logger.info(f"  K-line: ❌ Disabled")
         
         if repair_indicator:
-            logger.info(f"  Indicator: ✅ By count - {klines_count} K-lines per timeframe")
+            logger.info(f"  Indicator: ✅ {time_desc}")
         else:
             logger.info(f"  Indicator: ❌ Disabled")
         
@@ -114,10 +115,10 @@ class DataIntegrityService:
                             total_klines_filled += filled
                 
                 # 2. 检测指标缺失（如果需要）
-                # 指标修复：固定按数量（klines_count）
+                # 指标修复：也按时间（days_back）
                 if repair_indicator:
                     indicator_gaps = await self.detect_indicator_gaps(
-                        symbol, timeframe, klines_count, market_type
+                        symbol, timeframe, days_back, market_type
                     )
                     total_indicator_gaps += len(indicator_gaps)
                     
@@ -224,36 +225,50 @@ class DataIntegrityService:
         self,
         symbol: str,
         timeframe: str,
-        klines_count: int,
+        days_back: float,
         market_type: str = 'spot'
     ) -> List[int]:
         """
-        检测指标数据缺失（固定按数量）
+        检测指标数据缺失（按时间）
         
         Args:
-            klines_count: 检测最近N根K线的指标（固定按数量）
+            days_back: 检测最近N天的指标（支持小数，如0.042 = 1小时）
             market_type: 市场类型 (spot, future, delivery)
         
         Returns:
             List of missing timestamps
         """
-        # 获取最近 N 根K线的时间戳（基准）
+        # 计算时间范围
+        end_time = int(datetime.now().timestamp())
+        start_time = end_time - int(days_back * 86400)
+        
+        # 获取该时间范围内的所有K线时间戳（基准）
         klines = await self.db.get_recent_klines(
-            symbol, timeframe, limit=klines_count, market_type=market_type
+            symbol, timeframe, limit=100000, market_type=market_type
         )
-        kline_timestamps = {k.timestamp for k in klines}
+        
+        # 过滤出时间范围内的K线
+        kline_timestamps = {
+            k.timestamp for k in klines 
+            if start_time <= k.timestamp <= end_time
+        }
         
         if not kline_timestamps:
-            logger.debug(f"   No K-lines found, skipping indicator check")
+            logger.debug(f"   No K-lines found in time range, skipping indicator check")
             return []
         
-        # 获取指标时间戳
+        # 获取该时间范围内的指标时间戳
         indicators = await self.db.get_recent_indicators(
             symbol, timeframe, 
-            limit=klines_count,
+            limit=100000,
             market_type=market_type
         )
-        indicator_timestamps = {i.timestamp for i in indicators}
+        
+        # 过滤出时间范围内的指标
+        indicator_timestamps = {
+            i.timestamp for i in indicators
+            if start_time <= i.timestamp <= end_time
+        }
         
         # 找出有K线但没有指标的时间戳
         missing = sorted(kline_timestamps - indicator_timestamps)
