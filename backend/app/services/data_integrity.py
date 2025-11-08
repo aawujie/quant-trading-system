@@ -331,12 +331,14 @@ class DataIntegrityService:
         # 动态导入避免循环依赖
         from app.nodes.indicator_node import IndicatorNode
         
-        # 创建临时的指标计算节点（自动从元数据计算需要的K线数量）
+        # 创建临时的指标计算节点
+        # 修复场景使用传统模式：每次重新计算，不依赖增量状态
         indicator_node = IndicatorNode(
             bus=None,  # 不需要消息总线
             db=self.db,
             symbols=[symbol],
-            timeframes=[timeframe]
+            timeframes=[timeframe],
+            use_incremental=False  # 修复时用传统模式
         )
         
         filled = 0
