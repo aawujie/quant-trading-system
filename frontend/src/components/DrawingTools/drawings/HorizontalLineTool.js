@@ -3,13 +3,14 @@ import { BaseTool } from './BaseTool';
 /**
  * 水平线工具（支撑位/阻力位）
  * 只需要点击一次，横跨整个图表
+ * 优化：只使用价格坐标，不依赖时间
  */
 export class HorizontalLineTool extends BaseTool {
   constructor(chart, series, coordinates) {
     super(chart, series, coordinates);
     this.type = 'horizontal_line';
     this.price = null;
-    this.timestamp = null;
+    this.timestamp = null; // 保留用于序列化兼容性
     this.previewPrice = null; // 预览价格（鼠标跟随）
     this.previewTimestamp = null;
   }
@@ -19,7 +20,7 @@ export class HorizontalLineTool extends BaseTool {
     if (time === null || price === null) return;
     
     this.price = price;
-    this.timestamp = time;
+    this.timestamp = time; // 保存但不用于绘制
     this.previewPrice = null; // 清除预览
     this.isDrawing = false; // 一次点击就完成
   }
@@ -53,44 +54,46 @@ export class HorizontalLineTool extends BaseTool {
     if (!chartElement) return;
     const chartWidth = chartElement.getBoundingClientRect().width;
 
-    // 绘制确定的水平线
+    // 绘制确定的水平线（只使用价格坐标）
     if (this.price !== null) {
-      const coord = this.coordinates.priceToScreen(this.timestamp, this.price);
-      if (coord && coord.y !== null) {
-        ctx.strokeStyle = this.style.color;
-        ctx.lineWidth = this.style.lineWidth;
-        
-        if (this.style.lineStyle === 'dashed') {
-          ctx.setLineDash([5, 5]);
-        }
-        
-        ctx.beginPath();
-        ctx.moveTo(0, coord.y);
-        ctx.lineTo(chartWidth, coord.y);
-        ctx.stroke();
-        
-        ctx.setLineDash([]);
-        
-        // 绘制价格标签
-        const priceText = `$${this.price.toFixed(2)}`;
-        ctx.fillStyle = this.style.color;
-        ctx.font = '12px Arial';
-        ctx.fillText(priceText, 5, coord.y - 5);
+      const y = this._priceToScreenY(this.price);
+      if (y === null) {
+        return; // 转换失败，不绘制
       }
+      
+      ctx.strokeStyle = this.style.color;
+      ctx.lineWidth = this.style.lineWidth;
+      
+      if (this.style.lineStyle === 'dashed') {
+        ctx.setLineDash([5, 5]);
+      }
+      
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(chartWidth, y);
+      ctx.stroke();
+      
+      ctx.setLineDash([]);
+      
+      // 绘制价格标签
+      const priceText = `$${this.price.toFixed(2)}`;
+      ctx.fillStyle = this.style.color;
+      ctx.font = '12px Arial';
+      ctx.fillText(priceText, 5, y - 5);
     }
     
     // 绘制预览线（半透明、虚线）
     if (this.price === null && this.previewPrice !== null) {
-      const coord = this.coordinates.priceToScreen(this.previewTimestamp, this.previewPrice);
-      if (coord && coord.y !== null) {
+      const y = this._priceToScreenY(this.previewPrice);
+      if (y !== null) {
         ctx.strokeStyle = this.style.color;
         ctx.globalAlpha = 0.5; // 半透明
         ctx.lineWidth = this.style.lineWidth;
         ctx.setLineDash([5, 5]); // 虚线
         
         ctx.beginPath();
-        ctx.moveTo(0, coord.y);
-        ctx.lineTo(chartWidth, coord.y);
+        ctx.moveTo(0, y);
+        ctx.lineTo(chartWidth, y);
         ctx.stroke();
         
         ctx.setLineDash([]);
@@ -101,9 +104,32 @@ export class HorizontalLineTool extends BaseTool {
         ctx.fillStyle = this.style.color;
         ctx.globalAlpha = 0.7;
         ctx.font = '12px Arial';
-        ctx.fillText(priceText, 5, coord.y - 5);
+        ctx.fillText(priceText, 5, y - 5);
         ctx.globalAlpha = 1.0;
       }
+    }
+  }
+
+  /**
+   * 将价格转换为屏幕Y坐标（专用于水平线，支持插值）
+   * @param {number} price - 价格
+   * @returns {number|null} 屏幕Y坐标
+   * @private
+   */
+  _priceToScreenY(price) {
+    try {
+      // 尝试直接转换
+      let y = this.series.priceToCoordinate(price);
+      
+      // 如果失败，使用线性插值
+      if (y === null) {
+        y = this.coordinates._interpolatePriceToCoordinate(price);
+      }
+      
+      return y;
+    } catch (error) {
+      console.error('水平线价格转换失败:', error);
+      return null;
     }
   }
 
@@ -115,16 +141,15 @@ export class HorizontalLineTool extends BaseTool {
     if (this.price === null) return [];
     
     return [
-      { time: this.timestamp, price: this.price }
+      { time: this.timestamp || 0, price: this.price }
     ];
   }
 
   setPoints(points) {
     if (points.length >= 1) {
-      this.timestamp = points[0].time;
+      this.timestamp = points[0].time || 0;
       this.price = points[0].price;
       this.isDrawing = false;
     }
   }
 }
-

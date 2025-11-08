@@ -30,7 +30,7 @@ export class ChartCoordinates {
   }
 
   /**
-   * 价格和时间 → 屏幕坐标（健壮版本，支持任意时间戳）
+   * 价格和时间 → 屏幕坐标（健壮版本，支持任意时间戳和价格）
    * @param {number} time - 时间戳
    * @param {number} price - 价格
    * @returns {{x: number|null, y: number|null}}
@@ -48,9 +48,9 @@ export class ChartCoordinates {
         x = this._interpolateTimeToCoordinate(time);
       }
       
-      // 价格转换通常不会失败，但以防万一
+      // 如果价格转换失败（返回null），使用线性插值
       if (y === null) {
-        console.warn(`⚠️ 价格转换失败: price=${price}`);
+        y = this._interpolatePriceToCoordinate(price);
       }
       
       return { x, y };
@@ -69,28 +69,90 @@ export class ChartCoordinates {
   _interpolateTimeToCoordinate(targetTime) {
     try {
       const timeScale = this.chart.timeScale();
-      const visibleRange = timeScale.getVisibleLogicalRange();
+      const chartElement = this.chart.chartElement();
+      if (!chartElement) return null;
       
+      const chartWidth = chartElement.clientWidth;
+      
+      // 获取所有数据点
+      const data = this.series.data();
+      if (!data || data.length === 0) return null;
+      
+      // 获取可见逻辑范围
+      const visibleRange = timeScale.getVisibleLogicalRange();
       if (!visibleRange) return null;
       
-      // 获取可见范围的时间边界
-      const leftTime = timeScale.coordinateToTime(0);
-      const rightTime = timeScale.coordinateToTime(this.chart.chartElement().clientWidth);
+      // 获取可见范围内的第一个和最后一个数据点的索引
+      const fromIndex = Math.max(0, Math.floor(visibleRange.from));
+      const toIndex = Math.min(data.length - 1, Math.ceil(visibleRange.to));
+      
+      // 获取边界时间
+      const leftTime = data[fromIndex].time;
+      const rightTime = data[toIndex].time;
       
       if (!leftTime || !rightTime) return null;
       
       // 如果目标时间在可见范围外，仍然计算（允许画出屏幕外的线）
       const timeRange = rightTime - leftTime;
+      if (timeRange === 0) return null;
+      
       const timeOffset = targetTime - leftTime;
-      const ratio = timeOffset / timeRange;
+      const timeRatio = timeOffset / timeRange;
+      
+      // 获取边界在屏幕上的坐标
+      const leftCoord = timeScale.logicalToCoordinate(fromIndex);
+      const rightCoord = timeScale.logicalToCoordinate(toIndex);
+      
+      if (leftCoord === null || rightCoord === null) return null;
       
       // 线性插值计算X坐标
-      const chartWidth = this.chart.chartElement().clientWidth;
-      const x = ratio * chartWidth;
+      const x = leftCoord + (rightCoord - leftCoord) * timeRatio;
       
       return x;
     } catch (error) {
       console.error('时间插值失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 线性插值：将任意价格转换为屏幕坐标
+   * @param {number} targetPrice - 目标价格
+   * @returns {number|null} 屏幕Y坐标
+   * @private
+   */
+  _interpolatePriceToCoordinate(targetPrice) {
+    try {
+      const chartElement = this.chart.chartElement();
+      if (!chartElement) return null;
+      
+      const chartHeight = chartElement.clientHeight;
+      
+      // 获取价格刻度的可见范围
+      const priceScale = this.chart.priceScale('right');
+      
+      // 尝试获取可见价格范围
+      // 方法1：通过屏幕坐标转换
+      const topPrice = this.series.coordinateToPrice(0);
+      const bottomPrice = this.series.coordinateToPrice(chartHeight);
+      
+      if (topPrice !== null && bottomPrice !== null) {
+        // 价格范围（注意：顶部价格更大，底部价格更小）
+        const priceRange = topPrice - bottomPrice;
+        const priceOffset = topPrice - targetPrice;
+        const ratio = priceOffset / priceRange;
+        
+        // 线性插值计算Y坐标
+        const y = ratio * chartHeight;
+        
+        return y;
+      }
+      
+      // 方法2：如果上面失败，使用备用方案
+      // 直接使用价格的相对位置估算（假设线性刻度）
+      return null;
+    } catch (error) {
+      console.error('价格插值失败:', error);
       return null;
     }
   }
