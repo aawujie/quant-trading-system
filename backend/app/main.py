@@ -261,23 +261,28 @@ async def main():
     logger.info(f"Database: {settings.database_url.split('@')[1] if '@' in settings.database_url else 'localhost'}")
     logger.info("=" * 60)
     
-    # Connect to Redis
-    logger.info("Connecting to Redis...")
-    redis_client = await redis.from_url(
-        f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}",
-        decode_responses=False
-    )
-    
-    # Test Redis connection
-    try:
-        await redis_client.ping()
-        logger.info("✓ Redis connection successful")
-    except Exception as e:
-        logger.error(f"✗ Failed to connect to Redis: {e}")
-        sys.exit(1)
-    
-    # Create message bus
-    bus = MessageBus(redis_client)
+    # Repair node doesn't need Redis (no message bus required)
+    if args.node == "repair":
+        redis_client = None
+        bus = None
+    else:
+        # Connect to Redis for normal nodes
+        logger.info("Connecting to Redis...")
+        redis_client = await redis.from_url(
+            f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}",
+            decode_responses=False
+        )
+        
+        # Test Redis connection
+        try:
+            await redis_client.ping()
+            logger.info("✓ Redis connection successful")
+        except Exception as e:
+            logger.error(f"✗ Failed to connect to Redis: {e}")
+            sys.exit(1)
+        
+        # Create message bus
+        bus = MessageBus(redis_client)
     
     # Connect to database
     logger.info("Connecting to database...")
@@ -406,7 +411,8 @@ async def main():
         
         finally:
             # Cleanup and exit
-            await bus.close()
+            if bus:
+                await bus.close()
             await db.close()
             logger.info("Repair node exiting...")
         
@@ -429,7 +435,8 @@ async def main():
     finally:
         # Cleanup
         logger.info("Cleaning up...")
-        await bus.close()
+        if bus:
+            await bus.close()
         await db.close()
         logger.info("Shutdown complete")
 
