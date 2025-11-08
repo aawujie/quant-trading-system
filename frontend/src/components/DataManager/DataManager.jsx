@@ -2,9 +2,10 @@ import { useState } from 'react';
 import HistoricalDownload from './HistoricalDownload';
 import DataStats from './DataStats';
 import DataRepair from './DataRepair';
+import BrowserCache from './BrowserCache';
 
 export default function DataManager() {
-  const [activeTab, setActiveTab] = useState('stats'); // 'download' | 'repair' | 'stats'
+  const [activeTab, setActiveTab] = useState('stats'); // 'download' | 'repair' | 'stats' | 'cache'
 
   return (
     <div className="w-full h-full bg-[#0a0a0f] overflow-auto">
@@ -42,6 +43,16 @@ export default function DataManager() {
             >
               🔧 数据修复
             </button>
+            <button
+              onClick={() => setActiveTab('cache')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'cache'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              🗄️ 浏览器缓存
+            </button>
           </div>
         </div>
 
@@ -49,6 +60,7 @@ export default function DataManager() {
         {activeTab === 'stats' && <DataStats />}
         {activeTab === 'download' && <HistoricalDownload />}
         {activeTab === 'repair' && <DataRepair />}
+        {activeTab === 'cache' && <BrowserCache />}
       </div>
     </div>
   );

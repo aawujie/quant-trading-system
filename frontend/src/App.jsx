@@ -201,7 +201,8 @@ export default function App() {
     
     try {
       console.log('🔄 Loading historical data...');
-      setIsLoading(true);
+      // 不显示"加载数据中"，提升切换体验
+      // setIsLoading(true);
       setError(null);
       setNoDataMessage(null); // 清除之前的提示
 
@@ -291,12 +292,12 @@ export default function App() {
         });
       }
 
-      console.log('✅ Data loading complete, setting isLoading=false');
-      setIsLoading(false);
+      console.log('✅ Data loading complete');
+      // setIsLoading(false);
     } catch (err) {
       console.error('❌ Failed to load historical data:', err);
       setError('Failed to load data. Please check if the backend is running.');
-      setIsLoading(false);
+      // setIsLoading(false);
     }
   }, [symbol, timeframe, marketType, setInitialChartView]);
 

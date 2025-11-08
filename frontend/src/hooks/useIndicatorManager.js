@@ -48,7 +48,10 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
         title: config.name,
         priceLineVisible: false,
         lastValueVisible: true,
-        crosshairMarkerVisible: true
+        crosshairMarkerVisible: true,
+        autoscaleInfoProvider: () => ({
+          priceRange: null,  // 不影响价格范围的自动缩放
+        }),
       });
 
       console.log(`✅ Created indicator series: ${indicatorId}`);
@@ -107,13 +110,14 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
     setIndicatorSeries(newSeries);
     setActiveIndicators(newIndicatorIds);
 
-    // 保存到localStorage
+    // 保存到localStorage（全局配置，不区分时间周期）
     try {
-      localStorage.setItem(`indicators_${symbol}_${timeframe}`, JSON.stringify(newIndicatorIds));
+      localStorage.setItem(`indicators_${symbol}`, JSON.stringify(newIndicatorIds));
+      console.log('💾 Saved global indicators for', symbol, ':', newIndicatorIds);
     } catch (err) {
       console.warn('Failed to save indicator settings:', err);
     }
-  }, [activeIndicators, indicatorSeries, createIndicatorSeries, removeIndicatorSeries, symbol, timeframe]);
+  }, [activeIndicators, indicatorSeries, createIndicatorSeries, removeIndicatorSeries, symbol]);
 
   /**
    * 确保指标系列存在
@@ -137,15 +141,16 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
   }, [indicatorSeries, createIndicatorSeries]);
 
   /**
-   * 设置指标数据
+   * 设置指标数据（指标不影响K线的显示方式）
    */
   const setIndicatorData = useCallback((indicatorId, data) => {
     if (!data || data.length === 0) return;
     
-    // 确保系列存在
     const series = ensureIndicatorSeries(indicatorId);
     if (series) {
       try {
+        // 直接设置数据，不做任何干预
+        // 指标系列已配置为不影响视图（见 createIndicatorSeries）
         series.setData(data);
         console.log(`📈 Set data for indicator ${indicatorId}: ${data.length} points`);
       } catch (error) {
@@ -169,16 +174,17 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
   }, [indicatorSeries]);
 
   /**
-   * 从localStorage加载指标配置
+   * 从localStorage加载指标配置（全局配置，不区分时间周期）
    */
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(`indicators_${symbol}_${timeframe}`);
+      const saved = localStorage.getItem(`indicators_${symbol}`);
       if (saved) {
         const savedIndicators = JSON.parse(saved);
         // 如果保存的是空数组，使用默认指标，避免没有指标显示
         if (savedIndicators && savedIndicators.length > 0) {
           setActiveIndicators(savedIndicators);
+          console.log('📊 Loaded global indicators for', symbol, ':', savedIndicators);
         } else {
           // 恢复默认指标
           const defaultIndicators = getDefaultIndicators();
@@ -189,7 +195,7 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
     } catch (err) {
       console.warn('Failed to load indicator settings:', err);
     }
-  }, [symbol, timeframe]);
+  }, [symbol]);
 
   /**
    * 清理：组件卸载时移除所有指标系列
