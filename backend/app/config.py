@@ -35,9 +35,10 @@ class Settings(BaseSettings):
     # Data Integrity Configuration
     auto_repair_data: bool = True  # 启动时自动修复数据
     repair_hours_back_on_startup: int = 1  # 节点启动时检查最近N小时的数据（快速检查）
-    repair_days_back: int = 30  # 手动修复时检查最近N天的数据（深度修复）
-    repair_by_count: bool = True  # 是否按K线数量修复（True=按数量，False=按时间）
-    repair_klines_count: int = 2000  # 按数量修复时，每个周期修复的K线数量
+    
+    # 混合修复模式：K线按时间，指标按数量
+    repair_days_back: int = 30  # K线修复：检查最近N天（确保时间连续性）
+    repair_klines_count: int = 2000  # 指标修复：每个周期修复N根K线（统一样本量）
     
     class Config:
         env_file = ".env"

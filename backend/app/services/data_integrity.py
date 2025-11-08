@@ -40,49 +40,55 @@ class DataIntegrityService:
         repair_indicator: bool = True
     ):
         """
-        检查并修复所有数据缺失
+        检查并修复所有数据缺失（混合模式）
         
         Args:
             symbols: 交易对列表
             timeframes: 时间周期列表
-            days_back: 按时间检测（天数，支持小数，如0.042 = 1小时）
-            klines_count: 按数量检测（K线数量）
+            days_back: K线修复用（天数，支持小数，如0.042 = 1小时）
+            klines_count: 指标修复用（K线数量）
             auto_fix: 是否自动修复
             market_type: 市场类型
             repair_kline: 是否修复K线数据
             repair_indicator: 是否修复指标数据
         
-        注意：days_back 和 klines_count 二选一
+        混合模式：
+        - K线修复：始终用 days_back（确保时间连续性）
+        - 指标修复：可用 days_back 或 klines_count（灵活选择）
         """
         logger.info("=" * 60)
         logger.info("🔍 Starting Data Integrity Check")
         logger.info("=" * 60)
         logger.info(f"Symbols: {symbols}")
         logger.info(f"Timeframes: {timeframes}")
+        logger.info(f"Market type: {market_type}")
+        logger.info("")
         
-        # 显示检测模式和范围
-        if klines_count:
-            logger.info(f"Mode: By count - {klines_count} K-lines per timeframe")
-        elif days_back:
+        # 显示修复模式
+        logger.info("🔧 Repair Mode:")
+        if repair_kline and days_back:
             if days_back < 1:
                 hours_back = days_back * 24
-                logger.info(f"Mode: By time - {hours_back:.1f} hour(s)")
+                logger.info(f"  K-line: ✅ By time - {hours_back:.1f} hour(s)")
             else:
-                logger.info(f"Mode: By time - {days_back:.1f} day(s)")
+                logger.info(f"  K-line: ✅ By time - {days_back:.1f} day(s)")
+        elif repair_kline:
+            logger.info(f"  K-line: ⚠️  Disabled (days_back not specified)")
         else:
-            raise ValueError("Must specify either days_back or klines_count")
+            logger.info(f"  K-line: ❌ Disabled")
         
-        logger.info(f"Market type: {market_type}")
-        logger.info(f"Auto fix: {auto_fix}")
-        
-        # 按数量模式时，K线修复不适用
-        if klines_count and repair_kline:
-            logger.info(f"Repair K-line: False (按数量模式不支持K线修复)")
-            logger.info(f"Repair Indicator: {repair_indicator}")
+        if repair_indicator and klines_count:
+            logger.info(f"  Indicator: ✅ By count - {klines_count} K-lines per timeframe")
+        elif repair_indicator and days_back:
+            if days_back < 1:
+                hours_back = days_back * 24
+                logger.info(f"  Indicator: ✅ By time - {hours_back:.1f} hour(s)")
+            else:
+                logger.info(f"  Indicator: ✅ By time - {days_back:.1f} day(s)")
         else:
-            logger.info(f"Repair K-line: {repair_kline}")
-            logger.info(f"Repair Indicator: {repair_indicator}")
+            logger.info(f"  Indicator: ❌ Disabled")
         
+        logger.info(f"  Auto fix: {auto_fix}")
         logger.info("")
         
         total_kline_gaps = 0
@@ -98,7 +104,7 @@ class DataIntegrityService:
                 indicator_gaps = []
                 
                 # 1. 检测K线缺失（如果需要）
-                # 注意：按数量模式时，K线修复不适用，只修复指标
+                # K线修复：必须有 days_back（按时间检测）
                 if repair_kline and days_back:
                     kline_gaps = await self.detect_kline_gaps(
                         symbol, timeframe, days_back, market_type

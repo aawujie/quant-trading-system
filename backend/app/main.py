@@ -336,13 +336,14 @@ async def main():
             repair_indicator = args.node in ["indicator", "all"]
             
             # Run quick repair (只检查最近几小时)
-            # 使用小时而不是天数进行快速检查
+            # 快速检查模式：K线和指标都按时间检测
             hours_back = settings.repair_hours_back_on_startup
             
             await service.check_and_repair_all(
                 symbols=symbols,
                 timeframes=timeframes,
-                days_back=hours_back / 24,  # 转换为天数（支持小数）
+                days_back=hours_back / 24,  # K线和指标都用时间（快速检查）
+                klines_count=None,           # 快速检查不用数量模式
                 auto_fix=True,
                 market_type=settings.market_type,
                 repair_kline=repair_kline,
@@ -390,28 +391,19 @@ async def main():
             symbols = args.symbols.split(",")
             timeframes = args.timeframes.split(",")
             
-            # Deep repair: check both K-line and indicator data
-            # 根据配置选择按时间或按数量模式
-            if settings.repair_by_count:
-                await service.check_and_repair_all(
-                    symbols=symbols,
-                    timeframes=timeframes,
-                    klines_count=settings.repair_klines_count,  # 按数量
-                    auto_fix=True,
-                    market_type=settings.market_type,
-                    repair_kline=True,
-                    repair_indicator=True
-                )
-            else:
-                await service.check_and_repair_all(
-                    symbols=symbols,
-                    timeframes=timeframes,
-                    days_back=settings.repair_days_back,  # 按时间
-                    auto_fix=True,
-                    market_type=settings.market_type,
-                    repair_kline=True,
-                    repair_indicator=True
-                )
+            # Deep repair: 混合模式
+            # - K线修复：按时间（确保时间连续性）
+            # - 指标修复：按数量（统一样本量）
+            await service.check_and_repair_all(
+                symbols=symbols,
+                timeframes=timeframes,
+                days_back=settings.repair_days_back,      # K线用：按时间
+                klines_count=settings.repair_klines_count, # 指标用：按数量
+                auto_fix=True,
+                market_type=settings.market_type,
+                repair_kline=True,
+                repair_indicator=True
+            )
             
             await exchange.close()
             

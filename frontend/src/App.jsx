@@ -400,9 +400,13 @@ export default function App() {
   // Load indicators has been moved above
 
   // Load indicator data
-  const loadIndicators = useCallback(async (klines) => {
+  const loadIndicators = useCallback(async (klines, indicatorIds = null) => {
     try {
       console.log('📊 Loading indicators...');
+      
+      // 使用传入的指标列表，或者使用当前激活的指标
+      const targetIndicators = indicatorIds || indicatorManager.activeIndicators;
+      console.log(`🎯 Target indicators: ${targetIndicators.join(', ')}`);
       
       // 使用批量API加载指标数据
       const response = await axios.get(
@@ -420,12 +424,12 @@ export default function App() {
       // 为所有激活的指标准备数据
       const indicatorDataMap = {};
       
-      indicatorManager.activeIndicators.forEach(indicatorId => {
+      targetIndicators.forEach(indicatorId => {
         indicatorDataMap[indicatorId] = [];
       });
 
       indicators.forEach(ind => {
-        indicatorManager.activeIndicators.forEach(indicatorId => {
+        targetIndicators.forEach(indicatorId => {
           const config = getIndicatorConfig(indicatorId);
           if (config && config.field) {
             const value = ind[config.field];
@@ -1072,8 +1076,8 @@ export default function App() {
         selectedIndicators={indicatorManager.activeIndicators}
         onConfirm={(newIndicators) => {
           indicatorManager.updateIndicators(newIndicators);
-          // 重新加载指标数据
-          loadIndicators();
+          // 重新加载指标数据，传入新的指标列表以避免状态更新延迟
+          loadIndicators(null, newIndicators);
         }}
       />
     </div>
