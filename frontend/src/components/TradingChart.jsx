@@ -106,15 +106,16 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
 
     // Subscribe to visible time range changes for infinite scroll
     const timeScale = chart.timeScale();
+    
     const handleVisibleTimeRangeChange = (timeRange) => {
       if (!timeRange || isLoadingMore.current) return;
 
       const logicalRange = timeScale.getVisibleLogicalRange();
       if (!logicalRange) return;
 
-      // When user scrolls to the left edge (logicalRange.from approaches 0)
-      // Trigger loading more historical data
-      if (logicalRange.from < 20 && logicalRange.from >= 0) {
+      // When user scrolls to the left edge, trigger loading
+      // Lower threshold = less frequent triggers
+      if (logicalRange.from < 10 && logicalRange.from >= 0) {
         console.log('📥 Near left edge, loading more data...');
         isLoadingMore.current = true;
         
@@ -152,6 +153,7 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
 
     return () => {
       console.log('🗑️ Cleaning up chart');
+      
       window.removeEventListener('resize', handleResize);
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleTimeRangeChange);
       chart.remove();

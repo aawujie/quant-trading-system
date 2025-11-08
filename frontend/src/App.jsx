@@ -51,6 +51,8 @@ export default function App() {
   const markersRef = useRef([]);
   const hasLoadedData = useRef(false); // Track if data has been loaded
   const earliestTimestamp = useRef(null); // Track the earliest loaded timestamp
+  const isLoadingMore = useRef(false); // Prevent concurrent load requests
+  const hasMoreData = useRef(true); // Track if more data is available
 
   // 绘图管理
   const drawingManager = useDrawingManager(
@@ -99,21 +101,21 @@ export default function App() {
 
       const timeScale = chartRef.current.timeScale();
       const totalBars = candlestickData.length;
-      const barsToShow = 200; // Always show latest 200 bars
+      const barsToShow = 500; // Show all loaded bars initially
       
-      // Calculate range: show latest 200 bars with 10% padding on right
+      // Calculate range: show all loaded bars with 10% padding on right
       const from = Math.max(0, totalBars - barsToShow);
       const to = totalBars + barsToShow * 0.1;
       
       timeScale.setVisibleLogicalRange({ from, to });
       
-      console.log(`📍 Chart view: showing latest ${Math.min(totalBars, barsToShow)} bars (${from.toFixed(0)} to ${to.toFixed(1)})`);
+      console.log(`📍 Chart view: showing ${Math.min(totalBars, barsToShow)} bars (${from.toFixed(0)} to ${to.toFixed(1)})`);
     } catch (err) {
       console.error('❌ Failed to set chart view:', err);
     }
   }, []);
 
-  // Reset chart - always show latest 200 bars with same zoom level
+  // Reset chart - always show all loaded bars with same zoom level
   const resetChart = useCallback(() => {
     if (!chartRef.current || !seriesRef.current?.candlestick) {
       console.warn('⚠️ Chart not ready');
@@ -121,10 +123,10 @@ export default function App() {
     }
 
     try {
-      console.log('🔄 Resetting to show latest 200 bars...');
+      console.log('🔄 Resetting to show all loaded bars...');
       const candlestickData = seriesRef.current.candlestick.data();
       const totalBars = candlestickData.length;
-      const barsToShow = 200;
+      const barsToShow = 500;
       
       const timeScale = chartRef.current.timeScale();
       const from = Math.max(0, totalBars - barsToShow);
@@ -183,10 +185,10 @@ export default function App() {
       setError(null);
       setNoDataMessage(null); // 清除之前的提示
 
-      // Fetch K-lines from API
-      console.log(`📡 Fetching: ${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200&market_type=${marketType}`);
+      // Fetch K-lines from API (increase limit to load more historical data)
+      console.log(`📡 Fetching: ${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=500&market_type=${marketType}`);
       const klinesResponse = await axios.get(
-        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=200&market_type=${marketType}`
+        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=500&market_type=${marketType}`
       );
 
       const klines = klinesResponse.data;
@@ -280,19 +282,36 @@ export default function App() {
 
   // Load more historical data (for infinite scroll)
   const loadMoreData = useCallback(async (onComplete) => {
-    try {
-      // Check if we have a valid earliest timestamp
-      if (!earliestTimestamp.current) {
-        console.warn('⚠️ No earliest timestamp available');
-        if (onComplete) onComplete();
-        return;
-      }
+    // Prevent concurrent requests
+    if (isLoadingMore.current) {
+      console.log('⏳ Already loading more data, skipping...');
+      if (onComplete) onComplete();
+      return;
+    }
 
+    // Check if more data is available
+    if (!hasMoreData.current) {
+      console.log('⚠️ No more data available');
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // Check if we have a valid earliest timestamp
+    if (!earliestTimestamp.current) {
+      console.warn('⚠️ No earliest timestamp available');
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // Set loading flag
+    isLoadingMore.current = true;
+
+    try {
       console.log('📥 Loading more historical data before:', earliestTimestamp.current);
       
-      // Fetch older K-lines
+      // Fetch older K-lines - load 500 at a time to reduce trigger frequency
       const klinesResponse = await axios.get(
-        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=100&before=${earliestTimestamp.current}&market_type=${marketType}`
+        `${API_BASE_URL}/api/klines/${symbol}/${timeframe}?limit=500&before=${earliestTimestamp.current}&market_type=${marketType}`
       );
 
       const klines = klinesResponse.data;
@@ -323,12 +342,17 @@ export default function App() {
         
         console.log(`✅ Total K-lines now: ${mergedData.length}`);
       } else {
+        // No more data available from backend
         console.log('⚠️ No more historical data available');
+        hasMoreData.current = false;
       }
     } catch (err) {
       console.error('❌ Failed to load more data:', err);
     } finally {
-      // Always call the completion callback to reset loading flag
+      // Reset loading flag
+      isLoadingMore.current = false;
+      
+      // Always call the completion callback to reset chart's loading flag
       if (onComplete) onComplete();
     }
   }, [symbol, timeframe, marketType]);
@@ -403,6 +427,8 @@ export default function App() {
     setNoDataMessage(null); // 清除无数据提示
     hasLoadedData.current = false; // Reset to allow data reload
     earliestTimestamp.current = null; // Reset earliest timestamp
+    isLoadingMore.current = false; // Reset loading flag
+    hasMoreData.current = true; // Reset data availability flag
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
@@ -425,6 +451,8 @@ export default function App() {
     setNoDataMessage(null); // 清除无数据提示
     hasLoadedData.current = false; // Reset to allow data reload
     earliestTimestamp.current = null; // Reset earliest timestamp
+    isLoadingMore.current = false; // Reset loading flag
+    hasMoreData.current = true; // Reset data availability flag
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
@@ -447,6 +475,8 @@ export default function App() {
     setNoDataMessage(null); // 清除无数据提示
     hasLoadedData.current = false; // Reset to allow data reload
     earliestTimestamp.current = null; // Reset earliest timestamp
+    isLoadingMore.current = false; // Reset loading flag
+    hasMoreData.current = true; // Reset data availability flag
     if (seriesRef.current) {
       // Clear chart data
       seriesRef.current.candlestick.setData([]);
