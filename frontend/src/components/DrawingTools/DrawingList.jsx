@@ -8,7 +8,8 @@ export default function DrawingList({ drawings, onDelete }) {
       'trend_line': '趋势线',
       'rectangle': '矩形',
       'horizontal_line': '水平线',
-      'vertical_line': '垂直线'
+      'vertical_line': '垂直线',
+      'fibonacci': '斐波那契'
     };
     return typeMap[type] || type;
   };
@@ -18,7 +19,8 @@ export default function DrawingList({ drawings, onDelete }) {
       'trend_line': '📈',
       'rectangle': '▭',
       'horizontal_line': '—',
-      'vertical_line': '│'
+      'vertical_line': '│',
+      'fibonacci': 'φ'
     };
     return iconMap[type] || '🎨';
   };
@@ -50,7 +52,7 @@ export default function DrawingList({ drawings, onDelete }) {
       </div>
       
       <div style={styles.list}>
-        {drawings.map((drawing, index) => {
+        {[...drawings].reverse().map((drawing, index) => {
           const points = drawing.getPoints ? drawing.getPoints() : [];
           const firstPoint = points[0];
           
