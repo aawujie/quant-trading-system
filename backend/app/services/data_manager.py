@@ -232,28 +232,163 @@ class DataManager:
             logger.info(f"Cancelled task {task_id}")
     
     async def get_data_stats(self) -> dict:
-        """获取数据统计信息"""
+        """
+        获取数据统计信息
+        
+        Returns:
+            按市场类型和symbol分组的详细统计信息
+        """
         try:
-            # 查询数据库统计
-            stats = await self.db.get_kline_stats()
+            from sqlalchemy import text
+            
+            market_types = ['spot', 'future']
+            timeframes = ['3m', '5m', '15m', '30m', '1h', '4h', '1d']
+            
+            total_klines = 0
+            total_indicators = 0
+            all_symbols = set()
+            all_timeframes = set()
+            by_market = {}
+            
+            async with self.db.SessionLocal() as session:
+                for market_type in market_types:
+                    by_market[market_type] = {}
+                    
+                    # 获取该市场的所有symbol
+                    symbols_result = await session.execute(
+                        text("""
+                            SELECT DISTINCT symbol 
+                            FROM klines 
+                            WHERE market_type = :market_type
+                            ORDER BY symbol
+                        """),
+                        {"market_type": market_type}
+                    )
+                    symbols = [row[0] for row in symbols_result.fetchall()]
+                    all_symbols.update(symbols)
+                    
+                    for symbol in symbols:
+                        symbol_data = {
+                            "timeframes": {},
+                            "total_klines": 0,
+                            "total_indicators": 0
+                        }
+                        
+                        for timeframe in timeframes:
+                            # 获取K线统计
+                            kline_result = await session.execute(
+                                text("""
+                                    SELECT 
+                                        COUNT(*) as count,
+                                        MIN(timestamp) as earliest,
+                                        MAX(timestamp) as latest
+                                    FROM klines
+                                    WHERE symbol = :symbol 
+                                      AND timeframe = :timeframe 
+                                      AND market_type = :market_type
+                                """),
+                                {
+                                    "symbol": symbol,
+                                    "timeframe": timeframe,
+                                    "market_type": market_type
+                                }
+                            )
+                            kline_row = kline_result.fetchone()
+                            
+                            # 获取指标统计（细分到每个指标字段）
+                            indicator_result = await session.execute(
+                                text("""
+                                    SELECT 
+                                        COUNT(ma5) as ma5,
+                                        COUNT(ma10) as ma10,
+                                        COUNT(ma20) as ma20,
+                                        COUNT(ma60) as ma60,
+                                        COUNT(ma120) as ma120,
+                                        COUNT(ema12) as ema12,
+                                        COUNT(ema26) as ema26,
+                                        COUNT(rsi14) as rsi14,
+                                        COUNT(macd_line) as macd_line,
+                                        COUNT(bb_upper) as bb_upper,
+                                        COUNT(atr14) as atr14,
+                                        COUNT(volume_ma5) as volume_ma5
+                                    FROM indicators
+                                    WHERE symbol = :symbol 
+                                      AND timeframe = :timeframe 
+                                      AND market_type = :market_type
+                                """),
+                                {
+                                    "symbol": symbol,
+                                    "timeframe": timeframe,
+                                    "market_type": market_type
+                                }
+                            )
+                            indicator_row = indicator_result.fetchone()
+                            
+                            timeframe_data = {}
+                            
+                            if kline_row and kline_row[0] > 0:
+                                from datetime import datetime
+                                timeframe_data["klines"] = {
+                                    "count": kline_row[0],
+                                    "earliest": kline_row[1],
+                                    "latest": kline_row[2],
+                                    "earliest_time": datetime.fromtimestamp(kline_row[1]).strftime('%Y-%m-%d %H:%M') if kline_row[1] else None,
+                                    "latest_time": datetime.fromtimestamp(kline_row[2]).strftime('%Y-%m-%d %H:%M') if kline_row[2] else None
+                                }
+                                symbol_data["total_klines"] += kline_row[0]
+                                total_klines += kline_row[0]
+                                all_timeframes.add(timeframe)
+                            
+                            if indicator_row:
+                                # 构建指标字段映射
+                                indicator_fields = {
+                                    'ma5': indicator_row[0],
+                                    'ma10': indicator_row[1],
+                                    'ma20': indicator_row[2],
+                                    'ma60': indicator_row[3],
+                                    'ma120': indicator_row[4],
+                                    'ema12': indicator_row[5],
+                                    'ema26': indicator_row[6],
+                                    'rsi14': indicator_row[7],
+                                    'macd_line': indicator_row[8],
+                                    'bb_upper': indicator_row[9],
+                                    'atr14': indicator_row[10],
+                                    'volume_ma5': indicator_row[11],
+                                }
+                                # 过滤掉为0的指标
+                                indicator_fields = {k: v for k, v in indicator_fields.items() if v > 0}
+                                
+                                if indicator_fields:
+                                    timeframe_data["indicators"] = indicator_fields
+                                    total_count = sum(indicator_fields.values())
+                                    symbol_data["total_indicators"] += total_count
+                                    total_indicators += total_count
+                            
+                            if timeframe_data:
+                                symbol_data["timeframes"][timeframe] = timeframe_data
+                        
+                        # 只添加有数据的symbol
+                        if symbol_data["timeframes"]:
+                            by_market[market_type][symbol] = symbol_data
             
             return {
-                "total_klines": stats.get("total_count", 0),
-                "symbols": stats.get("symbols", []),
-                "timeframes": stats.get("timeframes", []),
-                "earliest_timestamp": stats.get("earliest_timestamp"),
-                "latest_timestamp": stats.get("latest_timestamp"),
-                "market_types": stats.get("market_types", []),
+                "total_klines": total_klines,
+                "total_indicators": total_indicators,
+                "symbols": sorted(list(all_symbols)),
+                "timeframes": sorted(list(all_timeframes)),
+                "market_types": [mt for mt in market_types if by_market[mt]],
+                "by_market": by_market
             }
+            
         except Exception as e:
-            logger.error(f"Failed to get data stats: {e}")
+            logger.error(f"Failed to get data stats: {e}", exc_info=True)
             return {
                 "total_klines": 0,
+                "total_indicators": 0,
                 "symbols": [],
                 "timeframes": [],
-                "earliest_timestamp": None,
-                "latest_timestamp": None,
                 "market_types": [],
+                "by_market": {"spot": {}, "future": {}}
             }
     
     def _timeframe_to_seconds(self, timeframe: str) -> int:

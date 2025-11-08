@@ -4,7 +4,7 @@ import DataStats from './DataStats';
 import DataRepair from './DataRepair';
 
 export default function DataManager() {
-  const [activeTab, setActiveTab] = useState('download'); // 'download' | 'repair'
+  const [activeTab, setActiveTab] = useState('stats'); // 'download' | 'repair' | 'stats'
 
   return (
     <div className="w-full h-full bg-[#0a0a0f] overflow-auto">
@@ -12,6 +12,16 @@ export default function DataManager() {
         <div className="mb-6">
           {/* Tab切换 */}
           <div className="flex gap-2 border-b border-[#2a2a3a]">
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'stats'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              📊 数据库统计
+            </button>
             <button
               onClick={() => setActiveTab('download')}
               className={`px-4 py-2 font-medium transition-colors ${
@@ -36,15 +46,16 @@ export default function DataManager() {
         </div>
 
         {/* Tab内容 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            {activeTab === 'download' && <HistoricalDownload />}
-            {activeTab === 'repair' && <DataRepair />}
+        {activeTab === 'stats' ? (
+          <DataStats />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              {activeTab === 'download' && <HistoricalDownload />}
+              {activeTab === 'repair' && <DataRepair />}
+            </div>
           </div>
-          <div className="lg:col-span-1">
-            <DataStats />
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
