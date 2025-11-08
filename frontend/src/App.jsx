@@ -734,64 +734,33 @@ export default function App() {
         <div className="chart-section" style={{ display: currentView === 'trading' ? 'flex' : 'none' }}>
           <div className="toolbar">
             {/* 市场类型切换 */}
-            <div style={{ display: 'flex', gap: '4px', marginRight: '1rem' }}>
-              <button
-                onClick={() => handleMarketTypeChange('spot')}
-                style={{
-                  padding: '8px 12px',
-                  background: marketType === 'spot' ? '#2196F3' : 'rgba(255,255,255,0.1)',
-                  color: 'white',
-                  border: '1px solid ' + (marketType === 'spot' ? '#2196F3' : 'rgba(255,255,255,0.3)'),
-                  borderRadius: '6px 0 0 6px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: marketType === 'spot' ? '600' : '400',
-                  transition: 'all 0.2s',
-                  minWidth: '42px'
-                }}
-                onMouseOver={(e) => {
-                  if (marketType !== 'spot') {
-                    e.target.style.background = 'rgba(255,255,255,0.15)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (marketType !== 'spot') {
-                    e.target.style.background = 'rgba(255,255,255,0.1)';
-                  }
-                }}
-                title="现货市场"
-              >
-                S
-              </button>
-              <button
-                onClick={() => handleMarketTypeChange('future')}
-                style={{
-                  padding: '8px 12px',
-                  background: marketType === 'future' ? '#2196F3' : 'rgba(255,255,255,0.1)',
-                  color: 'white',
-                  border: '1px solid ' + (marketType === 'future' ? '#2196F3' : 'rgba(255,255,255,0.3)'),
-                  borderRadius: '0 6px 6px 0',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: marketType === 'future' ? '600' : '400',
-                  transition: 'all 0.2s',
-                  minWidth: '42px'
-                }}
-                onMouseOver={(e) => {
-                  if (marketType !== 'future') {
-                    e.target.style.background = 'rgba(255,255,255,0.15)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (marketType !== 'future') {
-                    e.target.style.background = 'rgba(255,255,255,0.1)';
-                  }
-                }}
-                title="永续合约"
-              >
-                F
-              </button>
-            </div>
+            <button
+              onClick={() => handleMarketTypeChange(marketType === 'spot' ? 'future' : 'spot')}
+              style={{
+                padding: '8px 12px',
+                background: '#2196F3',
+                color: 'white',
+                border: '1px solid #2196F3',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '600',
+                transition: 'all 0.2s',
+                minWidth: '42px',
+                marginRight: '1rem'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.background = '#1976D2';
+                e.target.style.borderColor = '#1976D2';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.background = '#2196F3';
+                e.target.style.borderColor = '#2196F3';
+              }}
+              title={marketType === 'spot' ? '切换到合约' : '切换到现货'}
+            >
+              {marketType === 'spot' ? 'S' : 'F'}
+            </button>
 
             <select 
               value={symbol} 
