@@ -11,15 +11,15 @@ export class FibonacciTool extends BaseTool {
     this.startPoint = null;
     this.endPoint = null;
     
-    // 斐波那契回撤位
+    // 斐波那契回撤位（使用更亮的颜色）
     this.levels = [
-      { ratio: 0, label: '0.0%', color: '#00BCD4' },
-      { ratio: 0.236, label: '23.6%', color: '#F23645' },
-      { ratio: 0.382, label: '38.2%', color: '#FF9800' },
-      { ratio: 0.5, label: '50.0%', color: '#9C27B0' },
-      { ratio: 0.618, label: '61.8%', color: '#2962FF' },
-      { ratio: 0.786, label: '78.6%', color: '#E91E63' },
-      { ratio: 1, label: '100.0%', color: '#4CAF50' }
+      { ratio: 0, label: '0.0%', color: '#26C6DA' },      // 亮青色（避免与基础工具重复）
+      { ratio: 0.236, label: '23.6%', color: '#FF5252' }, // 亮红色
+      { ratio: 0.382, label: '38.2%', color: '#FFAB40' }, // 亮橙色
+      { ratio: 0.5, label: '50.0%', color: '#AB47BC' },   // 亮紫色
+      { ratio: 0.618, label: '61.8%', color: '#448AFF' }, // 亮蓝色
+      { ratio: 0.786, label: '78.6%', color: '#FF4081' }, // 亮粉色
+      { ratio: 1, label: '100.0%', color: '#69F0AE' }     // 亮绿色
     ];
   }
 
