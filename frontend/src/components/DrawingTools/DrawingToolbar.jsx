@@ -48,7 +48,7 @@ export default function DrawingToolbar({ activeTool, onToolSelect }) {
         <button
           key={tool.id}
           className={activeTool === tool.id ? 'active' : ''}
-          onClick={() => onToolSelect(tool.id)}
+          onClick={() => onToolSelect(activeTool === tool.id ? null : tool.id)}
           title={tool.tooltip}
           style={{
             ...styles.button,
