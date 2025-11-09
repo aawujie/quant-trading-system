@@ -356,6 +356,13 @@ export default function App() {
             try {
               if (chartRef.current && seriesRef.current) {
                 loadIndicatorsFromData(cachedIndicators);
+                
+                // 🔧 FIX: 加载指标后再次设置视图，确保视图范围不被指标加载影响
+                setTimeout(() => {
+                  if (chartRef.current && seriesRef.current) {
+                    setInitialChartView();
+                  }
+                }, 100);
               }
             } catch (err) {
               console.debug('Cached indicator display failed, will retry on fresh load:', err.message);
@@ -427,6 +434,14 @@ export default function App() {
           // 加载指标数据
           if (indicators.length > 0) {
             loadIndicatorsFromData(indicators);
+            
+            // 🔧 FIX: 加载指标后再次设置视图，确保视图范围不被指标加载影响
+            // 延迟一小段时间，确保指标数据已完全加载到图表
+            setTimeout(() => {
+              if (chartRef.current && seriesRef.current) {
+                setInitialChartView();
+              }
+            }, 100);
           }
           
           console.log(`✅ Updated ${klines.length} K-lines for ${symbol} ${timeframe}`);
@@ -663,11 +678,18 @@ export default function App() {
       }
 
       loadIndicatorsFromData(indicators, targetIndicators);
+      
+      // 🔧 FIX: 加载指标后再次设置视图，确保视图范围不被指标加载影响
+      setTimeout(() => {
+        if (chartRef.current && seriesRef.current) {
+          setInitialChartView();
+        }
+      }, 100);
 
     } catch (err) {
       console.error('❌ Failed to load indicators:', err);
     }
-  }, [symbol, timeframe, marketType, indicatorManager, loadIndicatorsFromData]);
+  }, [symbol, timeframe, marketType, indicatorManager, loadIndicatorsFromData, setInitialChartView]);
 
   // 预加载相邻时间级别（提升切换速度）
   const preloadAdjacentTimeframes = useCallback(() => {
