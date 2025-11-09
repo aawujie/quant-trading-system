@@ -49,10 +49,6 @@ export default function DrawingList({ drawings, onDelete }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <span style={styles.title}>绘图列表 ({drawings.length})</span>
-      </div>
-      
       <div style={styles.list}>
         {[...drawings].reverse().map((drawing, index) => {
           const points = drawing.getPoints ? drawing.getPoints() : [];
@@ -105,16 +101,6 @@ const styles = {
     flexDirection: 'column',
     height: '100%',
     overflow: 'hidden',
-  },
-  header: {
-    padding: '0.75rem 1rem',
-    backgroundColor: '#3a3a4a',
-    borderBottom: '1px solid #4a4a5a'
-  },
-  title: {
-    color: '#d1d4dc',
-    fontSize: '0.875rem',
-    fontWeight: '600'
   },
   list: {
     flex: 1,

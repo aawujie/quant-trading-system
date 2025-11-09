@@ -61,10 +61,6 @@ export default function StrategyList({ symbol, strategies, signals, onStrategyTo
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <span style={styles.title}>策略列表 ({strategies.length})</span>
-      </div>
-      
       <div style={styles.list}>
         {strategies.map((strategy) => {
           const strategySignals = getStrategySignals(strategy.name);
@@ -187,18 +183,6 @@ const styles = {
     flexDirection: 'column',
     height: '100%',
     overflow: 'hidden',
-  },
-  header: {
-    padding: '0.75rem 1rem',
-    borderBottom: '1px solid #3a3a4a',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    color: '#d1d4dc',
   },
   list: {
     flex: 1,
