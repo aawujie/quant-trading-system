@@ -31,7 +31,8 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
     if (!chart || !series || !coordinates.current) return null;
 
     switch (toolType) {
-      case 'line':
+      case 'line':  // 向后兼容旧的UI工具栏
+      case 'trend_line':  // 数据库存储的标准名称
         return new TrendLineTool(chart, series, coordinates.current);
       case 'rectangle':
         return new RectangleTool(chart, series, coordinates.current);
@@ -44,17 +45,25 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
       case 'parallel_line':
         return new ParallelLineTool(chart, series, coordinates.current);
       default:
+        console.warn('⚠️ Unknown drawing tool type:', toolType);
         return null;
     }
   }, [chart, series]);
 
   // 从保存的数据重建绘图工具
   const createToolFromData = useCallback((data) => {
-    if (!chart || !series || !coordinates.current) return null;
+    if (!chart || !series || !coordinates.current) {
+      console.warn('⚠️ Cannot create tool from data: chart/series/coordinates not ready');
+      return null;
+    }
 
     try {
+      console.log('🔄 Creating tool from data:', data.drawing_type, data.drawing_id);
       const tool = createTool(data.drawing_type);
-      if (!tool) return null;
+      if (!tool) {
+        console.error('❌ Failed to create tool for type:', data.drawing_type);
+        return null;
+      }
       
       // 恢复点数据
       tool.setPoints(data.points);
@@ -65,9 +74,10 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
       tool.label = data.label;
       tool.created_at = data.created_at; // 恢复时间戳
       
+      console.log('✅ Successfully created tool:', data.drawing_type, data.drawing_id);
       return tool;
     } catch (error) {
-      console.error('重建绘图工具失败:', error);
+      console.error('❌ 重建绘图工具失败:', error, data);
       return null;
     }
   }, [chart, series, createTool]);
@@ -78,7 +88,9 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
 
     async function loadHistoricalDrawings() {
       try {
+        console.log('📥 Loading historical drawings for symbol:', symbol);
         const savedDrawings = await drawingApi.getDrawings(symbol);
+        console.log(`📦 Received ${savedDrawings.length} drawings from API:`, savedDrawings);
         
         // 将保存的数据转换为绘图工具实例
         const reconstructedDrawings = savedDrawings.map(data => {
@@ -88,7 +100,10 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         
         setDrawings(reconstructedDrawings);
         
-        console.log(`✅ 加载了 ${savedDrawings.length} 个历史绘图（所有时间级别共享）`);
+        console.log(`✅ 成功加载 ${reconstructedDrawings.length}/${savedDrawings.length} 个历史绘图`);
+        if (reconstructedDrawings.length < savedDrawings.length) {
+          console.warn(`⚠️ 有 ${savedDrawings.length - reconstructedDrawings.length} 个绘图加载失败`);
+        }
       } catch (error) {
         console.error('❌ 加载历史绘图失败:', error);
       }
