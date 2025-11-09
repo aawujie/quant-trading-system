@@ -186,7 +186,8 @@ const styles = {
     marginTop: '1rem',
     display: 'flex',
     flexDirection: 'column',
-    height: 'calc(100% - 1rem)',
+    flex: 1,
+    minHeight: 0,
   },
   header: {
     padding: '0.75rem 1rem',

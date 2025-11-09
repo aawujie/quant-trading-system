@@ -101,10 +101,10 @@ export default function DrawingList({ drawings, onDelete }) {
 
 const styles = {
   container: {
-    marginTop: '1rem',
     backgroundColor: '#2a2a2a',
     borderRadius: '8px',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    flexShrink: 0,
   },
   header: {
     padding: '0.75rem 1rem',
