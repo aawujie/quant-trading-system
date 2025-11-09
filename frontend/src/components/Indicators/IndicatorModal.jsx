@@ -266,7 +266,9 @@ const styles = {
   categoryButton: {
     padding: '0.25rem 0.75rem',
     backgroundColor: 'transparent',
-    border: '1px solid #444',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#444',
     borderRadius: '4px',
     color: '#9ca3b0',
     cursor: 'pointer',
@@ -291,7 +293,9 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    border: '2px solid transparent'
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    borderColor: 'transparent'
   },
   indicatorItemSelected: {
     backgroundColor: '#2962FF20',
