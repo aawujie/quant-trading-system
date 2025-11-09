@@ -12,8 +12,22 @@ import { getDefaultIndicators, getIndicatorConfig } from '../components/Indicato
  * @returns {object} 指标管理方法和状态
  */
 export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
-  // 当前激活的指标列表
-  const [activeIndicators, setActiveIndicators] = useState(() => getDefaultIndicators());
+  // 当前激活的指标列表 - 直接从localStorage读取，避免时序问题
+  const [activeIndicators, setActiveIndicators] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`indicators_${symbol}`);
+      if (saved) {
+        const savedIndicators = JSON.parse(saved);
+        if (Array.isArray(savedIndicators)) {
+          return savedIndicators;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load indicator settings on init:', err);
+    }
+    // 只有没有保存记录时才使用默认值
+    return getDefaultIndicators();
+  });
   
   // 指标系列对象缓存（存储TradingView的line series）
   const [indicatorSeries, setIndicatorSeries] = useState({});
@@ -178,20 +192,18 @@ export function useIndicatorManager(chartRef, seriesRef, symbol, timeframe) {
   }, [indicatorSeries]);
 
   /**
-   * 从localStorage加载指标配置（全局配置，不区分时间周期）
+   * 当symbol变化时，从localStorage重新加载指标配置
    */
   useEffect(() => {
     try {
       const saved = localStorage.getItem(`indicators_${symbol}`);
       if (saved) {
         const savedIndicators = JSON.parse(saved);
-        // 尊重用户选择：即使是空数组也要保持（用户可能故意取消所有指标）
         if (Array.isArray(savedIndicators)) {
           setActiveIndicators(savedIndicators);
           console.log('📊 Loaded global indicators for', symbol, ':', savedIndicators);
         }
       } else {
-        // 只有完全没有保存记录时，才使用默认指标
         const defaultIndicators = getDefaultIndicators();
         setActiveIndicators(defaultIndicators);
         console.log('📊 No saved config, using default indicators:', defaultIndicators);
