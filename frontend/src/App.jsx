@@ -95,6 +95,12 @@ export default function App() {
   const timeframeRef = useRef(timeframe);
   const marketTypeRef = useRef(marketType);
   
+  // 保存每个时间级别的视图状态（用户的缩放状态）
+  const viewStateByTimeframe = useRef({});
+  
+  // 标记是否正在程序化设置视图（非用户操作）
+  const isSettingView = useRef(false);
+  
   // Update refs when symbol/timeframe/marketType changes
   useEffect(() => {
     symbolRef.current = symbol;
@@ -125,6 +131,7 @@ export default function App() {
   const earliestTimestamp = useRef(null); // Track the earliest loaded timestamp
   const isLoadingMore = useRef(false); // Prevent concurrent load requests
   const hasMoreData = useRef(true); // Track if more data is available
+  const unsubscribeViewListener = useRef(null); // 保存视图状态监听器的取消订阅函数
 
   // 绘图管理
   const drawingManager = useDrawingManager(
@@ -166,8 +173,8 @@ export default function App() {
     return futureBars;
   }, []);
 
-  // Set chart to show latest 200 bars (or all if less than 200)
-  const setInitialChartView = useCallback(() => {
+  // Set chart view - restore saved state or use initial view
+  const setInitialChartView = useCallback((forceInitial = false) => {
     if (!chartRef.current || !seriesRef.current?.candlestick) {
       console.warn('⚠️ Chart or series not ready');
       return;
@@ -181,22 +188,47 @@ export default function App() {
       }
 
       const timeScale = chartRef.current.timeScale();
+      const priceScale = chartRef.current.priceScale('right');
       const totalBars = candlestickData.length;
-      const barsToShow = 500; // Show all loaded bars initially
+      const barsToShow = 400;
       
-      // Calculate range: show all loaded bars with 10% padding on right
-      const from = Math.max(0, totalBars - barsToShow);
-      const to = totalBars + barsToShow * 0.1;
+      // 检查是否有保存的视图状态（用户之前缩放过）
+      const savedView = viewStateByTimeframe.current[timeframe];
       
-      timeScale.setVisibleLogicalRange({ from, to });
+      // 标记开始程序化设置视图
+      isSettingView.current = true;
       
-      console.log(`📍 Chart view: showing ${Math.min(totalBars, barsToShow)} bars (${from.toFixed(0)} to ${to.toFixed(1)})`);
+      // 总是使用自动价格缩放，确保每个时间级别根据数据独立调整
+      priceScale.applyOptions({
+        autoScale: true,
+      });
+      
+      if (!forceInitial && savedView) {
+        // 恢复用户之前的时间范围缩放
+        timeScale.setVisibleLogicalRange({ from: savedView.from, to: savedView.to });
+        
+        console.log(`📍 Restored view [${timeframe}]: ${savedView.from.toFixed(0)}-${savedView.to.toFixed(0)}`);
+      } else {
+        // 使用初始视图：显示最后 400 根K线，右侧预留 20%
+        const from = Math.max(0, totalBars - barsToShow);
+        const to = totalBars + barsToShow * 0.2;
+        timeScale.setVisibleLogicalRange({ from, to });
+        
+        // 保存这个初始视图状态
+        viewStateByTimeframe.current[timeframe] = { from, to };
+        console.log(`📍 Initial view [${timeframe}]: ${from.toFixed(0)}-${to.toFixed(1)} (${Math.min(totalBars, barsToShow)} bars)`);
+      }
+      
+      // 延迟重置标记，确保 setVisibleLogicalRange 触发的事件被忽略
+      setTimeout(() => {
+        isSettingView.current = false;
+      }, 100);
     } catch (err) {
       console.error('❌ Failed to set chart view:', err);
     }
-  }, []);
+  }, [timeframe]);
 
-  // Reset chart - always show all loaded bars with same zoom level
+  // Reset chart - clear saved state and restore to initial view
   const resetChart = useCallback(() => {
     if (!chartRef.current || !seriesRef.current?.candlestick) {
       console.warn('⚠️ Chart not ready');
@@ -205,28 +237,25 @@ export default function App() {
 
     try {
       console.log('🔄 Resetting chart view and price scale...');
-      const candlestickData = seriesRef.current.candlestick.data();
-      const totalBars = candlestickData.length;
-      const barsToShow = 500;
       
-      const timeScale = chartRef.current.timeScale();
-      const from = Math.max(0, totalBars - barsToShow);
-      const to = totalBars + barsToShow * 0.1;
+      // 清除当前时间级别的保存状态
+      delete viewStateByTimeframe.current[timeframe];
+      console.log(`🗑️ Cleared saved view for ${timeframe}`);
       
-      // 重置时间轴范围
-      timeScale.setVisibleLogicalRange({ from, to });
-      
-      // 重置价格轴缩放（竖坐标）
+      // 重置价格轴自动缩放
       const priceScale = chartRef.current.priceScale('right');
       priceScale.applyOptions({
         autoScale: true,
       });
       
-      console.log(`✅ Reset: showing latest ${Math.min(totalBars, barsToShow)} bars (${from.toFixed(0)} to ${to.toFixed(1)}), price scale auto-adjusted`);
+      // 强制使用初始视图（forceInitial=true）
+      setInitialChartView(true);
+      
+      console.log(`✅ Reset ${timeframe} to initial view`);
     } catch (err) {
       console.error('❌ Failed to reset chart:', err);
     }
-  }, []);
+  }, [timeframe, setInitialChartView]);
 
   // Load 24h ticker data (独立于timeframe，初次加载)
   const loadTickerData = useCallback(async (isInitialLoad = false) => {
@@ -513,6 +542,50 @@ export default function App() {
     seriesRef.current = series;
     console.log('✅ Chart initialized, loading data...');
 
+    // 清理之前的监听器（如果存在）
+    if (unsubscribeViewListener.current) {
+      unsubscribeViewListener.current();
+      unsubscribeViewListener.current = null;
+    }
+
+    // 设置视图状态监听器（只保存用户的时间范围缩放，价格始终自动缩放）
+    const timeScale = chart.timeScale();
+    
+    const handleVisibleRangeChange = () => {
+      try {
+        // 如果是程序化设置视图，忽略此次变化
+        if (isSettingView.current) {
+          console.log(`⏭️ Ignoring programmatic view change (isSettingView=true)`);
+          return;
+        }
+        
+        const range = timeScale.getVisibleLogicalRange();
+        if (range) {
+          const currentTimeframe = timeframeRef.current;
+          const oldView = viewStateByTimeframe.current[currentTimeframe];
+          
+          viewStateByTimeframe.current[currentTimeframe] = {
+            from: range.from,
+            to: range.to
+          };
+          
+          // 只在视图实际改变时打印（减少日志噪音）
+          if (!oldView || Math.abs(oldView.from - range.from) > 1 || Math.abs(oldView.to - range.to) > 1) {
+            console.log(`💾 Saved view [${currentTimeframe}]: ${range.from.toFixed(0)}-${range.to.toFixed(0)}`);
+          }
+        }
+      } catch (err) {
+        // 忽略错误
+      }
+    };
+    
+    // 订阅监听器并保存取消订阅函数
+    timeScale.subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
+    unsubscribeViewListener.current = () => {
+      timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
+    };
+    console.log('✅ View state listener subscribed');
+
     // Load initial data
     loadHistoricalData();
   }, [loadHistoricalData]);
@@ -698,27 +771,53 @@ export default function App() {
     }
     
     console.log('🔄 Switching timeframe to:', newTimeframe);
-    setTimeframe(newTimeframe);
-    setSignals([]);
-    setNoDataMessage(null); // 清除无数据提示
-    hasLoadedData.current = false; // Reset to allow data reload
-    earliestTimestamp.current = null; // Reset earliest timestamp
-    isLoadingMore.current = false; // Reset loading flag
-    hasMoreData.current = true; // Reset data availability flag
+    
+    // 💾 在切换之前，保存当前时间级别的时间范围（价格始终使用自动缩放）
+    try {
+      if (chartRef.current && seriesRef.current?.candlestick) {
+        const timeScale = chartRef.current.timeScale();
+        const range = timeScale.getVisibleLogicalRange();
+        
+        if (range && viewStateByTimeframe.current[timeframe]) {
+          // 更新保存的时间范围状态
+          viewStateByTimeframe.current[timeframe] = {
+            from: range.from,
+            to: range.to
+          };
+          
+          console.log(`💾 Saved ${timeframe} view: ${range.from.toFixed(0)}-${range.to.toFixed(0)}`);
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Failed to save state before switch:', err);
+    }
+    
+    // 🔒 阻止在切换过程中保存异常视图状态（setData([]) 会触发 VisibleLogicalRangeChange）
+    isSettingView.current = true;
+    
+    // 清空 K 线数据，准备加载新的时间级别
     if (seriesRef.current) {
-      // Clear candlestick data
       seriesRef.current.candlestick.setData([]);
       
-      // 注意：指标系列由 indicatorManager 管理
-      // 切换时间级别时，indicatorManager 会从 localStorage 加载该时间级别的指标配置
-      // 并自动创建对应的指标系列
-      
-      // Remove future helper series
+      // 移除未来辅助线
       if (seriesRef.current.futureHelper && chartRef.current) {
         chartRef.current.removeSeries(seriesRef.current.futureHelper);
         seriesRef.current.futureHelper = null;
       }
     }
+    
+    // 更新时间级别
+    setTimeframe(newTimeframe);
+    setSignals([]);
+    setNoDataMessage(null);
+    
+    // 重置加载状态标志
+    hasLoadedData.current = false;
+    earliestTimestamp.current = null;
+    isLoadingMore.current = false;
+    hasMoreData.current = true;
+    
+    // ✅ isSettingView 会在 setInitialChartView 中被重置为 false
   };
 
   // Handle market type change
@@ -1191,7 +1290,7 @@ export default function App() {
 
           <div style={{ position: 'relative' }}>
             <TradingChart 
-              symbol={symbol} 
+              symbol={symbol}
               onChartReady={handleChartReady}
               onLoadMore={loadMoreData}
             />

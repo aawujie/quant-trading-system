@@ -151,7 +151,7 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
       timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleTimeRangeChange);
       chart.remove();
     };
-  }, [symbol]); // Remove onChartReady from dependencies
+  }, [symbol]); // Only recreate when symbol changes
 
   return (
     <div 
