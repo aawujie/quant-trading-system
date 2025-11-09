@@ -183,11 +183,10 @@ export default function StrategyList({ symbol, strategies, signals, onStrategyTo
 
 const styles = {
   container: {
-    marginTop: '1rem',
     display: 'flex',
     flexDirection: 'column',
-    flex: 1,
-    minHeight: 0,
+    height: '100%',
+    overflow: 'hidden',
   },
   header: {
     padding: '0.75rem 1rem',

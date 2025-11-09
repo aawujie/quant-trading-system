@@ -9,6 +9,7 @@ import DrawingToolbar from './components/DrawingTools/DrawingToolbar';
 import DrawingCanvas from './components/DrawingTools/DrawingCanvas';
 import DrawingList from './components/DrawingTools/DrawingList';
 import StrategyList from './components/Strategy/StrategyList';
+import TabContainer from './components/TabContainer';
 import IndicatorButton from './components/Indicators/IndicatorButton';
 import IndicatorModal from './components/Indicators/IndicatorModal';
 import { getIndicatorConfig } from './components/Indicators/IndicatorConfig';
@@ -1358,22 +1359,38 @@ export default function App() {
             volume24h={priceData.volume24h}
           />
           
-          {/* 绘图列表 */}
-          <DrawingList
-            drawings={drawingManager.drawings}
-            onDelete={drawingManager.deleteDrawing}
-          />
-
-          {/* 策略列表 */}
-          <StrategyList
-            symbol={symbol}
-            strategies={strategies}
-            signals={signals}
-            onStrategyToggle={(strategyName) => {
-              setStrategies(prev => prev.map(s => 
-                s.name === strategyName ? { ...s, enabled: !s.enabled } : s
-              ));
-            }}
+          {/* Tab容器 - 绘图列表和策略列表 */}
+          <TabContainer
+            tabs={[
+              {
+                icon: '🎨',
+                label: '绘图',
+                count: drawingManager.drawings.length,
+                content: (
+                  <DrawingList
+                    drawings={drawingManager.drawings}
+                    onDelete={drawingManager.deleteDrawing}
+                  />
+                ),
+              },
+              {
+                icon: '⚡',
+                label: '策略',
+                count: strategies.length,
+                content: (
+                  <StrategyList
+                    symbol={symbol}
+                    strategies={strategies}
+                    signals={signals}
+                    onStrategyToggle={(strategyName) => {
+                      setStrategies(prev => prev.map(s => 
+                        s.name === strategyName ? { ...s, enabled: !s.enabled } : s
+                      ));
+                    }}
+                  />
+                ),
+              },
+            ]}
           />
         </aside>
       </main>
