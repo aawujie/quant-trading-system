@@ -8,6 +8,7 @@ import { useIndicatorManager } from './hooks/useIndicatorManager';
 import DrawingToolbar from './components/DrawingTools/DrawingToolbar';
 import DrawingCanvas from './components/DrawingTools/DrawingCanvas';
 import DrawingList from './components/DrawingTools/DrawingList';
+import StrategyList from './components/Strategy/StrategyList';
 import IndicatorButton from './components/Indicators/IndicatorButton';
 import IndicatorModal from './components/Indicators/IndicatorModal';
 import { getIndicatorConfig } from './components/Indicators/IndicatorConfig';
@@ -111,6 +112,17 @@ export default function App() {
   // No need to clear refs when switching views - chart stays in background
 
   const [signals, setSignals] = useState([]);
+  const [strategies, setStrategies] = useState([
+    {
+      name: 'dual_ma',
+      enabled: true,
+      params: {
+        'fast_period': 5,
+        'slow_period': 20,
+        'symbol': symbol,
+      }
+    }
+  ]);
   const [isLoading, setIsLoading] = useState(false); // Changed to false
   const [error, setError] = useState(null);
   const [noDataMessage, setNoDataMessage] = useState(null); // 无数据提示
@@ -1352,26 +1364,17 @@ export default function App() {
             onDelete={drawingManager.deleteDrawing}
           />
 
-          {/* 交易信号 */}
-          <h3 style={{ marginTop: '2rem' }}>交易信号 ({signals.length})</h3>
-          <div className="signal-list">
-            {signals.map((signal, idx) => (
-              <div key={idx} className={`signal signal-${signal.signal_type.toLowerCase()}`}>
-                <strong>{signal.signal_type}</strong>
-                <span>{signal.symbol}</span>
-                <span>{new Date(signal.timestamp * 1000).toLocaleString()}</span>
-                <span>${signal.price.toFixed(2)}</span>
-                <span style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                  {signal.reason}
-                </span>
-              </div>
-            ))}
-            {signals.length === 0 && (
-              <div style={{ padding: '1rem', textAlign: 'center', color: '#9ca3b0' }}>
-                暂无交易信号
-              </div>
-            )}
-          </div>
+          {/* 策略列表 */}
+          <StrategyList
+            symbol={symbol}
+            strategies={strategies}
+            signals={signals}
+            onStrategyToggle={(strategyName) => {
+              setStrategies(prev => prev.map(s => 
+                s.name === strategyName ? { ...s, enabled: !s.enabled } : s
+              ));
+            }}
+          />
         </aside>
       </main>
 
