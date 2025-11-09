@@ -72,7 +72,8 @@ export class ChartCoordinates {
   }
 
   /**
-   * 线性插值：将任意时间戳转换为屏幕坐标
+   * 线性插值/外推：将任意时间戳转换为屏幕坐标
+   * 支持超出数据范围的时间点（外推）
    * @param {number} targetTime - 目标时间戳
    * @returns {number|null} 屏幕X坐标
    * @private
@@ -83,54 +84,43 @@ export class ChartCoordinates {
       const chartElement = this.chart.chartElement();
       if (!chartElement) return null;
       
-      const chartWidth = chartElement.clientWidth;
-      
       // 获取所有数据点
       const data = this.series.data();
       if (!data || data.length === 0) return null;
       
-      // 获取可见逻辑范围
-      const visibleRange = timeScale.getVisibleLogicalRange();
-      if (!visibleRange) return null;
+      // 使用所有数据的第一个和最后一个点作为参考（而不是可见范围）
+      // 这样可以支持外推到数据范围之外
+      const firstIndex = 0;
+      const lastIndex = data.length - 1;
       
-      // 获取可见范围内的第一个和最后一个数据点的索引
-      const fromIndex = Math.max(0, Math.floor(visibleRange.from));
-      const toIndex = Math.min(data.length - 1, Math.ceil(visibleRange.to));
+      const firstBar = data[firstIndex];
+      const lastBar = data[lastIndex];
       
-      // 安全检查：确保索引有效
-      if (fromIndex >= data.length || toIndex >= data.length) {
-        console.warn('索引超出范围:', { fromIndex, toIndex, dataLength: data.length });
-        return null;
-      }
-      if (!data[fromIndex] || !data[toIndex]) {
-        console.warn('数据点不存在:', { fromIndex, toIndex, hasFrom: !!data[fromIndex], hasTo: !!data[toIndex] });
-        return null;
-      }
+      if (!firstBar || !lastBar) return null;
       
-      // 获取边界时间
-      const leftTime = data[fromIndex].time;
-      const rightTime = data[toIndex].time;
+      const firstTime = firstBar.time;
+      const lastTime = lastBar.time;
       
-      if (!leftTime || !rightTime) {
-        console.warn('时间戳无效:', { leftTime, rightTime });
-        return null;
-      }
+      if (!firstTime || !lastTime) return null;
       
-      // 如果目标时间在可见范围外，仍然计算（允许画出屏幕外的线）
-      const timeRange = rightTime - leftTime;
+      // 计算时间范围和目标时间的相对位置
+      const timeRange = lastTime - firstTime;
       if (timeRange === 0) return null;
       
-      const timeOffset = targetTime - leftTime;
-      const timeRatio = timeOffset / timeRange;
+      const timeOffset = targetTime - firstTime;
+      const timeRatio = timeOffset / timeRange; // 可以小于0或大于1（外推）
       
-      // 获取边界在屏幕上的坐标
-      const leftCoord = timeScale.logicalToCoordinate(fromIndex);
-      const rightCoord = timeScale.logicalToCoordinate(toIndex);
+      // 获取参考点在屏幕上的坐标
+      const firstCoord = timeScale.logicalToCoordinate(firstIndex);
+      const lastCoord = timeScale.logicalToCoordinate(lastIndex);
       
-      if (leftCoord === null || rightCoord === null) return null;
+      if (firstCoord === null || lastCoord === null) return null;
       
-      // 线性插值计算X坐标
-      const x = leftCoord + (rightCoord - leftCoord) * timeRatio;
+      // 线性插值/外推计算X坐标
+      // timeRatio < 0: 在数据开始之前（左侧外推）
+      // 0 <= timeRatio <= 1: 在数据范围内（插值）
+      // timeRatio > 1: 在数据结束之后（右侧外推）
+      const x = firstCoord + (lastCoord - firstCoord) * timeRatio;
       
       return x;
     } catch (error) {
@@ -182,7 +172,7 @@ export class ChartCoordinates {
   }
 
   /**
-   * 反向插值：屏幕X坐标 → 时间戳（支持未来时间）
+   * 反向插值/外推：屏幕X坐标 → 时间戳（支持超出数据范围）
    * @param {number} x - 屏幕X坐标
    * @returns {number|null} 时间戳
    * @private
@@ -197,49 +187,36 @@ export class ChartCoordinates {
       const data = this.series.data();
       if (!data || data.length === 0) return null;
       
-      // 获取可见逻辑范围
-      const visibleRange = timeScale.getVisibleLogicalRange();
-      if (!visibleRange) return null;
+      // 使用所有数据的第一个和最后一个点作为参考
+      const firstIndex = 0;
+      const lastIndex = data.length - 1;
       
-      // 获取可见范围内的第一个和最后一个数据点的索引
-      const fromIndex = Math.max(0, Math.floor(visibleRange.from));
-      const toIndex = Math.min(data.length - 1, Math.ceil(visibleRange.to));
+      const firstBar = data[firstIndex];
+      const lastBar = data[lastIndex];
       
-      // 安全检查：确保索引有效
-      if (fromIndex >= data.length || toIndex >= data.length) {
-        console.warn('索引超出范围:', { fromIndex, toIndex, dataLength: data.length });
-        return null;
-      }
-      if (!data[fromIndex] || !data[toIndex]) {
-        console.warn('数据点不存在:', { fromIndex, toIndex, hasFrom: !!data[fromIndex], hasTo: !!data[toIndex] });
-        return null;
-      }
+      if (!firstBar || !lastBar) return null;
       
-      // 获取边界时间
-      const leftTime = data[fromIndex].time;
-      const rightTime = data[toIndex].time;
+      const firstTime = firstBar.time;
+      const lastTime = lastBar.time;
       
-      if (!leftTime || !rightTime) {
-        console.warn('时间戳无效:', { leftTime, rightTime });
-        return null;
-      }
+      if (!firstTime || !lastTime) return null;
       
-      // 获取边界在屏幕上的坐标
-      const leftCoord = timeScale.logicalToCoordinate(fromIndex);
-      const rightCoord = timeScale.logicalToCoordinate(toIndex);
+      // 获取参考点在屏幕上的坐标
+      const firstCoord = timeScale.logicalToCoordinate(firstIndex);
+      const lastCoord = timeScale.logicalToCoordinate(lastIndex);
       
-      if (leftCoord === null || rightCoord === null) return null;
+      if (firstCoord === null || lastCoord === null) return null;
       
       // 计算X坐标在屏幕上的相对位置
-      const coordRange = rightCoord - leftCoord;
+      const coordRange = lastCoord - firstCoord;
       if (coordRange === 0) return null;
       
-      const coordOffset = x - leftCoord;
-      const coordRatio = coordOffset / coordRange;
+      const coordOffset = x - firstCoord;
+      const coordRatio = coordOffset / coordRange; // 可以小于0或大于1（外推）
       
-      // 反向插值计算时间戳（支持未来时间）
-      const timeRange = rightTime - leftTime;
-      const time = leftTime + timeRange * coordRatio;
+      // 反向插值/外推计算时间戳
+      const timeRange = lastTime - firstTime;
+      const time = firstTime + timeRange * coordRatio;
       
       return Math.round(time); // 返回整数时间戳
     } catch (error) {

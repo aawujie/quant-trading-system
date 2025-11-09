@@ -39,7 +39,7 @@ export class TrendLineTool extends BaseTool {
   }
 
   draw(ctx) {
-    if (!this.startPoint) return;
+    if (!this.startPoint || !this.endPoint) return;
     
     // 获取当前屏幕坐标（因为图表可能缩放/平移了）
     const start = this.coordinates.priceToScreen(
@@ -47,31 +47,48 @@ export class TrendLineTool extends BaseTool {
       this.startPoint.price
     );
     
-    if (!start || start.x === null || start.y === null) {
-      return; // 坐标转换失败，不绘制
-    }
-    
-    const end = this.endPoint
-      ? this.coordinates.priceToScreen(this.endPoint.time, this.endPoint.price)
-      : null;
+    const end = this.coordinates.priceToScreen(
+      this.endPoint.time, 
+      this.endPoint.price
+    );
 
-    if (!end || end.x === null || end.y === null) {
-      return; // 坐标转换失败，不绘制
+    // 如果两个点都转换失败，则无法绘制
+    if ((!start || start.x === null || start.y === null) && 
+        (!end || end.x === null || end.y === null)) {
+      console.debug('趋势线：两个端点都无法转换为屏幕坐标');
+      return;
     }
 
-    // 获取可绘制区域
-    const bounds = this.getDrawableBounds(ctx.canvas.width, ctx.canvas.height);
-    
-    // 限制坐标在可绘制区域内
-    const clampedStart = {
-      x: Math.max(bounds.left, Math.min(bounds.right, start.x)),
-      y: Math.max(bounds.top, Math.min(bounds.bottom, start.y))
-    };
-    
-    const clampedEnd = {
-      x: Math.max(bounds.left, Math.min(bounds.right, end.x)),
-      y: Math.max(bounds.top, Math.min(bounds.bottom, end.y))
-    };
+    // 至少有一个点可以转换，尝试绘制
+    // 如果某个端点在屏幕外很远，使用线段延伸逻辑
+    let x1, y1, x2, y2;
+
+    if (start && start.x !== null && start.y !== null) {
+      x1 = start.x;
+      y1 = start.y;
+    } else {
+      // 起点无法转换，尝试通过延伸线段来估算
+      // 使用终点和方向来推算起点在屏幕上的位置
+      console.debug('趋势线：起点超出范围，尝试延伸绘制');
+      if (!end || end.x === null || end.y === null) return;
+      
+      // 简化处理：如果起点无法转换，暂时跳过
+      // TODO: 可以实现更复杂的线段裁剪算法
+      return;
+    }
+
+    if (end && end.x !== null && end.y !== null) {
+      x2 = end.x;
+      y2 = end.y;
+    } else {
+      // 终点无法转换，尝试通过延伸线段来估算
+      console.debug('趋势线：终点超出范围，尝试延伸绘制');
+      if (!start || start.x === null || start.y === null) return;
+      
+      // 简化处理：如果终点无法转换，暂时跳过
+      // TODO: 可以实现更复杂的线段裁剪算法
+      return;
+    }
 
     // 应用样式
     ctx.strokeStyle = this.style.color;
@@ -81,10 +98,10 @@ export class TrendLineTool extends BaseTool {
       ctx.setLineDash([5, 5]);
     }
     
-    // 绘制线段
+    // 绘制线段（Canvas会自动裁剪到可见区域）
     ctx.beginPath();
-    ctx.moveTo(clampedStart.x, clampedStart.y);
-    ctx.lineTo(clampedEnd.x, clampedEnd.y);
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
     ctx.stroke();
     
     // 重置虚线
