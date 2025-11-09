@@ -7,11 +7,18 @@ from pydantic import BaseModel, Field
 
 class SignalType(str, Enum):
     """Signal types"""
-    BUY = "BUY"
-    SELL = "SELL"
-    HOLD = "HOLD"
-    CLOSE_LONG = "CLOSE_LONG"
-    CLOSE_SHORT = "CLOSE_SHORT"
+    # 现货/基础信号
+    BUY = "BUY"                    # 买入（现货）或开多（合约）
+    SELL = "SELL"                  # 卖出（现货）或开空（合约）
+    
+    # 合约专用信号（更精确）
+    OPEN_LONG = "OPEN_LONG"        # 开多仓（做多）
+    OPEN_SHORT = "OPEN_SHORT"      # 开空仓（做空）
+    CLOSE_LONG = "CLOSE_LONG"      # 平多仓（卖出平仓）
+    CLOSE_SHORT = "CLOSE_SHORT"    # 平空仓（买入平仓）
+    
+    # 其他
+    HOLD = "HOLD"                  # 持有
 
 
 class SignalData(BaseModel):
@@ -24,7 +31,7 @@ class SignalData(BaseModel):
     strategy_name: str = Field(..., description="Strategy identifier (e.g., 'dual_ma')")
     symbol: str = Field(..., description="Trading pair symbol (e.g., 'BTCUSDT')")
     timestamp: int = Field(..., description="Unix timestamp in seconds")
-    signal_type: SignalType = Field(..., description="Signal type (BUY/SELL/HOLD)")
+    signal_type: SignalType = Field(..., description="Signal type (BUY/SELL/OPEN_LONG/OPEN_SHORT/CLOSE_LONG/CLOSE_SHORT)")
     price: float = Field(..., description="Current price when signal generated")
     reason: str = Field(..., description="Reason for signal generation")
     
@@ -34,18 +41,24 @@ class SignalData(BaseModel):
     take_profit: Optional[float] = Field(None, description="Suggested take profit price")
     position_size: Optional[float] = Field(None, description="Suggested position size")
     
+    # 新增字段：方向和操作类型
+    side: Optional[str] = Field(None, description="Position side: LONG/SHORT (for futures)")
+    action: Optional[str] = Field(None, description="Action type: OPEN/CLOSE (for futures)")
+    
     class Config:
         json_schema_extra = {
             "example": {
                 "strategy_name": "dual_ma",
                 "symbol": "BTCUSDT",
                 "timestamp": 1705320000,
-                "signal_type": "BUY",
+                "signal_type": "OPEN_LONG",
                 "price": 35200.0,
-                "reason": "MA5(35250.0) crossed above MA20(35100.0)",
+                "reason": "Golden Cross: MA5(35250.0) crossed above MA20(35100.0)",
                 "confidence": 0.75,
                 "stop_loss": 34800.0,
-                "take_profit": 36000.0
+                "take_profit": 36000.0,
+                "side": "LONG",
+                "action": "OPEN"
             }
         }
     

@@ -1054,11 +1054,14 @@ export default function App() {
       // Add marker to chart
       if (seriesRef.current && seriesRef.current.candlestick) {
         try {
+          // 判断是否为做多信号（BUY或OPEN_LONG）
+          const isLongSignal = ['BUY', 'OPEN_LONG', 'CLOSE_SHORT'].includes(signal.signal_type);
+          
           const newMarker = {
             time: signal.timestamp,
-            position: signal.signal_type === 'BUY' ? 'belowBar' : 'aboveBar',
-            color: signal.signal_type === 'BUY' ? '#26a69a' : '#ef5350',
-            shape: signal.signal_type === 'BUY' ? 'arrowUp' : 'arrowDown',
+            position: isLongSignal ? 'belowBar' : 'aboveBar',
+            color: isLongSignal ? '#26a69a' : '#ef5350',
+            shape: isLongSignal ? 'arrowUp' : 'arrowDown',
             text: signal.signal_type,
           };
 

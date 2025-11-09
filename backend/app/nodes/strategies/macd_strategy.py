@@ -84,7 +84,7 @@ class MACDStrategy(BaseStrategy):
             )
             return None
         
-        # 🟢 金叉检测（买入信号）
+        # 🟢 金叉检测（开多信号）
         # 条件：前一根MACD ≤ 信号线，当前MACD > 信号线
         if macd_prev <= signal_prev and macd_current > signal_current:
             # 增强条件：柱状图为正值
@@ -96,7 +96,7 @@ class MACDStrategy(BaseStrategy):
                 strategy_name=self.strategy_name,
                 symbol=symbol,
                 timestamp=kline.timestamp,
-                signal_type=SignalType.BUY,
+                signal_type=SignalType.OPEN_LONG,  # ← 改为开多
                 price=kline.close,
                 reason=(
                     f"MACD Golden Cross: MACD({macd_current:.4f}) "
@@ -105,7 +105,9 @@ class MACDStrategy(BaseStrategy):
                 ),
                 confidence=confidence,
                 stop_loss=self._calculate_stop_loss(kline, is_long=True),
-                take_profit=self._calculate_take_profit(kline, is_long=True)
+                take_profit=self._calculate_take_profit(kline, is_long=True),
+                side="LONG",   # ← 做多方向
+                action="OPEN"  # ← 开仓操作
             )
             
             logger.info(
@@ -116,7 +118,7 @@ class MACDStrategy(BaseStrategy):
             
             return signal
         
-        # 🔴 死叉检测（卖出信号）
+        # 🔴 死叉检测（开空信号）
         # 条件：前一根MACD ≥ 信号线，当前MACD < 信号线
         elif macd_prev >= signal_prev and macd_current < signal_current:
             # 增强条件：柱状图为负值
@@ -128,7 +130,7 @@ class MACDStrategy(BaseStrategy):
                 strategy_name=self.strategy_name,
                 symbol=symbol,
                 timestamp=kline.timestamp,
-                signal_type=SignalType.SELL,
+                signal_type=SignalType.OPEN_SHORT,  # ← 改为开空
                 price=kline.close,
                 reason=(
                     f"MACD Death Cross: MACD({macd_current:.4f}) "
@@ -137,7 +139,9 @@ class MACDStrategy(BaseStrategy):
                 ),
                 confidence=confidence,
                 stop_loss=self._calculate_stop_loss(kline, is_long=False),
-                take_profit=self._calculate_take_profit(kline, is_long=False)
+                take_profit=self._calculate_take_profit(kline, is_long=False),
+                side="SHORT",  # ← 做空方向
+                action="OPEN"  # ← 开仓操作
             )
             
             logger.info(

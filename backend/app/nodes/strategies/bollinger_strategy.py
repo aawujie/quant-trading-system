@@ -129,7 +129,7 @@ class BollingerStrategy(BaseStrategy):
                 strategy_name=self.strategy_name,
                 symbol=symbol,
                 timestamp=kline.timestamp,
-                signal_type=SignalType.BUY,
+                signal_type=SignalType.OPEN_LONG,  # ← 改为开多
                 price=kline.close,
                 reason=(
                     f"Bollinger Lower Band Bounce: "
@@ -138,7 +138,9 @@ class BollingerStrategy(BaseStrategy):
                 ),
                 confidence=confidence,
                 stop_loss=self._calculate_stop_loss(kline, is_long=True),
-                take_profit=self._calculate_take_profit(kline, is_long=True)
+                take_profit=self._calculate_take_profit(kline, is_long=True),
+                side="LONG",   # ← 做多方向
+                action="OPEN"  # ← 开仓操作
             )
             
             logger.info(
@@ -169,7 +171,7 @@ class BollingerStrategy(BaseStrategy):
                 strategy_name=self.strategy_name,
                 symbol=symbol,
                 timestamp=kline.timestamp,
-                signal_type=SignalType.SELL,
+                signal_type=SignalType.OPEN_SHORT,  # ← 改为开空
                 price=kline.close,
                 reason=(
                     f"Bollinger Upper Band Pullback: "
@@ -178,7 +180,9 @@ class BollingerStrategy(BaseStrategy):
                 ),
                 confidence=confidence,
                 stop_loss=self._calculate_stop_loss(kline, is_long=False),
-                take_profit=self._calculate_take_profit(kline, is_long=False)
+                take_profit=self._calculate_take_profit(kline, is_long=False),
+                side="SHORT",  # ← 做空方向
+                action="OPEN"  # ← 开仓操作
             )
             
             logger.info(

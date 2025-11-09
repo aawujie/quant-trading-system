@@ -6,6 +6,11 @@ import { useState, useEffect } from 'react';
  */
 export default function StrategyList({ symbol, strategies, signals, onStrategyToggle }) {
   const [expandedStrategy, setExpandedStrategy] = useState(null);
+  
+  // 辅助函数：判断信号是否为做多信号
+  const isLongSignal = (signalType) => {
+    return ['BUY', 'OPEN_LONG', 'CLOSE_SHORT'].includes(signalType);
+  };
 
   const getStrategyIcon = (strategyName) => {
     const iconMap = {
@@ -112,10 +117,15 @@ export default function StrategyList({ symbol, strategies, signals, onStrategyTo
                 <div style={styles.lastSignal}>
                   <span style={{
                     ...styles.signalBadge,
-                    backgroundColor: lastSignal.signal_type === 'BUY' ? '#26a69a' : '#ef5350'
+                    backgroundColor: isLongSignal(lastSignal.signal_type) ? '#26a69a' : '#ef5350'
                   }}>
                     {lastSignal.signal_type}
                   </span>
+                  {lastSignal.side && (
+                    <span style={styles.signalSide}>
+                      {lastSignal.side} {lastSignal.action}
+                    </span>
+                  )}
                   <span style={styles.signalPrice}>${lastSignal.price.toFixed(2)}</span>
                   <span style={styles.signalTime}>{formatTime(lastSignal.timestamp)}</span>
                 </div>
@@ -148,10 +158,15 @@ export default function StrategyList({ symbol, strategies, signals, onStrategyTo
                           <div style={styles.signalHeader}>
                             <span style={{
                               ...styles.signalBadge,
-                              backgroundColor: signal.signal_type === 'BUY' ? '#26a69a' : '#ef5350'
+                              backgroundColor: isLongSignal(signal.signal_type) ? '#26a69a' : '#ef5350'
                             }}>
                               {signal.signal_type}
                             </span>
+                            {signal.side && (
+                              <span style={styles.signalSide}>
+                                {signal.side} {signal.action}
+                              </span>
+                            )}
                             <span style={styles.signalPrice}>${signal.price.toFixed(2)}</span>
                           </div>
                           <div style={styles.signalMeta}>
@@ -271,6 +286,15 @@ const styles = {
   signalTime: {
     color: '#9ca3b0',
     fontSize: '0.75rem',
+  },
+  signalSide: {
+    fontSize: '0.7rem',
+    color: '#9ca3b0',
+    backgroundColor: '#3a3a4a',
+    padding: '0.125rem 0.375rem',
+    borderRadius: '3px',
+    fontWeight: '500',
+    marginLeft: '0.25rem',
   },
   
   // 展开的详情

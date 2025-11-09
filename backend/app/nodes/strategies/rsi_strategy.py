@@ -101,7 +101,7 @@ class RSIStrategy(BaseStrategy):
             )
             return None
         
-        # 🟢 超卖反弹信号（买入）
+        # 🟢 超卖反弹信号（开多）
         # 条件：前一根RSI在超卖区（≤阈值），当前RSI突破超卖区（>阈值）
         if rsi_prev <= self.oversold and rsi_current > self.oversold:
             # 增强条件：如果RSI快速上升，增加置信度
@@ -114,7 +114,7 @@ class RSIStrategy(BaseStrategy):
                 strategy_name=self.strategy_name,
                 symbol=symbol,
                 timestamp=kline.timestamp,
-                signal_type=SignalType.BUY,
+                signal_type=SignalType.OPEN_LONG,  # ← 改为开多
                 price=kline.close,
                 reason=(
                     f"RSI Oversold Bounce: RSI({rsi_current:.1f}) "
@@ -123,7 +123,9 @@ class RSIStrategy(BaseStrategy):
                 ),
                 confidence=confidence,
                 stop_loss=self._calculate_stop_loss(kline, is_long=True),
-                take_profit=self._calculate_take_profit(kline, is_long=True)
+                take_profit=self._calculate_take_profit(kline, is_long=True),
+                side="LONG",   # ← 做多方向
+                action="OPEN"  # ← 开仓操作
             )
             
             logger.info(
@@ -134,7 +136,7 @@ class RSIStrategy(BaseStrategy):
             
             return signal
         
-        # 🔴 超买回落信号（卖出）
+        # 🔴 超买回落信号（开空）
         # 条件：前一根RSI在超买区（≥阈值），当前RSI回落到超买区下方（<阈值）
         elif rsi_prev >= self.overbought and rsi_current < self.overbought:
             # 增强条件：如果RSI快速下降，增加置信度
@@ -147,7 +149,7 @@ class RSIStrategy(BaseStrategy):
                 strategy_name=self.strategy_name,
                 symbol=symbol,
                 timestamp=kline.timestamp,
-                signal_type=SignalType.SELL,
+                signal_type=SignalType.OPEN_SHORT,  # ← 改为开空
                 price=kline.close,
                 reason=(
                     f"RSI Overbought Pullback: RSI({rsi_current:.1f}) "
@@ -156,7 +158,9 @@ class RSIStrategy(BaseStrategy):
                 ),
                 confidence=confidence,
                 stop_loss=self._calculate_stop_loss(kline, is_long=False),
-                take_profit=self._calculate_take_profit(kline, is_long=False)
+                take_profit=self._calculate_take_profit(kline, is_long=False),
+                side="SHORT",  # ← 做空方向
+                action="OPEN"  # ← 开仓操作
             )
             
             logger.info(

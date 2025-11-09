@@ -83,13 +83,15 @@ class SignalDB(Base):
     strategy_name = Column(String(50), nullable=False, index=True)
     symbol = Column(String(20), nullable=False, index=True)
     timestamp = Column(BigInteger, nullable=False, index=True)
-    signal_type = Column(String(10), nullable=False)
+    signal_type = Column(String(20), nullable=False)  # 扩展到20字符以支持OPEN_LONG等
     price = Column(Float, nullable=False)
     reason = Column(String(500))
     confidence = Column(Float)
     stop_loss = Column(Float)
     take_profit = Column(Float)
     position_size = Column(Float)
+    side = Column(String(10))  # LONG/SHORT
+    action = Column(String(10))  # OPEN/CLOSE
     created_at = Column(DateTime, default=datetime.utcnow)
     
     __table_args__ = (
@@ -577,7 +579,9 @@ class Database:
                     confidence=signal.confidence,
                     stop_loss=signal.stop_loss,
                     take_profit=signal.take_profit,
-                    position_size=signal.position_size
+                    position_size=signal.position_size,
+                    side=signal.side,  # ← 新增
+                    action=signal.action  # ← 新增
                 )
                 session.add(db_signal)
                 await session.commit()
@@ -618,7 +622,9 @@ class Database:
                     confidence=row.confidence,
                     stop_loss=row.stop_loss,
                     take_profit=row.take_profit,
-                    position_size=row.position_size
+                    position_size=row.position_size,
+                    side=row.side,  # ← 新增
+                    action=row.action  # ← 新增
                 )
                 for row in reversed(rows)
             ]
