@@ -122,6 +122,36 @@ export default function App() {
         'slow_period': 20,
         'symbol': symbol,
       }
+    },
+    {
+      name: 'macd',
+      enabled: true,
+      params: {
+        'fast_period': 12,
+        'slow_period': 26,
+        'signal_period': 9,
+        'symbol': symbol,
+      }
+    },
+    {
+      name: 'rsi',
+      enabled: true,
+      params: {
+        'period': 14,
+        'oversold': 30,
+        'overbought': 70,
+        'symbol': symbol,
+      }
+    },
+    {
+      name: 'bollinger',
+      enabled: true,
+      params: {
+        'period': 20,
+        'std_dev': 2.0,
+        'touch_threshold': '0.5%',
+        'symbol': symbol,
+      }
     }
   ]);
   const [isLoading, setIsLoading] = useState(false); // Changed to false

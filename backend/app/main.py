@@ -138,42 +138,110 @@ async def start_indicator_node(bus: MessageBus, db: Database, args):
 
 async def start_strategy_node(bus: MessageBus, db: Database, args):
     """
-    Start trading strategy node
+    Start trading strategy nodes
+    
+    支持同时运行多个策略节点
     
     Args:
         bus: MessageBus instance
         db: Database instance
         args: Command line arguments
     """
-    from app.nodes.strategy_node import DualMAStrategyNode
-    
-    logger.info("Starting dual MA strategy node...")
+    from app.nodes.strategies import (
+        DualMAStrategy,
+        MACDStrategy,
+        RSIStrategy,
+        BollingerStrategy
+    )
     
     # Parse symbols
     symbols = args.symbols.split(",")
     
+    # 确定要启动的策略
+    strategies_to_run = args.strategies if hasattr(args, 'strategies') and args.strategies else ['dual_ma']
+    
+    logger.info("=" * 60)
+    logger.info(f"Starting {len(strategies_to_run)} strategy node(s)...")
+    logger.info(f"Strategies: {', '.join(strategies_to_run)}")
     logger.info(f"Symbols: {symbols}")
     logger.info(f"Timeframe: {args.timeframe}")
+    logger.info("=" * 60)
     
-    # Create and start node
-    node = DualMAStrategyNode(
-        bus=bus,
-        db=db,
-        symbols=symbols,
-        timeframe=args.timeframe,
-        fast_period=args.fast_ma,
-        slow_period=args.slow_ma
-    )
+    nodes = []
     
-    await node.start()
+    # 启动双均线策略
+    if 'dual_ma' in strategies_to_run:
+        logger.info("📊 Initializing Dual MA Strategy...")
+        dual_ma = DualMAStrategy(
+            bus=bus,
+            db=db,
+            symbols=symbols,
+            timeframe=args.timeframe,
+            fast_period=args.fast_ma,
+            slow_period=args.slow_ma
+        )
+        await dual_ma.start()
+        nodes.append(dual_ma)
+        logger.info("✅ Dual MA Strategy started")
+    
+    # 启动MACD策略
+    if 'macd' in strategies_to_run:
+        logger.info("📈 Initializing MACD Strategy...")
+        macd = MACDStrategy(
+            bus=bus,
+            db=db,
+            symbols=symbols,
+            timeframe=args.timeframe
+        )
+        await macd.start()
+        nodes.append(macd)
+        logger.info("✅ MACD Strategy started")
+    
+    # 启动RSI策略
+    if 'rsi' in strategies_to_run:
+        logger.info("📉 Initializing RSI Strategy...")
+        rsi = RSIStrategy(
+            bus=bus,
+            db=db,
+            symbols=symbols,
+            timeframe=args.timeframe,
+            oversold=30,
+            overbought=70
+        )
+        await rsi.start()
+        nodes.append(rsi)
+        logger.info("✅ RSI Strategy started")
+    
+    # 启动布林带策略
+    if 'bollinger' in strategies_to_run:
+        logger.info("🎯 Initializing Bollinger Bands Strategy...")
+        bollinger = BollingerStrategy(
+            bus=bus,
+            db=db,
+            symbols=symbols,
+            timeframe=args.timeframe,
+            touch_threshold=0.005  # 0.5%
+        )
+        await bollinger.start()
+        nodes.append(bollinger)
+        logger.info("✅ Bollinger Bands Strategy started")
+    
+    if not nodes:
+        logger.error("❌ No strategies were started!")
+        return
+    
+    logger.info("=" * 60)
+    logger.info(f"✅ All {len(nodes)} strategy node(s) are running")
+    logger.info("=" * 60)
     
     # Keep running
     try:
-        while node.is_running:
-            await asyncio.sleep(1)
+        await asyncio.Event().wait()
     except KeyboardInterrupt:
-        logger.info("Received interrupt signal")
-        await node.stop()
+        logger.info("Received interrupt signal, stopping strategies...")
+        for node in nodes:
+            await node.stop()
+        logger.info("All strategies stopped")
 
 
 async def start_all_nodes(bus: MessageBus, db: Database, args):
@@ -251,6 +319,13 @@ async def main():
         type=int,
         default=20,
         help="Slow MA period for dual MA strategy (default: 20)"
+    )
+    
+    parser.add_argument(
+        "--strategies",
+        nargs='+',
+        choices=['dual_ma', 'macd', 'rsi', 'bollinger'],
+        help="Strategies to run (default: dual_ma). Can specify multiple: --strategies dual_ma macd rsi"
     )
     
     args = parser.parse_args()
