@@ -2,13 +2,14 @@
 
 import asyncio
 import logging
-from typing import Literal, Dict, List
+from typing import Literal, Dict, List, Optional
 from datetime import datetime
 
 from app.core.data_source import DataSource
 from app.core.position_manager import PositionManager
 from app.nodes.strategies.base_strategy import BaseStrategy
 from app.models.signals import SignalData
+from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,8 @@ class TradingEngine:
         data_source: DataSource,
         strategy: BaseStrategy,
         position_manager: PositionManager,
-        mode: Literal["live", "backtest"] = "live"
+        mode: Literal["live", "backtest"] = "live",
+        progress_tracker: Optional[ProgressTracker] = None
     ):
         """
         Args:
@@ -40,11 +42,13 @@ class TradingEngine:
             strategy: 策略实例
             position_manager: 仓位管理器
             mode: 运行模式（live/backtest）
+            progress_tracker: 进度跟踪器（可选，用于回测进度报告）
         """
         self.data_source = data_source
         self.strategy = strategy
         self.position_manager = position_manager
         self.mode = mode
+        self.progress_tracker = progress_tracker
         
         # 回测结果
         self.trades: List[Dict] = []
@@ -76,9 +80,14 @@ class TradingEngine:
                 timeframe=self.strategy.timeframe
             )
             
-            # 处理数据流
+            # 处理数据流（带进度跟踪）
             async for topic, data in data_stream:
                 await self._process_data(topic, data)
+                
+                # 更新进度（仅回测模式）
+                if self.mode == "backtest" and self.progress_tracker:
+                    # 每处理一条数据就尝试更新（ProgressTracker会自动节流）
+                    self.progress_tracker.update(items=1)
             
             # 回测结束：打印结果
             if self.mode == "backtest":

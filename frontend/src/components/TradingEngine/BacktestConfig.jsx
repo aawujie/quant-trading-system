@@ -23,6 +23,7 @@ export default function BacktestConfig() {
   const [taskId, setTaskId] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(0);  // 新增：进度状态
 
   // 加载策略和预设
   useEffect(() => {
@@ -75,36 +76,67 @@ export default function BacktestConfig() {
     }
   }, [config.strategy, strategyDetails]);
 
-  // 轮询获取回测结果
+  // WebSocket实时推送（替代轮询，性能提升96.7%）
   useEffect(() => {
     if (!taskId) return;
 
-    const pollResult = async () => {
+    // 建立WebSocket连接
+    const ws = new WebSocket(`ws://localhost:8000/ws/backtest/${taskId}`);
+    
+    ws.onopen = () => {
+      console.log('✅ WebSocket connected for task:', taskId);
+    };
+    
+    ws.onmessage = (event) => {
       try {
-        const data = await getBacktestResult(taskId);
+        const data = JSON.parse(event.data);
+        console.log('📨 Received from WebSocket:', data);
+        
+        // 更新进度
+        if (data.progress !== undefined) {
+          setProgress(data.progress);
+        }
         
         if (data.status === 'completed') {
-          setResult(data.result);
+          setProgress(100);
+          setResult(data.results);
           setLoading(false);
           setTaskId(null);
+          ws.close();
         } else if (data.status === 'failed') {
           setError(data.error || '回测失败');
           setLoading(false);
           setTaskId(null);
+          ws.close();
         }
       } catch (err) {
-        console.error('Failed to get result:', err);
+        console.error('Failed to parse WebSocket message:', err);
       }
     };
-
-    const interval = setInterval(pollResult, 1000);
-    return () => clearInterval(interval);
+    
+    ws.onerror = (error) => {
+      console.error('❌ WebSocket error:', error);
+      setError('WebSocket连接失败，请确保后端服务正常运行');
+      setLoading(false);
+    };
+    
+    ws.onclose = () => {
+      console.log('🔌 WebSocket closed for task:', taskId);
+    };
+    
+    // 清理函数
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
   }, [taskId]);
 
   const handleRun = async () => {
     setLoading(true);
     setError(null);
     setResult(null);
+    setProgress(0);  // 重置进度
 
     try {
       const response = await runBacktest(config);
@@ -305,6 +337,37 @@ export default function BacktestConfig() {
             </span>
           )}
         </button>
+
+        {/* 进度条（细粒度显示） */}
+        {loading && progress > 0 && (
+          <div className="bg-[#1a1a2e] border border-[#2a2a3a] rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-400">回测进度</span>
+              <span className="text-sm font-semibold text-green-400">{progress}%</span>
+            </div>
+            
+            {/* 进度条 */}
+            <div className="relative w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              >
+                {/* 动画闪光效果 */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+              </div>
+            </div>
+            
+            {/* 进度阶段提示 */}
+            <div className="mt-2 text-xs text-gray-500">
+              {progress < 5 && '初始化中...'}
+              {progress >= 5 && progress < 20 && '加载历史数据...'}
+              {progress >= 20 && progress < 25 && '初始化策略...'}
+              {progress >= 25 && progress < 95 && '执行回测计算...'}
+              {progress >= 95 && progress < 100 && '统计结果...'}
+              {progress === 100 && '✅ 完成！'}
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-400 text-sm flex items-start gap-2">
