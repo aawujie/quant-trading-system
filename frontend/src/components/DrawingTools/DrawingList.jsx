@@ -117,6 +117,8 @@ export default function DrawingList({ drawings, onDelete, onToggleVisibility, on
                 <button
                   onClick={() => onToggleVisibility(drawing.drawingId)}
                   style={styles.actionButton}
+                  onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
+                  onMouseOut={(e) => e.currentTarget.style.opacity = '0.7'}
                   title={isVisible ? "隐藏" : "显示"}
                 >
                   {isVisible ? '👁️' : '👁️‍🗨️'}
@@ -129,6 +131,8 @@ export default function DrawingList({ drawings, onDelete, onToggleVisibility, on
                       showColorPicker === drawing.drawingId ? null : drawing.drawingId
                     )}
                     style={styles.actionButton}
+                    onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
+                    onMouseOut={(e) => e.currentTarget.style.opacity = '0.7'}
                     title="修改颜色"
                   >
                     🎨
@@ -171,6 +175,8 @@ export default function DrawingList({ drawings, onDelete, onToggleVisibility, on
                 <button
                   onClick={() => onDelete(drawing.drawingId)}
                   style={styles.deleteButton}
+                  onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
+                  onMouseOut={(e) => e.currentTarget.style.opacity = '0.8'}
                   title="删除此绘图"
                 >
                   🗑️
@@ -239,35 +245,33 @@ const styles = {
   buttonGroup: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem'
+    gap: '0.25rem'
   },
   actionButton: {
-    padding: '0.375rem 0.5rem',
+    padding: '0.25rem',
     backgroundColor: 'transparent',
-    border: '1px solid #4a4a5a',
-    borderRadius: '4px',
+    border: 'none',
     cursor: 'pointer',
-    fontSize: '1rem',
+    fontSize: '1.1rem',
     transition: 'all 0.2s',
     color: '#9ca3b0',
-    minWidth: '32px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    opacity: 0.7
   },
   deleteButton: {
-    padding: '0.375rem 0.5rem',
+    padding: '0.25rem',
     backgroundColor: 'transparent',
-    border: '1px solid #4a4a5a',
-    borderRadius: '4px',
+    border: 'none',
     cursor: 'pointer',
-    fontSize: '1rem',
+    fontSize: '1.1rem',
     transition: 'all 0.2s',
     color: '#ef5350',
-    minWidth: '32px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    opacity: 0.8
   },
   colorIndicator: {
     width: '12px',
