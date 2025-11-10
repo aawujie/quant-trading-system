@@ -3,6 +3,9 @@
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
+# 导入系统配置以使用统一的默认值
+from app.config import settings
+
 
 class BacktestRequest(BaseModel):
     """回测请求模型"""
@@ -15,7 +18,7 @@ class BacktestRequest(BaseModel):
     position_preset: str = Field(default="balanced", description="仓位管理预设")
     params: Dict[str, Any] = Field(default_factory=dict, description="策略参数")
     enable_ai: bool = Field(default=False, description="是否启用AI增强")
-    market_type: str = Field(default="spot", description="市场类型: spot/future")
+    market_type: str = Field(default=settings.market_type, description="市场类型: spot/future (默认从系统配置读取)")
 
     class Config:
         json_schema_extra = {
@@ -32,7 +35,7 @@ class BacktestRequest(BaseModel):
                     "slow_period": 20
                 },
                 "enable_ai": False,
-                "market_type": "spot"
+                "market_type": "future"  # 更新为与系统配置一致
             }
         }
 
@@ -51,7 +54,7 @@ class OptimizationRequest(BaseModel):
         default="sharpe_ratio",
         description="优化目标: sharpe_ratio/total_return/win_rate"
     )
-    market_type: str = Field(default="spot", description="市场类型")
+    market_type: str = Field(default=settings.market_type, description="市场类型 (默认从系统配置读取)")
 
     class Config:
         json_schema_extra = {
@@ -65,7 +68,7 @@ class OptimizationRequest(BaseModel):
                 "position_preset": "balanced",
                 "n_trials": 50,
                 "optimization_target": "sharpe_ratio",
-                "market_type": "spot"
+                "market_type": "future"  # 更新为与系统配置一致
             }
         }
 
@@ -76,7 +79,7 @@ class DataDownloadRequest(BaseModel):
     timeframes: List[str] = Field(..., description="时间周期列表")
     start_date: str = Field(..., description="开始日期")
     end_date: Optional[str] = Field(None, description="结束日期，默认为当前时间")
-    market_type: str = Field(default="spot", description="市场类型")
+    market_type: str = Field(default=settings.market_type, description="市场类型 (默认从系统配置读取)")
     force_update: bool = Field(default=False, description="是否强制更新")
 
     class Config:
@@ -86,7 +89,7 @@ class DataDownloadRequest(BaseModel):
                 "timeframes": ["1h", "4h"],
                 "start_date": "2024-01-01",
                 "end_date": "2024-12-31",
-                "market_type": "spot",
+                "market_type": "future",  # 更新为与系统配置一致
                 "force_update": False
             }
         }
@@ -101,7 +104,7 @@ class DataRepairRequest(BaseModel):
         description="修复模式: auto/full/incremental"
     )
     start_date: Optional[str] = Field(None, description="起始日期")
-    market_type: str = Field(default="spot", description="市场类型")
+    market_type: str = Field(default=settings.market_type, description="市场类型 (默认从系统配置读取)")
 
     class Config:
         json_schema_extra = {
@@ -110,7 +113,7 @@ class DataRepairRequest(BaseModel):
                 "timeframes": ["1h"],
                 "mode": "auto",
                 "start_date": "2024-01-01",
-                "market_type": "spot"
+                "market_type": "future"  # 更新为与系统配置一致
             }
         }
 

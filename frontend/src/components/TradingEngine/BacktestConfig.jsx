@@ -14,6 +14,7 @@ export default function BacktestConfig() {
     initial_capital: 10000,
     position_preset: 'conservative',
     params: {},
+    market_type: 'future',  // 🔥 默认使用永续合约（与系统配置保持一致）
   });
 
   const [strategies, setStrategies] = useState([]);
