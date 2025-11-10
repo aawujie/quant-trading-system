@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-from typing import Dict, Set
+from typing import Dict, Set, Optional, List
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -61,6 +61,7 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
         self.subscriptions: Dict[WebSocket, Set[str]] = {}
+        self.redis_client: Optional[redis.Redis] = None
     
     async def connect(self, websocket: WebSocket):
         """Accept new connection"""
@@ -84,6 +85,56 @@ class ConnectionManager:
         """Unsubscribe connection from topics"""
         self.subscriptions[websocket].difference_update(topics)
         logger.info(f"Unsubscribed from topics: {topics}")
+    
+    def set_redis_client(self, redis_client: redis.Redis):
+        """Set Redis client for topic listing"""
+        self.redis_client = redis_client
+    
+    async def get_active_topics(self) -> List[str]:
+        """
+        Get all active topics from Redis streams
+        
+        Returns:
+            List of active topic names
+        """
+        if not self.redis_client:
+            logger.warning("Redis client not set, returning empty topic list")
+            return []
+        
+        try:
+            # 使用 SCAN 命令查找所有 stream: 开头的键
+            topics = []
+            cursor = 0
+            
+            while True:
+                cursor, keys = await self.redis_client.scan(
+                    cursor, 
+                    match="stream:*",
+                    count=100
+                )
+                
+                for key in keys:
+                    # 将 bytes 转换为字符串并移除 "stream:" 前缀
+                    if isinstance(key, bytes):
+                        key_str = key.decode()
+                    else:
+                        key_str = key
+                    
+                    # 移除 "stream:" 前缀
+                    if key_str.startswith("stream:"):
+                        topic = key_str[7:]  # 去掉 "stream:" 前缀
+                        topics.append(topic)
+                
+                # cursor 返回 0 表示扫描完成
+                if cursor == 0:
+                    break
+            
+            logger.info(f"Found {len(topics)} active topics")
+            return sorted(topics)  # 返回排序后的列表
+            
+        except Exception as e:
+            logger.error(f"Failed to get active topics: {e}")
+            return []
     
     async def broadcast(self, topic: str, data: dict):
         """Broadcast message to subscribed connections"""
@@ -174,6 +225,24 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif action == "ping":
                     await websocket.send_json({"type": "pong"})
                 
+                elif action == "list_topics":
+                    # 获取所有活跃的 topics
+                    topics = await manager.get_active_topics()
+                    await websocket.send_json({
+                        "type": "topics",
+                        "topics": topics,
+                        "count": len(topics)
+                    })
+                
+                elif action == "my_subscriptions":
+                    # 获取当前连接订阅的 topics
+                    subscribed = list(manager.subscriptions.get(websocket, set()))
+                    await websocket.send_json({
+                        "type": "subscriptions",
+                        "topics": subscribed,
+                        "count": len(subscribed)
+                    })
+                
                 else:
                     await websocket.send_json({
                         "type": "error",
@@ -221,6 +290,9 @@ async def start_redis_bridge():
         redis_client = await redis.from_url(redis_url, decode_responses=False)
         sys.stdout.write("✅ Redis连接成功\n")
         sys.stdout.flush()
+        
+        # 设置 Redis 客户端到 ConnectionManager
+        manager.set_redis_client(redis_client)
         
         bus = MessageBus(redis_client)
         

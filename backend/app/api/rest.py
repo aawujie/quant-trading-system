@@ -817,8 +817,15 @@ async def run_backtest(request: BacktestRequest):
             # === 阶段0: 初始化 (0-5%) ===
             backtest_task_manager.update_progress(task_id, 2)
             
-            # 创建MessageBus
-            bus = MessageBus()
+            # 创建 Mock MessageBus（回测模式不需要真正的 Redis）
+            class MockMessageBus:
+                """回测模式下的空消息总线"""
+                async def publish(self, topic, data):
+                    pass  # 回测时不发布消息
+                async def subscribe(self, topic, callback):
+                    pass
+                    
+            bus = MockMessageBus()
             
             # 转换日期为时间戳
             start_time = int(datetime.fromisoformat(request.start_date).timestamp())
