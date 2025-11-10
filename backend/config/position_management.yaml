@@ -1,0 +1,152 @@
+# 仓位管理配置文件
+# 定义不同风险偏好的仓位管理预设
+
+presets:
+  conservative:
+    name: "保守型"
+    display_name: "保守型"
+    description: "低风险，小仓位，适合稳健投资者"
+    icon: "🛡️"
+    color: "#4CAF50"
+    enabled: true
+    # 仓位计算策略
+    sizing_strategy:
+      type: "risk_based"  # risk_based / kelly / volatility_adjusted
+      risk_per_trade: 0.01  # 每笔交易风险（账户的百分比）
+    # 风控参数
+    risk_management:
+      max_positions: 2  # 最大持仓数
+      max_exposure_pct: 0.5  # 最大暴露度（账户的百分比）
+      single_position_max_pct: 0.3  # 单笔最大仓位（账户的百分比）
+    # 止损止盈
+    default_stops:
+      stop_loss_pct: 2.0  # 默认止损百分比
+      take_profit_pct: 4.0  # 默认止盈百分比
+      trailing_stop: false  # 是否启用移动止损
+
+  balanced:
+    name: "平衡型"
+    display_name: "平衡型"
+    description: "平衡风险收益，适合大多数投资者"
+    icon: "⚖️"
+    color: "#2196F3"
+    enabled: true
+    sizing_strategy:
+      type: "risk_based"
+      risk_per_trade: 0.02
+    risk_management:
+      max_positions: 3
+      max_exposure_pct: 0.7
+      single_position_max_pct: 0.4
+    default_stops:
+      stop_loss_pct: 2.5
+      take_profit_pct: 5.0
+      trailing_stop: true
+
+  moderate:
+    name: "适中型"
+    display_name: "适中型"
+    description: "中等风险，适度仓位"
+    icon: "📊"
+    color: "#FF9800"
+    enabled: true
+    sizing_strategy:
+      type: "risk_based"
+      risk_per_trade: 0.02
+    risk_management:
+      max_positions: 3
+      max_exposure_pct: 0.8
+      single_position_max_pct: 0.5
+    default_stops:
+      stop_loss_pct: 2.0
+      take_profit_pct: 4.0
+      trailing_stop: false
+
+  aggressive:
+    name: "激进型"
+    display_name: "激进型"
+    description: "高风险，大仓位，追求高回报"
+    icon: "🚀"
+    color: "#F44336"
+    enabled: true
+    sizing_strategy:
+      type: "risk_based"
+      risk_per_trade: 0.05
+    risk_management:
+      max_positions: 5
+      max_exposure_pct: 0.95
+      single_position_max_pct: 0.7
+    default_stops:
+      stop_loss_pct: 3.0
+      take_profit_pct: 6.0
+      trailing_stop: true
+
+  kelly:
+    name: "凯利公式"
+    display_name: "凯利公式"
+    description: "基于历史统计的最优仓位"
+    icon: "🎲"
+    color: "#9C27B0"
+    enabled: false  # 需要历史数据，默认不启用
+    sizing_strategy:
+      type: "kelly"
+      win_rate: 0.55  # 胜率（需要根据回测结果调整）
+      win_loss_ratio: 1.5  # 盈亏比（需要根据回测结果调整）
+      kelly_fraction: 0.5  # 凯利系数的折扣（0.5表示使用半凯利）
+    risk_management:
+      max_positions: 3
+      max_exposure_pct: 0.8
+      single_position_max_pct: 0.5
+    default_stops:
+      stop_loss_pct: 2.0
+      take_profit_pct: 4.0
+      trailing_stop: false
+
+  volatility_adjusted:
+    name: "波动率调整"
+    display_name: "波动率调整"
+    description: "根据市场波动率动态调整仓位"
+    icon: "📈"
+    color: "#00BCD4"
+    enabled: false  # 高级策略，默认不启用
+    sizing_strategy:
+      type: "volatility_adjusted"
+      base_risk: 0.02  # 基础风险
+      volatility_lookback: 20  # 波动率回溯周期
+      volatility_target: 0.015  # 目标波动率
+    risk_management:
+      max_positions: 3
+      max_exposure_pct: 0.8
+      single_position_max_pct: 0.5
+    default_stops:
+      stop_loss_pct: 2.0
+      take_profit_pct: 4.0
+      trailing_stop: true
+
+# 仓位计算策略说明
+sizing_strategies:
+  risk_based:
+    name: "风险基础"
+    description: "根据固定风险百分比计算仓位"
+    formula: "仓位 = (账户余额 × 风险百分比) / 止损距离"
+    recommended_for: ["初学者", "稳健投资者"]
+  
+  kelly:
+    name: "凯利公式"
+    description: "根据胜率和盈亏比计算最优仓位"
+    formula: "f* = (p × b - q) / b, 其中 p=胜率, q=败率, b=盈亏比"
+    recommended_for: ["有历史数据的策略", "追求数学最优"]
+  
+  volatility_adjusted:
+    name: "波动率调整"
+    description: "根据市场波动率动态调整仓位"
+    formula: "仓位 = 基础仓位 × (目标波动率 / 当前波动率)"
+    recommended_for: ["经验丰富的交易者", "动态市场"]
+
+# 推荐配置
+recommendations:
+  beginner: "conservative"
+  intermediate: "balanced"
+  advanced: "moderate"
+  expert: "aggressive"
+

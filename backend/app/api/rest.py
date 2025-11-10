@@ -13,8 +13,11 @@ from app.models.market_data import KlineData, TickerData
 from app.models.indicators import IndicatorData
 from app.models.signals import SignalData
 from app.models.drawings import DrawingData
+from app.models.requests import BacktestRequest, OptimizationRequest, DataDownloadRequest, DataRepairRequest
 from app.exchanges.binance import BinanceExchange
 from app.services.data_manager import DataManager
+from app.core.strategy_config import get_strategy_config
+from app.core.position_config import get_position_config
 
 logger = logging.getLogger(__name__)
 
@@ -762,5 +765,502 @@ async def check_data_status(
         
     except Exception as e:
         logger.error(f"Failed to check data status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Backtest & Optimization Endpoints
+# =============================================================================
+
+from typing import Dict, Any
+
+# 存储后台任务的字典
+backtest_tasks: Dict[str, Dict] = {}
+optimization_tasks: Dict[str, Dict] = {}
+
+
+@app.post("/api/backtest/run")
+async def run_backtest(request: BacktestRequest):
+    """
+    运行策略回测
+    
+    Args:
+        request: 回测配置
+        
+    Returns:
+        任务ID和状态
+    """
+    try:
+        import uuid
+        from app.core.data_source import BacktestDataSource
+        from app.core.trading_engine import TradingEngine
+        from app.core.position_manager import PositionManagerFactory
+        from app.core.message_bus import MessageBus
+        
+        task_id = str(uuid.uuid4())
+        
+        # 在后台异步运行回测
+        async def run_backtest_task():
+            try:
+                backtest_tasks[task_id]['status'] = 'running'
+                
+                # 创建MessageBus
+                bus = MessageBus()
+                
+                # 创建策略实例
+                if request.strategy_name == 'rsi':
+                    from app.nodes.strategies.rsi_strategy import RSIStrategy
+                    strategy = RSIStrategy(
+                        bus=bus,
+                        db=db,
+                        symbols=request.symbols,
+                        timeframe=request.timeframe,
+                        enable_ai_enhancement=request.enable_ai,
+                        **request.strategy_params
+                    )
+                elif request.strategy_name == 'dual_ma':
+                    from app.nodes.strategies.dual_ma_strategy import DualMAStrategy
+                    strategy = DualMAStrategy(
+                        bus=bus,
+                        db=db,
+                        symbols=request.symbols,
+                        timeframe=request.timeframe,
+                        enable_ai_enhancement=request.enable_ai,
+                        **request.strategy_params
+                    )
+                else:
+                    raise ValueError(f"Unknown strategy: {request.strategy_name}")
+                
+                # 创建仓位管理器
+                pm_factory = getattr(PositionManagerFactory, f'create_{request.position_manager_type}')
+                position_manager = pm_factory(request.initial_balance)
+                
+                # 创建数据源和引擎
+                data_source = BacktestDataSource(
+                    db, request.start_time, request.end_time, request.market_type
+                )
+                engine = TradingEngine(data_source, strategy, position_manager, mode="backtest")
+                
+                # 运行回测
+                await engine.run()
+                
+                # 保存结果
+                results = engine.get_results()
+                backtest_tasks[task_id]['status'] = 'completed'
+                backtest_tasks[task_id]['results'] = results
+                
+            except Exception as e:
+                logger.error(f"Backtest task {task_id} failed: {e}")
+                backtest_tasks[task_id]['status'] = 'failed'
+                backtest_tasks[task_id]['error'] = str(e)
+        
+        # 初始化任务状态
+        backtest_tasks[task_id] = {
+            'status': 'pending',
+            'request': request.model_dump(),
+            'results': None,
+            'error': None
+        }
+        
+        # 启动后台任务
+        asyncio.create_task(run_backtest_task())
+        
+        return {
+            "status": "success",
+            "task_id": task_id,
+            "message": "Backtest task started"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start backtest: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/backtest/result/{task_id}")
+async def get_backtest_result(task_id: str):
+    """
+    获取回测结果
+    
+    Args:
+        task_id: 任务ID
+        
+    Returns:
+        回测结果或任务状态
+    """
+    if task_id not in backtest_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task = backtest_tasks[task_id]
+    
+    return {
+        "status": task['status'],
+        "results": task.get('results'),
+        "error": task.get('error')
+    }
+
+
+# ==================== 仓位管理配置接口 ====================
+
+@app.get("/api/position/presets")
+async def get_position_manager_presets():
+    """
+    获取仓位管理预设配置（从配置文件）
+    
+    Returns:
+        预设列表
+    """
+    try:
+        position_config = get_position_config()
+        presets = position_config.format_for_api()
+        
+        return {
+            "status": "success",
+            "presets": presets,
+            "total": len(presets)
+        }
+    except Exception as e:
+        logger.error(f"Failed to get position presets: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/position/presets/{preset_name}")
+async def get_position_preset_detail(preset_name: str):
+    """
+    获取指定仓位管理预设的详细配置
+    
+    Args:
+        preset_name: 预设名称
+        
+    Returns:
+        预设详细配置
+    """
+    try:
+        position_config = get_position_config()
+        preset = position_config.get_preset(preset_name)
+        
+        if not preset:
+            raise HTTPException(status_code=404, detail=f"Position preset '{preset_name}' not found")
+        
+        return {
+            "status": "success",
+            "preset": {
+                "name": preset_name,
+                "display_name": preset.get("display_name", preset_name),
+                "description": preset.get("description", ""),
+                "icon": preset.get("icon", "📊"),
+                "color": preset.get("color", "#2196F3"),
+                "sizing_strategy": preset.get("sizing_strategy", {}),
+                "risk_management": preset.get("risk_management", {}),
+                "default_stops": preset.get("default_stops", {}),
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get position preset detail: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/position/sizing-strategies")
+async def get_sizing_strategies():
+    """
+    获取仓位计算策略说明
+    
+    Returns:
+        策略说明列表
+    """
+    try:
+        position_config = get_position_config()
+        strategies = position_config.get_sizing_strategies()
+        
+        return {
+            "status": "success",
+            "strategies": strategies
+        }
+    except Exception as e:
+        logger.error(f"Failed to get sizing strategies: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/position/recommendations")
+async def get_position_recommendations():
+    """
+    获取仓位管理推荐配置
+    
+    Returns:
+        推荐配置
+    """
+    try:
+        position_config = get_position_config()
+        recommendations = position_config.get_recommendations()
+        
+        return {
+            "status": "success",
+            "recommendations": recommendations
+        }
+    except Exception as e:
+        logger.error(f"Failed to get recommendations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/position/reload")
+async def reload_position_config():
+    """
+    重新加载仓位管理配置
+    
+    Returns:
+        重新加载结果
+    """
+    try:
+        from app.core.position_config import reload_position_config
+        reload_position_config()
+        
+        return {
+            "status": "success",
+            "message": "Position management configuration reloaded successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to reload position config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/optimize/run")
+async def run_optimization(request: OptimizationRequest):
+    """
+    运行参数优化
+    
+    Args:
+        request: 优化配置
+        
+    Returns:
+        任务ID和状态
+    """
+    try:
+        import uuid
+        from app.services.strategy_optimizer import StrategyOptimizer
+        
+        task_id = str(uuid.uuid4())
+        
+        # 在后台异步运行优化
+        async def run_optimization_task():
+            try:
+                optimization_tasks[task_id]['status'] = 'running'
+                
+                # 创建优化器
+                optimizer = StrategyOptimizer(
+                    db=db,
+                    symbols=request.symbols,
+                    timeframe=request.timeframe,
+                    market_type=request.market_type
+                )
+                
+                # 运行优化
+                if request.strategy_name == 'rsi':
+                    results = await optimizer.optimize_rsi_strategy(
+                        start_time=request.start_time,
+                        end_time=request.end_time,
+                        initial_balance=request.initial_balance,
+                        n_trials=request.n_trials,
+                        optimization_target=request.optimization_target
+                    )
+                elif request.strategy_name == 'dual_ma':
+                    results = await optimizer.optimize_dual_ma_strategy(
+                        start_time=request.start_time,
+                        end_time=request.end_time,
+                        initial_balance=request.initial_balance,
+                        n_trials=request.n_trials,
+                        optimization_target=request.optimization_target
+                    )
+                else:
+                    raise ValueError(f"Unknown strategy: {request.strategy_name}")
+                
+                # 保存结果
+                optimization_tasks[task_id]['status'] = 'completed'
+                optimization_tasks[task_id]['results'] = results
+                
+            except Exception as e:
+                logger.error(f"Optimization task {task_id} failed: {e}")
+                optimization_tasks[task_id]['status'] = 'failed'
+                optimization_tasks[task_id]['error'] = str(e)
+        
+        # 初始化任务状态
+        optimization_tasks[task_id] = {
+            'status': 'pending',
+            'request': request.model_dump(),
+            'results': None,
+            'error': None
+        }
+        
+        # 启动后台任务
+        asyncio.create_task(run_optimization_task())
+        
+        return {
+            "status": "success",
+            "task_id": task_id,
+            "message": "Optimization task started"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start optimization: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/optimize/result/{task_id}")
+async def get_optimization_result(task_id: str):
+    """
+    获取优化结果
+    
+    Args:
+        task_id: 任务ID
+        
+    Returns:
+        优化结果或任务状态
+    """
+    if task_id not in optimization_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task = optimization_tasks[task_id]
+    
+    return {
+        "status": task['status'],
+        "results": task.get('results'),
+        "error": task.get('error')
+    }
+
+
+@app.get("/api/ai/config")
+async def get_ai_config():
+    """
+    获取AI配置状态
+    
+    Returns:
+        AI配置信息
+    """
+    import os
+    
+    return {
+        "status": "success",
+        "config": {
+            "enabled": os.getenv('ENABLE_AI_ENHANCEMENT', 'false').lower() == 'true',
+            "model": "deepseek-chat",
+            "api_key_set": bool(os.getenv('DEEPSEEK_API_KEY')),
+            "timeout": float(os.getenv('AI_TIMEOUT', '5.0'))
+        }
+    }
+
+
+# ==================== 策略配置接口 ====================
+
+@app.get("/api/strategies")
+async def get_strategies():
+    """
+    获取所有可用策略及其配置
+    
+    Returns:
+        策略列表，包含每个策略的参数配置
+    """
+    try:
+        strategy_config = get_strategy_config()
+        strategies = strategy_config.format_for_api()
+        
+        return {
+            "status": "success",
+            "strategies": strategies,
+            "total": len(strategies)
+        }
+    except Exception as e:
+        logger.error(f"Failed to get strategies: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/strategies/{strategy_name}")
+async def get_strategy_detail(strategy_name: str):
+    """
+    获取指定策略的详细配置
+    
+    Args:
+        strategy_name: 策略名称
+        
+    Returns:
+        策略详细配置
+    """
+    try:
+        strategy_config = get_strategy_config()
+        strategy = strategy_config.get_strategy(strategy_name)
+        
+        if not strategy:
+            raise HTTPException(status_code=404, detail=f"Strategy '{strategy_name}' not found")
+        
+        # 格式化参数
+        parameters = {}
+        for param_name, param_config in strategy.get("parameters", {}).items():
+            parameters[param_name] = {
+                "label": param_config.get("label", param_name),
+                "type": param_config.get("type", "string"),
+                "default": param_config.get("default"),
+                "min": param_config.get("min"),
+                "max": param_config.get("max"),
+                "step": param_config.get("step"),
+                "description": param_config.get("description", ""),
+            }
+        
+        return {
+            "status": "success",
+            "strategy": {
+                "name": strategy_name,
+                "display_name": strategy.get("display_name", strategy_name),
+                "description": strategy.get("description", ""),
+                "icon": strategy.get("icon", "📊"),
+                "color": strategy.get("color", "#4CAF50"),
+                "category": strategy.get("category", "other"),
+                "parameters": parameters,
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get strategy detail: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/strategies/categories")
+async def get_strategy_categories():
+    """
+    获取策略分类
+    
+    Returns:
+        策略分类列表
+    """
+    try:
+        strategy_config = get_strategy_config()
+        categories = strategy_config.get_categories()
+        
+        return {
+            "status": "success",
+            "categories": categories
+        }
+    except Exception as e:
+        logger.error(f"Failed to get strategy categories: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/strategies/reload")
+async def reload_strategies():
+    """
+    重新加载策略配置
+    
+    Returns:
+        重新加载结果
+    """
+    try:
+        from app.core.strategy_config import reload_strategy_config
+        reload_strategy_config()
+        
+        return {
+            "status": "success",
+            "message": "Strategy configuration reloaded successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to reload strategy config: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

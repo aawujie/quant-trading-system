@@ -1,0 +1,202 @@
+# 策略配置文件
+# 所有可用策略及其参数定义
+
+strategies:
+  dual_ma:
+    display_name: "双均线策略"
+    description: "基于快慢均线交叉的经典趋势跟踪策略"
+    icon: "📊"
+    color: "#4CAF50"
+    class_path: "app.nodes.strategies.dual_ma_strategy.DualMAStrategy"
+    category: "trend"
+    enabled: true
+    parameters:
+      fast_period:
+        label: "快线周期"
+        type: "integer"
+        default: 5
+        min: 2
+        max: 50
+        step: 1
+        description: "快速移动平均线的周期"
+      slow_period:
+        label: "慢线周期"
+        type: "integer"
+        default: 20
+        min: 5
+        max: 200
+        step: 1
+        description: "慢速移动平均线的周期"
+    # 通用风控参数
+    risk_management:
+      stop_loss_pct:
+        label: "止损百分比"
+        type: "float"
+        default: 2.0
+        min: 0.5
+        max: 10.0
+        step: 0.1
+        description: "默认止损百分比"
+      take_profit_pct:
+        label: "止盈百分比"
+        type: "float"
+        default: 4.0
+        min: 1.0
+        max: 20.0
+        step: 0.5
+        description: "默认止盈百分比"
+
+  macd:
+    display_name: "MACD策略"
+    description: "MACD指标金叉死叉交易策略"
+    icon: "📈"
+    color: "#2196F3"
+    class_path: "app.nodes.strategies.macd_strategy.MACDStrategy"
+    category: "momentum"
+    enabled: true
+    parameters:
+      fast_period:
+        label: "快线周期"
+        type: "integer"
+        default: 12
+        min: 5
+        max: 50
+        step: 1
+        description: "MACD快线周期"
+      slow_period:
+        label: "慢线周期"
+        type: "integer"
+        default: 26
+        min: 10
+        max: 100
+        step: 1
+        description: "MACD慢线周期"
+      signal_period:
+        label: "信号周期"
+        type: "integer"
+        default: 9
+        min: 3
+        max: 30
+        step: 1
+        description: "MACD信号线周期"
+    risk_management:
+      stop_loss_pct:
+        label: "止损百分比"
+        type: "float"
+        default: 2.0
+        min: 0.5
+        max: 10.0
+        step: 0.1
+      take_profit_pct:
+        label: "止盈百分比"
+        type: "float"
+        default: 4.0
+        min: 1.0
+        max: 20.0
+        step: 0.5
+
+  rsi:
+    display_name: "RSI策略"
+    description: "RSI超买超卖区间交易策略"
+    icon: "📉"
+    color: "#FF9800"
+    class_path: "app.nodes.strategies.rsi_strategy.RSIStrategy"
+    category: "oscillator"
+    enabled: true
+    parameters:
+      period:
+        label: "RSI周期"
+        type: "integer"
+        default: 14
+        min: 5
+        max: 50
+        step: 1
+        description: "RSI指标计算周期"
+      oversold:
+        label: "超卖阈值"
+        type: "integer"
+        default: 30
+        min: 10
+        max: 40
+        step: 1
+        description: "RSI超卖阈值（买入信号）"
+      overbought:
+        label: "超买阈值"
+        type: "integer"
+        default: 70
+        min: 60
+        max: 90
+        step: 1
+        description: "RSI超买阈值（卖出信号）"
+    risk_management:
+      stop_loss_pct:
+        label: "止损百分比"
+        type: "float"
+        default: 2.5
+        min: 0.5
+        max: 10.0
+        step: 0.1
+      take_profit_pct:
+        label: "止盈百分比"
+        type: "float"
+        default: 5.0
+        min: 1.0
+        max: 20.0
+        step: 0.5
+
+  bollinger:
+    display_name: "布林带策略"
+    description: "基于布林带突破的波动率交易策略"
+    icon: "📐"
+    color: "#9C27B0"
+    class_path: "app.nodes.strategies.bollinger_strategy.BollingerStrategy"
+    category: "volatility"
+    enabled: true
+    parameters:
+      period:
+        label: "周期"
+        type: "integer"
+        default: 20
+        min: 10
+        max: 50
+        step: 1
+        description: "布林带计算周期"
+      std_dev:
+        label: "标准差倍数"
+        type: "float"
+        default: 2.0
+        min: 1.0
+        max: 3.0
+        step: 0.1
+        description: "布林带上下轨标准差倍数"
+    risk_management:
+      stop_loss_pct:
+        label: "止损百分比"
+        type: "float"
+        default: 2.0
+        min: 0.5
+        max: 10.0
+        step: 0.1
+      take_profit_pct:
+        label: "止盈百分比"
+        type: "float"
+        default: 3.0
+        min: 1.0
+        max: 20.0
+        step: 0.5
+
+# 策略分类定义
+categories:
+  trend:
+    name: "趋势跟踪"
+    description: "适合趋势明显的市场"
+  momentum:
+    name: "动量策略"
+    description: "基于价格动量的策略"
+  oscillator:
+    name: "震荡指标"
+    description: "适合震荡市场的策略"
+  volatility:
+    name: "波动率策略"
+    description: "基于市场波动率的策略"
+

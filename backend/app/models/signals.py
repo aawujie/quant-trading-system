@@ -45,6 +45,13 @@ class SignalData(BaseModel):
     side: Optional[str] = Field(None, description="Position side: LONG/SHORT (for futures)")
     action: Optional[str] = Field(None, description="Action type: OPEN/CLOSE (for futures)")
     
+    # AI增强字段
+    ai_enhanced: Optional[bool] = Field(None, description="是否经过AI增强")
+    ai_reasoning: Optional[str] = Field(None, description="AI推理过程（Chain of Thought）")
+    ai_confidence: Optional[float] = Field(None, description="AI置信度（0-1）")
+    ai_model: Optional[str] = Field(None, description="AI模型名称（如deepseek-chat）")
+    ai_risk_assessment: Optional[str] = Field(None, description="AI风险评估（low/medium/high）")
+    
     class Config:
         json_schema_extra = {
             "example": {

@@ -13,6 +13,7 @@ import TabContainer from './components/TabContainer';
 import IndicatorButton from './components/Indicators/IndicatorButton';
 import IndicatorModal from './components/Indicators/IndicatorModal';
 import { getIndicatorConfig } from './components/Indicators/IndicatorConfig';
+import TradingEngine from './components/TradingEngine/TradingEngine';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -87,7 +88,7 @@ const PRELOAD_TIMEFRAMES = {
 };
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('trading'); // trading, dataManager
+  const [currentView, setCurrentView] = useState('trading'); // trading, dataManager, tradingEngine
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState('1h');
   const [marketType, setMarketType] = useState('future'); // 市场类型：spot(现货) / future(永续)
@@ -1122,6 +1123,12 @@ export default function App() {
             >
               📊 数据管理
             </button>
+            <button
+              className={`nav-button ${currentView === 'tradingEngine' ? 'active' : ''}`}
+              onClick={() => setCurrentView('tradingEngine')}
+            >
+              🚀 交易引擎
+            </button>
           </div>
         </div>
         <div className="status">
@@ -1138,6 +1145,9 @@ export default function App() {
       <main className="main-content">
         {/* Data Manager View */}
         {currentView === 'dataManager' && <DataManager />}
+
+        {/* Trading Engine View */}
+        {currentView === 'tradingEngine' && <TradingEngine />}
 
         {/* Trading View - stays mounted, just hidden */}
         <div className="chart-section" style={{ display: currentView === 'trading' ? 'flex' : 'none' }}>

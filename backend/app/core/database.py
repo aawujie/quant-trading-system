@@ -623,8 +623,14 @@ class Database:
                     stop_loss=row.stop_loss,
                     take_profit=row.take_profit,
                     position_size=row.position_size,
-                    side=row.side,  # ← 新增
-                    action=row.action  # ← 新增
+                    side=row.side,
+                    action=row.action,
+                    # AI字段（如果数据库表中没有这些字段，会返回None）
+                    ai_enhanced=getattr(row, 'ai_enhanced', None),
+                    ai_reasoning=getattr(row, 'ai_reasoning', None),
+                    ai_confidence=getattr(row, 'ai_confidence', None),
+                    ai_model=getattr(row, 'ai_model', None),
+                    ai_risk_assessment=getattr(row, 'ai_risk_assessment', None),
                 )
                 for row in reversed(rows)
             ]
@@ -804,4 +810,91 @@ class Database:
                     "earliest_timestamp": None,
                     "latest_timestamp": None,
                 }
+    
+    async def get_strategy_statistics(self, strategy_name: str, symbol: str, days: int = 30) -> dict:
+        """
+        获取策略历史统计（用于凯利公式）
+        
+        Returns:
+            {
+                'win_rate': 0.58,
+                'avg_win': 150,
+                'avg_loss': -100,
+                'win_loss_ratio': 1.5,
+                'total_trades': 50
+            }
+        """
+        import time
+        
+        # 计算时间范围
+        end_time = int(time.time())
+        start_time = end_time - days * 86400
+        
+        # 查询历史交易（需要有trades表）
+        query = """
+            SELECT 
+                COUNT(*) as total_trades,
+                SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) as winning_trades,
+                AVG(CASE WHEN pnl > 0 THEN pnl END) as avg_win,
+                AVG(CASE WHEN pnl <= 0 THEN pnl END) as avg_loss
+            FROM trades
+            WHERE strategy_name = $1 
+            AND symbol = $2
+            AND exit_time >= $3
+        """
+        
+        try:
+            result = await self.pool.fetchrow(query, strategy_name, symbol, start_time)
+            
+            if not result or result['total_trades'] == 0:
+                return {
+                    'win_rate': 0.5,
+                    'avg_win': 0,
+                    'avg_loss': 0,
+                    'win_loss_ratio': 1.0,
+                    'total_trades': 0
+                }
+            
+            winning_trades = result['winning_trades'] or 0
+            total_trades = result['total_trades']
+            win_rate = winning_trades / total_trades
+            
+            avg_win = result['avg_win'] or 0
+            avg_loss = result['avg_loss'] or 0
+            win_loss_ratio = abs(avg_win / avg_loss) if avg_loss != 0 else 1.0
+            
+            return {
+                'win_rate': win_rate,
+                'avg_win': avg_win,
+                'avg_loss': avg_loss,
+                'win_loss_ratio': win_loss_ratio,
+                'total_trades': total_trades
+            }
+        except Exception as e:
+            logger.error(f"Error fetching strategy statistics: {e}")
+            # 返回默认值
+            return {
+                'win_rate': 0.5,
+                'avg_win': 0,
+                'avg_loss': 0,
+                'win_loss_ratio': 1.0,
+                'total_trades': 0
+            }
+    
+    async def get_recent_trades(self, strategy_name: str, symbol: str, limit: int = 10) -> list:
+        """获取最近的交易记录（用于AI推理）"""
+        query = """
+            SELECT symbol, side, entry_price, exit_price, pnl, pnl_pct, exit_time
+            FROM trades
+            WHERE strategy_name = $1 AND symbol = $2
+            ORDER BY exit_time DESC
+            LIMIT $3
+        """
+        
+        try:
+            rows = await self.pool.fetch(query, strategy_name, symbol, limit)
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error fetching recent trades: {e}")
+            return []
 
