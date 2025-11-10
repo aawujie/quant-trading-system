@@ -93,7 +93,7 @@ class RSIStrategy(BaseStrategy):
     ) -> Optional[SignalData]:
         """
         检测RSI入场信号（重构版）
-        
+            
         Returns:
             SignalData对象或None
         """

@@ -1,64 +1,46 @@
 import { useState } from 'react';
-import TabContainer from '../TabContainer';
 import LiveTrading from './LiveTrading';
 import BacktestConfig from './BacktestConfig';
 
 /**
- * 交易引擎主组件
- * 包含实盘交易和回测两个tab
+ * 交易引擎主组件 - Tailwind风格
  */
 export default function TradingEngine() {
-  return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>🚀 交易引擎</h2>
-        <p style={styles.subtitle}>策略回测与实盘交易</p>
-      </div>
+  const [activeTab, setActiveTab] = useState('backtest'); // 'live' | 'backtest'
 
-      <TabContainer
-        tabs={[
-          {
-            icon: '📈',
-            label: '实盘交易',
-            content: <LiveTrading />,
-          },
-          {
-            icon: '🔬',
-            label: '策略回测',
-            content: <BacktestConfig />,
-          },
-        ]}
-      />
+  return (
+    <div className="w-full h-full bg-[#0a0a0f] overflow-auto">
+      <div className="max-w-[1800px] mx-auto p-6">
+        <div className="mb-6">
+          {/* Tab切换 */}
+          <div className="flex gap-2 border-b border-[#2a2a3a]">
+            <button
+              onClick={() => setActiveTab('backtest')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'backtest'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              🔬 策略回测
+            </button>
+            <button
+              onClick={() => setActiveTab('live')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'live'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              📈 实盘交易
+            </button>
+          </div>
+        </div>
+
+        {/* Tab内容 */}
+        {activeTab === 'backtest' && <BacktestConfig />}
+        {activeTab === 'live' && <LiveTrading />}
+      </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    maxHeight: '100vh',
-    background: '#1a1a2e',
-    overflow: 'hidden',
-  },
-  header: {
-    padding: '1.5rem 2rem',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-    background: 'rgba(255, 255, 255, 0.02)',
-    flexShrink: 0,
-  },
-  title: {
-    fontSize: '1.8rem',
-    fontWeight: '700',
-    color: '#fff',
-    margin: 0,
-    marginBottom: '0.25rem',
-  },
-  subtitle: {
-    fontSize: '0.9rem',
-    color: '#aaa',
-    margin: 0,
-  },
-};
-

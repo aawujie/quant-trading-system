@@ -73,6 +73,7 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
       tool.drawingId = data.drawing_id;
       tool.label = data.label;
       tool.created_at = data.created_at; // 恢复时间戳
+      tool.visible = data.visible !== false; // 恢复可见性，默认可见
       
       console.log('✅ Successfully created tool:', data.drawing_type, data.drawing_id);
       return tool;
@@ -92,11 +93,14 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         const savedDrawings = await drawingApi.getDrawings(symbol);
         console.log(`📦 Received ${savedDrawings.length} drawings from API:`, savedDrawings);
         
-        // 将保存的数据转换为绘图工具实例
-        const reconstructedDrawings = savedDrawings.map(data => {
-          const tool = createToolFromData(data);
-          return tool;
-        }).filter(tool => tool !== null);
+        // 将保存的数据转换为绘图工具实例，并按时间从高到低排序
+        const reconstructedDrawings = savedDrawings
+          .map(data => {
+            const tool = createToolFromData(data);
+            return tool;
+          })
+          .filter(tool => tool !== null)
+          .sort((a, b) => (b.created_at || 0) - (a.created_at || 0)); // 时间从高到低
         
         setDrawings(reconstructedDrawings);
         
@@ -181,7 +185,8 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         points: tool.getPoints(),
         style: tool.style,
         label: tool.label || '',
-        created_at: timestamp
+        created_at: timestamp,
+        visible: true // 新绘图默认可见
       };
 
       console.log('📤 保存绘图数据:', JSON.stringify(drawingData, null, 2));
@@ -203,8 +208,11 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 绘制所有已完成的图形
+    // 只绘制可见的已完成图形
     drawings.forEach(drawing => {
+      // 跳过不可见的绘图
+      if (drawing.visible === false) return;
+      
       try {
         drawing.draw(ctx);
       } catch (error) {
@@ -233,6 +241,74 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
       console.error('❌ 删除绘图失败:', error);
     }
   }, [redrawCanvas]);
+
+  // 切换绘图可见性
+  const toggleDrawingVisibility = useCallback(async (drawingId) => {
+    try {
+      const drawing = drawings.find(d => d.drawingId === drawingId);
+      if (!drawing) return;
+
+      const newVisible = drawing.visible === false ? true : false;
+      drawing.visible = newVisible;
+
+      // 更新到后端
+      const drawingData = {
+        drawing_id: drawing.drawingId,
+        symbol,
+        timeframe,
+        drawing_type: drawing.type,
+        points: drawing.getPoints(),
+        style: drawing.style,
+        label: drawing.label || '',
+        created_at: drawing.created_at,
+        visible: newVisible
+      };
+
+      await drawingApi.updateDrawing(drawingId, drawingData);
+      
+      // 触发重新渲染
+      setDrawings(prev => [...prev]);
+      redrawCanvas();
+      
+      console.log(`✅ 绘图可见性已${newVisible ? '显示' : '隐藏'}`);
+    } catch (error) {
+      console.error('❌ 切换可见性失败:', error);
+    }
+  }, [drawings, symbol, timeframe, redrawCanvas]);
+
+  // 修改绘图颜色
+  const changeDrawingColor = useCallback(async (drawingId, color) => {
+    try {
+      const drawing = drawings.find(d => d.drawingId === drawingId);
+      if (!drawing) return;
+
+      // 更新颜色
+      drawing.style = { ...drawing.style, color };
+
+      // 更新到后端
+      const drawingData = {
+        drawing_id: drawing.drawingId,
+        symbol,
+        timeframe,
+        drawing_type: drawing.type,
+        points: drawing.getPoints(),
+        style: drawing.style,
+        label: drawing.label || '',
+        created_at: drawing.created_at,
+        visible: drawing.visible !== false
+      };
+
+      await drawingApi.updateDrawing(drawingId, drawingData);
+      
+      // 触发重新渲染
+      setDrawings(prev => [...prev]);
+      redrawCanvas();
+      
+      console.log(`✅ 绘图颜色已更改为 ${color}`);
+    } catch (error) {
+      console.error('❌ 修改颜色失败:', error);
+    }
+  }, [drawings, symbol, timeframe, redrawCanvas]);
 
   // 鼠标事件处理
   const handleMouseDown = useCallback((e) => {
@@ -375,6 +451,8 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
     handleMouseLeave,
     redrawCanvas,
     deleteDrawing,
+    toggleDrawingVisibility,
+    changeDrawingColor,
   };
 }
 

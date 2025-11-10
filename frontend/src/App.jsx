@@ -1413,6 +1413,8 @@ export default function App() {
                   <DrawingList
                     drawings={drawingManager.drawings}
                     onDelete={drawingManager.deleteDrawing}
+                    onToggleVisibility={drawingManager.toggleDrawingVisibility}
+                    onChangeColor={drawingManager.changeDrawingColor}
                   />
                 ),
               },

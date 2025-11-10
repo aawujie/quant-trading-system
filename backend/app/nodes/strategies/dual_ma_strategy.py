@@ -90,7 +90,7 @@ class DualMAStrategy(BaseStrategy):
     ) -> Optional[SignalData]:
         """
         检测双均线交叉入场信号（重构版）
-        
+            
         Returns:
             SignalData对象或None
         """
@@ -169,7 +169,7 @@ class DualMAStrategy(BaseStrategy):
         
         # 无交叉
         return None
-    
+
     async def check_exit_signal(
         self,
         symbol: str,

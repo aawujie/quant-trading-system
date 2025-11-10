@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getStrategies, getPositionPresets, getAIConfig } from '../../services/tradingEngineApi';
 
 /**
- * 实盘交易配置组件 - PC端优化版
+ * 实盘交易组件 - Tailwind风格
  */
 export default function LiveTrading() {
   const [config, setConfig] = useState({
@@ -15,60 +15,11 @@ export default function LiveTrading() {
   });
 
   const [strategies, setStrategies] = useState([]);
-  const [presets, setPresets] = useState([
-    { name: 'conservative', display_name: '保守型' },
-    { name: 'balanced', display_name: '平衡型' },
-    { name: 'aggressive', display_name: '激进型' },
-  ]); // 默认值防止崩溃
+  const [strategyDetails, setStrategyDetails] = useState({});
+  const [presets, setPresets] = useState([]);
   const [aiConfig, setAiConfig] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState(null);
-
-  // 策略详细信息（与BacktestConfig保持一致）
-  const strategyDetails = {
-    dual_ma: {
-      name: '双均线策略',
-      description: '基于快慢均线交叉的经典趋势跟踪策略',
-      icon: '📊',
-      color: '#4CAF50',
-      params: {
-        fast_period: { label: '快线周期', default: 5, min: 2, max: 50, step: 1 },
-        slow_period: { label: '慢线周期', default: 20, min: 5, max: 200, step: 1 },
-      }
-    },
-    macd: {
-      name: 'MACD策略',
-      description: 'MACD指标金叉死叉交易策略',
-      icon: '📈',
-      color: '#2196F3',
-      params: {
-        fast_period: { label: '快线周期', default: 12, min: 5, max: 50, step: 1 },
-        slow_period: { label: '慢线周期', default: 26, min: 10, max: 100, step: 1 },
-        signal_period: { label: '信号周期', default: 9, min: 3, max: 30, step: 1 },
-      }
-    },
-    rsi: {
-      name: 'RSI策略',
-      description: 'RSI超买超卖区间交易策略',
-      icon: '📉',
-      color: '#FF9800',
-      params: {
-        period: { label: 'RSI周期', default: 14, min: 5, max: 50, step: 1 },
-        oversold: { label: '超卖阈值', default: 30, min: 10, max: 40, step: 1 },
-        overbought: { label: '超买阈值', default: 70, min: 60, max: 90, step: 1 },
-      }
-    },
-    bollinger: {
-      name: '布林带策略',
-      description: '基于布林带突破的波动率交易策略',
-      icon: '📐',
-      color: '#9C27B0',
-      params: {
-        period: { label: '周期', default: 20, min: 10, max: 50, step: 1 },
-        std_dev: { label: '标准差倍数', default: 2.0, min: 1, max: 3, step: 0.1 },
-      }
-    },
-  };
 
   // 加载配置
   useEffect(() => {
@@ -76,17 +27,27 @@ export default function LiveTrading() {
       try {
         const [strategiesData, presetsData, aiConfigData] = await Promise.all([
           getStrategies().catch(() => []),
-          getPositionPresets().catch(() => [
-            { name: 'conservative', display_name: '保守型' },
-            { name: 'balanced', display_name: '平衡型' },
-            { name: 'aggressive', display_name: '激进型' },
-          ]),
+          getPositionPresets().catch(() => []),
           getAIConfig().catch(() => ({ enabled: false })),
         ]);
         
         if (strategiesData && strategiesData.length > 0) {
           setStrategies(strategiesData);
+          
+          // 转换格式
+          const details = {};
+          strategiesData.forEach(strategy => {
+            details[strategy.name] = {
+              name: strategy.display_name || strategy.name,
+              description: strategy.description || '',
+              icon: strategy.icon || '📊',
+              color: strategy.color || '#4CAF50',
+              params: strategy.parameters || {}
+            };
+          });
+          setStrategyDetails(details);
         }
+        
         if (presetsData && Array.isArray(presetsData) && presetsData.length > 0) {
           setPresets(presetsData);
         }
@@ -95,7 +56,6 @@ export default function LiveTrading() {
         }
       } catch (err) {
         console.error('Failed to load data:', err);
-        // 不设置error，使用默认值继续运行
       }
     };
     loadData();
@@ -104,7 +64,7 @@ export default function LiveTrading() {
   // 初始化策略参数
   useEffect(() => {
     const strategyDetail = strategyDetails[config.strategy];
-    if (strategyDetail) {
+    if (strategyDetail && strategyDetail.params) {
       const defaultParams = {};
       Object.entries(strategyDetail.params).forEach(([key, param]) => {
         defaultParams[key] = param.default;
@@ -114,7 +74,7 @@ export default function LiveTrading() {
         params: defaultParams,
       }));
     }
-  }, [config.strategy]);
+  }, [config.strategy, strategyDetails]);
 
   const handleStart = () => {
     setIsRunning(true);
@@ -139,67 +99,60 @@ export default function LiveTrading() {
   const currentStrategy = strategyDetails[config.strategy];
 
   return (
-    <div style={styles.container}>
-      {/* 左侧：配置面板 */}
-      <div style={styles.leftPanel}>
+    <div className="grid grid-cols-12 gap-6">
+      {/* 左侧配置 */}
+      <div className="col-span-5 space-y-4">
         {/* 风险警告 */}
-        <div style={styles.warningBox}>
-          <div style={styles.warningHeader}>
-            <span style={styles.warningIcon}>⚠️</span>
-            <span style={styles.warningTitle}>实盘交易风险提示</span>
-          </div>
-          <div style={styles.warningText}>
-            实盘交易涉及真实资金，存在亏损风险。请确保您已充分测试策略并了解相关风险。建议先进行纸面交易验证。
+        <div className="bg-gradient-to-r from-orange-500/10 to-orange-600/10 border-2 border-orange-500/30 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-3xl">⚠️</span>
+            <div>
+              <div className="text-lg font-semibold text-orange-400 mb-1">实盘交易风险提示</div>
+              <div className="text-sm text-orange-300/80 leading-relaxed">
+                实盘交易涉及真实资金，存在亏损风险。请确保您已充分测试策略并了解相关风险。
+              </div>
+            </div>
           </div>
         </div>
 
         {/* 策略选择 */}
-        <section style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <span style={styles.titleIcon}>🎯</span>
-            选择策略
+        <div className="bg-[#1a1a2e] rounded-lg p-4 border border-[#2a2a3a]">
+          <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            🎯 选择策略
           </h3>
-          <div style={styles.strategyGrid}>
+          <div className="grid grid-cols-2 gap-3">
             {Object.entries(strategyDetails).map(([key, strategy]) => (
-              <div
+              <button
                 key={key}
-                style={{
-                  ...styles.strategyCard,
-                  ...(config.strategy === key ? {
-                    ...styles.strategyCardActive,
-                    borderColor: strategy.color,
-                    background: `linear-gradient(135deg, ${strategy.color}15, ${strategy.color}05)`,
-                  } : {}),
-                }}
                 onClick={() => !isRunning && setConfig({ ...config, strategy: key })}
+                disabled={isRunning}
+                className={`p-3 rounded-lg border-2 transition-all text-left ${
+                  config.strategy === key
+                    ? `border-[${strategy.color}] bg-[${strategy.color}]/10`
+                    : 'border-[#2a2a3a] hover:border-[#3a3a4a]'
+                } ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <div style={styles.strategyIcon}>{strategy.icon}</div>
-                <div style={styles.strategyInfo}>
-                  <div style={styles.strategyName}>{strategy.name}</div>
-                  <div style={styles.strategyDesc}>{strategy.description}</div>
-                </div>
-                {config.strategy === key && (
-                  <div style={{...styles.strategyCheck, color: strategy.color}}>✓</div>
-                )}
-              </div>
+                <div className="text-2xl mb-1">{strategy.icon}</div>
+                <div className="text-sm font-semibold text-white">{strategy.name}</div>
+                <div className="text-xs text-gray-400 mt-1 line-clamp-2">{strategy.description}</div>
+              </button>
             ))}
           </div>
-        </section>
+        </div>
 
-        {/* 基础配置 */}
-        <section style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <span style={styles.titleIcon}>⚙️</span>
-            交易配置
+        {/* 交易配置 */}
+        <div className="bg-[#1a1a2e] rounded-lg p-4 border border-[#2a2a3a]">
+          <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            ⚙️ 交易配置
           </h3>
-          <div style={styles.configGrid}>
-            <div style={styles.configItem}>
-              <label style={styles.label}>交易对</label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">交易对</label>
               <select
                 value={config.symbol}
                 onChange={(e) => setConfig({ ...config, symbol: e.target.value })}
-                style={styles.select}
                 disabled={isRunning}
+                className="w-full px-3 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded text-white text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50"
               >
                 <option value="BTCUSDT">BTC/USDT</option>
                 <option value="ETHUSDT">ETH/USDT</option>
@@ -209,13 +162,13 @@ export default function LiveTrading() {
               </select>
             </div>
 
-            <div style={styles.configItem}>
-              <label style={styles.label}>时间周期</label>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">时间周期</label>
               <select
                 value={config.timeframe}
                 onChange={(e) => setConfig({ ...config, timeframe: e.target.value })}
-                style={styles.select}
                 disabled={isRunning}
+                className="w-full px-3 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded text-white text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50"
               >
                 <option value="5m">5分钟</option>
                 <option value="15m">15分钟</option>
@@ -226,13 +179,13 @@ export default function LiveTrading() {
               </select>
             </div>
 
-            <div style={styles.configItem}>
-              <label style={styles.label}>仓位管理</label>
+            <div className="col-span-2">
+              <label className="block text-sm text-gray-400 mb-1">仓位管理</label>
               <select
                 value={config.position_preset}
                 onChange={(e) => setConfig({ ...config, position_preset: e.target.value })}
-                style={styles.select}
                 disabled={isRunning}
+                className="w-full px-3 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded text-white text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50"
               >
                 {presets.map(p => (
                   <option key={p.name} value={p.name}>
@@ -244,186 +197,155 @@ export default function LiveTrading() {
 
             {/* AI增强 */}
             {aiConfig?.enabled && (
-              <div style={styles.configItem}>
-                <label style={styles.aiLabel}>
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={config.enable_ai}
                     onChange={(e) => setConfig({ ...config, enable_ai: e.target.checked })}
                     disabled={isRunning}
-                    style={styles.checkbox}
+                    className="w-4 h-4 text-green-500 bg-[#0a0a0f] border-[#2a2a3a] rounded focus:ring-2 focus:ring-green-500"
                   />
-                  <span>启用AI信号增强</span>
+                  <span className="text-sm text-gray-300">启用AI信号增强</span>
                 </label>
                 {config.enable_ai && (
-                  <div style={styles.aiInfo}>
+                  <div className="mt-2 text-xs text-green-400 bg-green-500/10 px-3 py-2 rounded border border-green-500/20">
                     🤖 使用 {aiConfig.model} 进行信号验证
                   </div>
                 )}
               </div>
             )}
           </div>
-        </section>
+        </div>
 
         {/* 策略参数 */}
-        <section style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <span style={styles.titleIcon}>🎛️</span>
-            策略参数
-          </h3>
-          <div style={styles.paramsGrid}>
-            {currentStrategy && Object.entries(currentStrategy.params).map(([key, param]) => (
-              <div key={key} style={styles.paramItem}>
-                <div style={styles.paramHeader}>
-                  <label style={styles.label}>{param.label}</label>
-                  <span style={styles.paramValue}>{config.params[key]}</span>
+        {currentStrategy && Object.keys(currentStrategy.params).length > 0 && (
+          <div className="bg-[#1a1a2e] rounded-lg p-4 border border-[#2a2a3a]">
+            <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              🎛️ 策略参数
+            </h3>
+            <div className="space-y-3">
+              {Object.entries(currentStrategy.params).map(([key, param]) => (
+                <div key={key}>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-sm text-gray-400">{param.label}</label>
+                    <span className="text-sm font-semibold text-green-400 font-mono">
+                      {config.params[key]}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={param.min}
+                    max={param.max}
+                    step={param.step}
+                    value={config.params[key] || param.default}
+                    onChange={(e) => handleParamChange(key, parseFloat(e.target.value))}
+                    disabled={isRunning}
+                    className="w-full h-2 bg-[#2a2a3a] rounded-lg appearance-none cursor-pointer accent-green-500 disabled:opacity-50"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>{param.min}</span>
+                    <span>{param.max}</span>
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min={param.min}
-                  max={param.max}
-                  step={param.step}
-                  value={config.params[key] || param.default}
-                  onChange={(e) => handleParamChange(key, parseFloat(e.target.value))}
-                  style={styles.slider}
-                  disabled={isRunning}
-                />
-                <div style={styles.paramRange}>
-                  <span>{param.min}</span>
-                  <span>{param.max}</span>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </section>
+        )}
 
         {/* 控制按钮 */}
         {!isRunning ? (
-          <button onClick={handleStart} style={styles.startButton}>
-            <span>▶️</span>
-            开始实盘交易
+          <button
+            onClick={handleStart}
+            className="w-full py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/30 transition-all"
+          >
+            <span className="flex items-center justify-center gap-2">
+              ▶️ 开始实盘交易
+            </span>
           </button>
         ) : (
-          <button onClick={handleStop} style={styles.stopButton}>
-            <span>⏹️</span>
-            停止交易
+          <button
+            onClick={handleStop}
+            className="w-full py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30 transition-all"
+          >
+            <span className="flex items-center justify-center gap-2">
+              ⏹️ 停止交易
+            </span>
           </button>
         )}
 
         {error && (
-          <div style={styles.error}>
-            <span style={styles.errorIcon}>⚠️</span>
-            {error}
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-400 text-sm flex items-start gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
           </div>
         )}
       </div>
 
-      {/* 右侧：状态面板 */}
-      <div style={styles.rightPanel}>
+      {/* 右侧状态 */}
+      <div className="col-span-7 bg-[#1a1a2e] rounded-lg border border-[#2a2a3a] overflow-hidden">
         {!isRunning ? (
-          <div style={styles.emptyState}>
-            <div style={styles.emptyIcon}>🚀</div>
-            <div style={styles.emptyTitle}>准备启动</div>
-            <div style={styles.emptyText}>
+          <div className="flex flex-col items-center justify-center h-[600px] px-8 text-center">
+            <div className="text-6xl mb-6 opacity-30">🚀</div>
+            <h3 className="text-2xl font-semibold text-white mb-4">准备启动</h3>
+            <p className="text-gray-400 mb-8 max-w-md">
               配置好策略参数后，点击"开始实盘交易"启动自动化交易
-            </div>
-            <div style={styles.featureList}>
-              <div style={styles.featureItem}>
-                <span style={styles.featureIcon}>✅</span>
-                <span>实时监控市场数据</span>
-              </div>
-              <div style={styles.featureItem}>
-                <span style={styles.featureIcon}>✅</span>
-                <span>自动执行交易策略</span>
-              </div>
-              <div style={styles.featureItem}>
-                <span style={styles.featureIcon}>✅</span>
-                <span>智能仓位管理</span>
-              </div>
-              <div style={styles.featureItem}>
-                <span style={styles.featureIcon}>✅</span>
-                <span>风险控制保护</span>
-              </div>
-              {aiConfig?.enabled && (
-                <div style={styles.featureItem}>
-                  <span style={styles.featureIcon}>✅</span>
-                  <span>AI信号验证增强</span>
+            </p>
+            <div className="grid grid-cols-2 gap-4 max-w-xl w-full">
+              {[
+                { icon: '✅', text: '实时监控市场数据' },
+                { icon: '✅', text: '自动执行交易策略' },
+                { icon: '✅', text: '智能仓位管理' },
+                { icon: '✅', text: '风险控制保护' },
+                ...(aiConfig?.enabled ? [{ icon: '✅', text: 'AI信号验证增强' }] : [])
+              ].map((feature, i) => (
+                <div key={i} className="flex items-center gap-3 bg-[#0a0a0f]/50 p-4 rounded-lg border border-[#2a2a3a]">
+                  <span className="text-xl">{feature.icon}</span>
+                  <span className="text-sm text-gray-300">{feature.text}</span>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         ) : (
-          <div style={styles.runningState}>
+          <div className="p-6 space-y-6 max-h-[800px] overflow-y-auto">
             {/* 状态头部 */}
-            <div style={styles.statusHeader}>
-              <div style={styles.statusBadge}>
-                <span style={styles.statusDot}></span>
-                <span>策略运行中</span>
+            <div className="flex justify-between items-center pb-4 border-b border-[#2a2a3a]">
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                <span className="text-sm text-green-400 font-semibold">策略运行中</span>
               </div>
-              <div style={styles.statusTime}>
+              <div className="text-sm text-gray-400 font-mono">
                 运行时间: 00:00:00
               </div>
             </div>
 
             {/* 核心指标 */}
-            <div style={styles.metricsGrid}>
-              <StatusCard
-                label="当前持仓"
-                value="无持仓"
-                icon="📊"
-                color="#fff"
-              />
-              <StatusCard
-                label="今日收益"
-                value="+0.00%"
-                icon="💰"
-                color="#4CAF50"
-              />
-              <StatusCard
-                label="今日交易"
-                value="0 笔"
-                icon="🔄"
-                color="#fff"
-              />
-              <StatusCard
-                label="信号数量"
-                value="0"
-                icon="📡"
-                color="#fff"
-              />
-              <StatusCard
-                label="胜率"
-                value="0.00%"
-                icon="🎯"
-                color="#fff"
-              />
-              <StatusCard
-                label="总收益"
-                value="+0.00 USDT"
-                icon="💵"
-                color="#4CAF50"
-              />
+            <div className="grid grid-cols-3 gap-4">
+              <StatusCard label="当前持仓" value="无持仓" icon="📊" />
+              <StatusCard label="今日收益" value="+0.00%" icon="💰" color="text-green-400" />
+              <StatusCard label="今日交易" value="0 笔" icon="🔄" />
+              <StatusCard label="信号数量" value="0" icon="📡" />
+              <StatusCard label="胜率" value="0.00%" icon="🎯" />
+              <StatusCard label="总收益" value="+0.00 USDT" icon="💵" color="text-green-400" />
             </div>
 
             {/* 持仓信息 */}
-            <section style={styles.positionSection}>
-              <h4 style={styles.subsectionTitle}>
-                <span style={styles.titleIcon}>📈</span>
-                当前持仓
+            <div>
+              <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                📈 当前持仓
               </h4>
-              <div style={styles.emptyPosition}>
-                <div style={styles.emptyPositionIcon}>💤</div>
-                <div style={styles.emptyPositionText}>暂无持仓</div>
+              <div className="bg-[#0a0a0f] rounded-lg border border-[#2a2a3a] p-8 text-center">
+                <div className="text-4xl mb-2 opacity-30">💤</div>
+                <div className="text-sm text-gray-400">暂无持仓</div>
               </div>
-            </section>
+            </div>
 
             {/* 实时日志 */}
-            <section style={styles.logSection}>
-              <h4 style={styles.subsectionTitle}>
-                <span style={styles.titleIcon}>📝</span>
-                实时日志
+            <div>
+              <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                📝 实时日志
               </h4>
-              <div style={styles.logContainer}>
+              <div className="bg-[#0a0a0f] rounded-lg border border-[#2a2a3a] p-4 max-h-[300px] overflow-y-auto space-y-2">
                 <LogEntry
                   time={new Date().toLocaleTimeString('zh-CN')}
                   message="策略启动成功"
@@ -440,7 +362,7 @@ export default function LiveTrading() {
                   type="info"
                 />
               </div>
-            </section>
+            </div>
           </div>
         )}
       </div>
@@ -449,13 +371,17 @@ export default function LiveTrading() {
 }
 
 // 状态卡片组件
-function StatusCard({ label, value, icon, color }) {
+function StatusCard({ label, value, icon, color = 'text-white' }) {
   return (
-    <div style={styles.statusCard}>
-      <div style={styles.statusIcon}>{icon}</div>
-      <div style={styles.statusContent}>
-        <div style={styles.statusLabel}>{label}</div>
-        <div style={{...styles.statusValue, color}}>{value}</div>
+    <div className="bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg p-4 hover:border-[#3a3a4a] transition-colors">
+      <div className="flex items-center gap-3">
+        <div className="text-3xl">{icon}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-gray-400 mb-1">{label}</div>
+          <div className={`text-xl font-bold ${color} font-mono truncate`}>
+            {value}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -465,431 +391,17 @@ function StatusCard({ label, value, icon, color }) {
 function LogEntry({ time, message, type = 'info' }) {
   const getTypeColor = () => {
     switch (type) {
-      case 'success': return '#4CAF50';
-      case 'error': return '#f44336';
-      case 'warning': return '#FF9800';
-      default: return '#fff';
+      case 'success': return 'text-green-400';
+      case 'error': return 'text-red-400';
+      case 'warning': return 'text-orange-400';
+      default: return 'text-gray-300';
     }
   };
 
   return (
-    <div style={styles.logEntry}>
-      <span style={styles.logTime}>{time}</span>
-      <span style={{...styles.logMessage, color: getTypeColor()}}>{message}</span>
+    <div className="flex gap-3 text-sm py-2 border-b border-[#2a2a3a] last:border-0">
+      <span className="text-gray-500 font-mono text-xs min-w-[80px]">{time}</span>
+      <span className={getTypeColor()}>{message}</span>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    display: 'flex',
-    gap: '1.5rem',
-    flex: 1,
-    minHeight: 0,
-    padding: '1.5rem',
-    overflow: 'hidden',
-  },
-  leftPanel: {
-    width: '420px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem',
-    overflowY: 'auto',
-    paddingRight: '0.5rem',
-  },
-  rightPanel: {
-    flex: 1,
-    minWidth: 0, // 允许flex收缩
-    display: 'flex',
-    flexDirection: 'column',
-    overflowY: 'auto',
-    background: 'rgba(255, 255, 255, 0.02)',
-    borderRadius: '12px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  warningBox: {
-    background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 152, 0, 0.05))',
-    border: '2px solid rgba(255, 152, 0, 0.3)',
-    borderRadius: '12px',
-    padding: '1.2rem',
-  },
-  warningHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    marginBottom: '0.8rem',
-  },
-  warningIcon: {
-    fontSize: '1.5rem',
-  },
-  warningTitle: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: '#FF9800',
-  },
-  warningText: {
-    fontSize: '0.85rem',
-    color: '#FFB74D',
-    lineHeight: '1.6',
-  },
-  section: {
-    background: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  sectionTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: '1.2rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  titleIcon: {
-    fontSize: '1.2rem',
-  },
-  strategyGrid: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.8rem',
-  },
-  strategyCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '1rem',
-    background: 'rgba(255, 255, 255, 0.03)',
-    border: '2px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    position: 'relative',
-  },
-  strategyCardActive: {
-    transform: 'translateX(4px)',
-    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.2)',
-  },
-  strategyIcon: {
-    fontSize: '2rem',
-    lineHeight: 1,
-  },
-  strategyInfo: {
-    flex: 1,
-  },
-  strategyName: {
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: '0.25rem',
-  },
-  strategyDesc: {
-    fontSize: '0.75rem',
-    color: '#aaa',
-    lineHeight: '1.4',
-  },
-  strategyCheck: {
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-  },
-  configGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '1rem',
-  },
-  configItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  label: {
-    fontSize: '0.85rem',
-    color: '#aaa',
-    fontWeight: '500',
-  },
-  select: {
-    padding: '0.7rem',
-    background: 'rgba(0, 0, 0, 0.4)',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    borderRadius: '6px',
-    color: '#fff',
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  aiLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.85rem',
-    color: '#fff',
-    cursor: 'pointer',
-  },
-  checkbox: {
-    width: '18px',
-    height: '18px',
-    cursor: 'pointer',
-  },
-  aiInfo: {
-    fontSize: '0.75rem',
-    color: '#4CAF50',
-    padding: '0.5rem',
-    background: 'rgba(76, 175, 80, 0.1)',
-    borderRadius: '4px',
-    marginTop: '0.5rem',
-  },
-  paramsGrid: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.2rem',
-  },
-  paramItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  paramHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  paramValue: {
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    color: '#4CAF50',
-    fontFamily: 'monospace',
-  },
-  slider: {
-    width: '100%',
-    height: '6px',
-    borderRadius: '3px',
-    outline: 'none',
-    opacity: '0.8',
-    transition: 'opacity 0.2s',
-  },
-  paramRange: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.7rem',
-    color: '#666',
-  },
-  startButton: {
-    padding: '1rem 2rem',
-    background: 'linear-gradient(135deg, #4CAF50, #45a049)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '10px',
-    fontSize: '1.05rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem',
-    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
-  },
-  stopButton: {
-    padding: '1rem 2rem',
-    background: 'linear-gradient(135deg, #f44336, #d32f2f)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '10px',
-    fontSize: '1.05rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem',
-    boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
-  },
-  error: {
-    padding: '1rem',
-    background: 'rgba(244, 67, 54, 0.1)',
-    border: '1px solid rgba(244, 67, 54, 0.3)',
-    borderRadius: '8px',
-    color: '#f44336',
-    fontSize: '0.9rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  errorIcon: {
-    fontSize: '1.2rem',
-  },
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    padding: '4rem 3rem',
-  },
-  emptyIcon: {
-    fontSize: '7rem',
-    marginBottom: '2rem',
-    opacity: 0.3,
-  },
-  emptyTitle: {
-    fontSize: '2rem',
-    fontWeight: '600',
-    marginBottom: '1rem',
-    color: '#fff',
-  },
-  emptyText: {
-    fontSize: '1.05rem',
-    color: '#888',
-    textAlign: 'center',
-    maxWidth: '600px',
-    lineHeight: '1.8',
-    marginBottom: '3rem',
-  },
-  featureList: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '1.2rem',
-    width: '100%',
-    maxWidth: '700px',
-  },
-  featureItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    fontSize: '0.95rem',
-    color: '#aaa',
-    padding: '0.8rem',
-    background: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: '8px',
-    border: '1px solid rgba(255, 255, 255, 0.05)',
-  },
-  featureIcon: {
-    fontSize: '1.5rem',
-  },
-  runningState: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem',
-    padding: '1.5rem',
-  },
-  statusHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: '1rem',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  statusBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    background: 'rgba(76, 175, 80, 0.1)',
-    border: '1px solid rgba(76, 175, 80, 0.3)',
-    borderRadius: '20px',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    color: '#4CAF50',
-  },
-  statusDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    background: '#4CAF50',
-    animation: 'pulse 2s infinite',
-  },
-  statusTime: {
-    fontSize: '0.85rem',
-    color: '#888',
-    fontFamily: 'monospace',
-  },
-  metricsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '1rem',
-  },
-  statusCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    background: 'rgba(0, 0, 0, 0.3)',
-    padding: '1.2rem',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  statusIcon: {
-    fontSize: '2rem',
-  },
-  statusContent: {
-    flex: 1,
-  },
-  statusLabel: {
-    fontSize: '0.8rem',
-    color: '#aaa',
-    marginBottom: '0.4rem',
-  },
-  statusValue: {
-    fontSize: '1.3rem',
-    fontWeight: '700',
-    fontFamily: 'monospace',
-  },
-  positionSection: {
-    marginTop: '1rem',
-  },
-  subsectionTitle: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: '1rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  emptyPosition: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '2rem',
-    background: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  emptyPositionIcon: {
-    fontSize: '3rem',
-    marginBottom: '0.5rem',
-    opacity: 0.3,
-  },
-  emptyPositionText: {
-    fontSize: '0.9rem',
-    color: '#666',
-  },
-  logSection: {
-    marginTop: '1rem',
-  },
-  logContainer: {
-    background: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: '10px',
-    padding: '1rem',
-    maxHeight: '300px',
-    overflowY: 'auto',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  logEntry: {
-    display: 'flex',
-    gap: '1rem',
-    padding: '0.6rem 0',
-    fontSize: '0.85rem',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-  },
-  logTime: {
-    color: '#666',
-    minWidth: '90px',
-    fontFamily: 'monospace',
-  },
-  logMessage: {
-    flex: 1,
-  },
-};

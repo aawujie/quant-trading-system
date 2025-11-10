@@ -97,7 +97,7 @@ class MACDStrategy(BaseStrategy):
     ) -> Optional[SignalData]:
         """
         检测MACD交叉入场信号（重构版）
-        
+            
         Returns:
             SignalData对象或None
         """
@@ -197,7 +197,7 @@ class MACDStrategy(BaseStrategy):
         
         # 无交叉
         return None
-    
+
     async def check_exit_signal(
         self,
         symbol: str,

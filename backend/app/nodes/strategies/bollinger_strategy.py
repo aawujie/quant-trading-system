@@ -87,7 +87,7 @@ class BollingerStrategy(BaseStrategy):
     ) -> Optional[SignalData]:
         """
         检测布林带触及入场信号（重构版）
-        
+            
         Returns:
             SignalData对象或None
         """
