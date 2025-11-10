@@ -260,22 +260,22 @@ export default function BacktestConfig() {
             <div>
               <label className="block text-sm text-gray-400 mb-1">开始日期</label>
               <input
-                type="date"
+                type="datetime-local"
                 value={config.start_date}
                 onChange={(e) => setConfig({ ...config, start_date: e.target.value })}
                 disabled={loading}
-                className="w-full px-3 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded text-white text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:dark]"
               />
             </div>
 
             <div>
               <label className="block text-sm text-gray-400 mb-1">结束日期</label>
               <input
-                type="date"
+                type="datetime-local"
                 value={config.end_date}
                 onChange={(e) => setConfig({ ...config, end_date: e.target.value })}
                 disabled={loading}
-                className="w-full px-3 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded text-white text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#0f0f17] border border-[#2a2a3a] rounded-md text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:dark]"
               />
             </div>
           </div>
