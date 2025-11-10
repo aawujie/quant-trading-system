@@ -172,15 +172,15 @@ export default function DrawingList({ drawings, onDelete, onToggleVisibility, on
                 </div>
                 
                 {/* 删除按钮 */}
-                <button
-                  onClick={() => onDelete(drawing.drawingId)}
-                  style={styles.deleteButton}
+              <button
+                onClick={() => onDelete(drawing.drawingId)}
+                style={styles.deleteButton}
                   onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
                   onMouseOut={(e) => e.currentTarget.style.opacity = '0.8'}
-                  title="删除此绘图"
-                >
-                  🗑️
-                </button>
+                title="删除此绘图"
+              >
+                🗑️
+              </button>
               </div>
             </div>
           );

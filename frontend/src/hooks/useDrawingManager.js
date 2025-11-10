@@ -96,8 +96,8 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
         // 将保存的数据转换为绘图工具实例，并按时间从高到低排序
         const reconstructedDrawings = savedDrawings
           .map(data => {
-            const tool = createToolFromData(data);
-            return tool;
+          const tool = createToolFromData(data);
+          return tool;
           })
           .filter(tool => tool !== null)
           .sort((a, b) => (b.created_at || 0) - (a.created_at || 0)); // 时间从高到低
