@@ -348,8 +348,11 @@ export function useDrawingManager(chart, series, symbol, timeframe) {
       // 保存到后端
       saveDrawing(completedTool);
       
-      // 添加到绘图列表
-      setDrawings(prev => [...prev, completedTool]);
+      // 添加到绘图列表，并按时间从高到低排序
+      setDrawings(prev => {
+        const newDrawings = [...prev, completedTool];
+        return newDrawings.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+      });
         
         console.log('✅ 绘图完成并添加到列表，当前绘图数量:', drawings.length + 1);
       } else {
