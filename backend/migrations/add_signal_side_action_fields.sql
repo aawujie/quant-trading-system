@@ -35,3 +35,4 @@ COMMENT ON COLUMN signals.side IS '仓位方向: LONG(做多)/SHORT(做空)';
 COMMENT ON COLUMN signals.action IS '操作类型: OPEN(开仓)/CLOSE(平仓)';
 COMMENT ON COLUMN signals.signal_type IS '信号类型: BUY/SELL(现货) 或 OPEN_LONG/OPEN_SHORT/CLOSE_LONG/CLOSE_SHORT(合约)';
 
+
