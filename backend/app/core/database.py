@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, Integer, String, Float, BigInteger, DateTime, Index, select, JSON, func
+from sqlalchemy import create_engine, Column, Integer, String, Float, BigInteger, Boolean, DateTime, Index, select, JSON, func
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
@@ -95,7 +95,7 @@ class SignalDB(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # AI增强字段
-    ai_enhanced = Column(Integer)  # 使用Integer代替Boolean以兼容SQLite和PostgreSQL
+    ai_enhanced = Column(Boolean, default=False)  # 修复：使用Boolean匹配数据库类型
     ai_reasoning = Column(String)  # TEXT类型
     ai_confidence = Column(Float)
     ai_model = Column(String(50))
@@ -715,8 +715,14 @@ class Database:
                     stop_loss=signal.stop_loss,
                     take_profit=signal.take_profit,
                     position_size=signal.position_size,
-                    side=signal.side,  # ← 新增
-                    action=signal.action  # ← 新增
+                    side=signal.side,
+                    action=signal.action,
+                    # AI增强字段
+                    ai_enhanced=signal.ai_enhanced,
+                    ai_reasoning=signal.ai_reasoning,
+                    ai_confidence=signal.ai_confidence,
+                    ai_model=signal.ai_model,
+                    ai_risk_assessment=signal.ai_risk_assessment
                 )
                 session.add(db_signal)
                 await session.commit()
