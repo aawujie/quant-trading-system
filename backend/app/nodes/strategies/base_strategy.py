@@ -69,6 +69,9 @@ class BaseStrategy(ProcessorNode):
             for symbol in symbols
         ]
         
+        # 回测模式的直接信号处理器（避免 Redis 开销）
+        self._direct_signal_handler = None
+        
         # 状态缓存
         self.state: Dict[str, Dict[str, Optional[object]]] = {
             symbol: {
@@ -205,10 +208,16 @@ class BaseStrategy(ProcessorNode):
             
             # 保存和发布信号
             if signal:
-                success = await self.db.insert_signal(signal)
-                if success:
-                    output_topic = f"signal:{self.strategy_name}:{symbol}"
-                    await self.emit(output_topic, signal.model_dump())
+                # 检查是否有直接的信号处理器（回测模式使用）
+                if hasattr(self, '_direct_signal_handler') and self._direct_signal_handler:
+                    # 回测模式：直接调用处理器，不经过 Redis
+                    await self._direct_signal_handler(signal)
+                else:
+                    # 实盘模式：保存到数据库并发布到 Redis
+                    success = await self.db.insert_signal(signal)
+                    if success:
+                        output_topic = f"signal:{self.strategy_name}:{symbol}"
+                        await self.emit(output_topic, signal.model_dump())
         
         except Exception as e:
             logger.error(f"[{self.strategy_name}] Error processing {topic}: {e}")

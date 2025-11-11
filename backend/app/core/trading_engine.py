@@ -51,17 +51,14 @@ class TradingEngine:
         self.progress_tracker = progress_tracker
         
         # 回测结果
-        self.trades: List[Dict] = []
+        self.trades: List[Dict] = []  # 完整交易记录（开仓到平仓）
+        self.signals: List[Dict] = []  # 所有信号记录（用于前端展示）
         self.equity_curve: List[Dict] = []
         
-        # 订阅策略的信号输出
+        # 回测模式：注入直接信号处理器，避免 Redis 开销
         if mode == "backtest":
-            # 回测模式：同步处理信号
-            for symbol in strategy.symbols:
-                signal_topic = f"signal:{strategy.strategy_name}:{symbol}"
-                asyncio.create_task(
-                    strategy.bus.subscribe(signal_topic, self._handle_signal)
-                )
+            strategy._direct_signal_handler = self._handle_signal_direct
+            logger.info("Backtest mode: Using direct signal handler (bypassing Redis)")
         
         logger.info(
             f"TradingEngine initialized: mode={mode}, "
@@ -72,6 +69,19 @@ class TradingEngine:
     async def run(self):
         """启动交易引擎"""
         logger.info(f"Starting trading engine in {self.mode} mode...")
+        
+        # 实盘模式：创建 Redis 订阅任务
+        subscription_tasks = []
+        if self.mode == "live":
+            for symbol in self.strategy.symbols:
+                signal_topic = f"signal:{self.strategy.strategy_name}:{symbol}"
+                task = asyncio.create_task(
+                    self.strategy.bus.subscribe(signal_topic, self._handle_signal)
+                )
+                subscription_tasks.append(task)
+                logger.info(f"[LIVE] Created subscription task for: {signal_topic}")
+        else:
+            logger.info("[BACKTEST] Using direct signal handler, no Redis subscription needed")
         
         try:
             # 获取数据流
@@ -98,6 +108,13 @@ class TradingEngine:
             raise
         
         finally:
+            # 取消所有订阅任务（仅实盘模式）
+            for task in subscription_tasks:
+                task.cancel()
+            # 等待任务完成（忽略CancelledError）
+            if subscription_tasks:
+                await asyncio.gather(*subscription_tasks, return_exceptions=True)
+            
             await self.data_source.close()
             logger.info("Trading engine stopped")
     
@@ -117,16 +134,20 @@ class TradingEngine:
         except Exception as e:
             logger.error(f"Error processing data from {topic}: {e}")
     
-    async def _handle_signal(self, topic: str, signal_data: dict):
+    async def _handle_signal_direct(self, signal: SignalData):
         """
-        处理交易信号
+        直接处理交易信号（回测模式专用，无需 Redis）
         
-        实盘：发送到交易所
-        回测：模拟执行
+        Args:
+            signal: SignalData 对象（而不是 dict）
         """
         try:
-            signal = SignalData(**signal_data)
             symbol = signal.symbol
+            
+            logger.info(
+                f"[BACKTEST] Processing signal: {signal.action} {signal.side} "
+                f"for {symbol} @ ${signal.price:.2f} - {signal.reason}"
+            )
             
             kline = self.strategy.state[symbol]["kline"]
             indicator = self.strategy.state[symbol]["indicator"]
@@ -142,35 +163,100 @@ class TradingEngine:
                 )
                 
                 if order_info:
-                    if self.mode == "live":
-                        await self._execute_live_order(signal, order_info)
-                    else:
-                        self._simulate_order(signal, order_info)
+                    self._simulate_order(signal, order_info)
+                    self.position_manager.open_position(symbol, order_info, signal)
                     
+                    # 记录信号（用于前端展示）
+                    self.signals.append({
+                        'timestamp': signal.timestamp,
+                        'symbol': symbol,
+                        'side': signal.side,
+                        'action': signal.action,
+                        'signal_type': signal.signal_type.value,
+                        'price': signal.price,
+                        'quantity': order_info.get('quantity', 0),
+                        'reason': signal.reason,
+                        'confidence': signal.confidence,
+                        'stop_loss': signal.stop_loss,
+                        'take_profit': signal.take_profit
+                    })
+            
+            elif signal.action == "CLOSE":
+                # 平仓
+                if symbol in self.position_manager.positions:
+                    position = self.position_manager.positions[symbol]
+                    self._simulate_close(signal)
+                    trade_result = self.position_manager.close_position(symbol, signal.price)
+                    
+                    if trade_result:
+                        # 记录完整交易
+                        self.trades.append({
+                            'symbol': symbol,
+                            'side': trade_result.get('side', 'UNKNOWN'),
+                            'entry_time': trade_result.get('entry_time'),
+                            'exit_time': signal.timestamp,
+                            **trade_result
+                        })
+                        
+                        # 记录平仓信号（用于前端展示）
+                        self.signals.append({
+                            'timestamp': signal.timestamp,
+                            'symbol': symbol,
+                            'side': signal.side,
+                            'action': signal.action,
+                            'signal_type': signal.signal_type.value,
+                            'price': signal.price,
+                            'quantity': position.get('quantity', 0),
+                            'reason': signal.reason,
+                            'confidence': None,
+                            'pnl': trade_result.get('pnl'),
+                            'pnl_pct': trade_result.get('pnl_pct')
+                        })
+        
+        except Exception as e:
+            logger.error(f"Error handling signal directly: {e}", exc_info=True)
+    
+    async def _handle_signal(self, topic: str, signal_data: dict):
+        """
+        处理交易信号（实盘模式，从 Redis 接收）
+        
+        实盘：发送到交易所
+        """
+        try:
+            logger.info(f"[LIVE] Received signal on topic: {topic}")
+            signal = SignalData(**signal_data)
+            symbol = signal.symbol
+            
+            logger.info(
+                f"[LIVE] Processing signal: {signal.action} {signal.side} "
+                f"for {symbol} @ ${signal.price:.2f}"
+            )
+            
+            kline = self.strategy.state[symbol]["kline"]
+            indicator = self.strategy.state[symbol]["indicator"]
+            
+            if not kline or not indicator:
+                logger.warning(f"Incomplete state for {symbol}, skipping signal")
+                return
+            
+            if signal.action == "OPEN":
+                # 开仓
+                order_info = self.position_manager.calculate_order_size(
+                    signal, kline, indicator
+                )
+                
+                if order_info:
+                    await self._execute_live_order(signal, order_info)
                     self.position_manager.open_position(symbol, order_info, signal)
             
             elif signal.action == "CLOSE":
                 # 平仓
                 if symbol in self.position_manager.positions:
-                    if self.mode == "live":
-                        await self._execute_live_close(signal)
-                    else:
-                        self._simulate_close(signal)
-                    
-                    trade_result = self.position_manager.close_position(symbol, signal.price)
-                    
-                    if self.mode == "backtest" and trade_result:
-                        # 记录交易
-                        self.trades.append({
-                            'symbol': symbol,
-                            'side': self.position_manager.positions.get(symbol, {}).get('side', 'UNKNOWN'),
-                            'entry_time': trade_result.get('entry_time'),
-                            'exit_time': signal.timestamp,
-                            **trade_result
-                        })
+                    await self._execute_live_close(signal)
+                    self.position_manager.close_position(symbol, signal.price)
         
         except Exception as e:
-            logger.error(f"Error handling signal: {e}", exc_info=True)
+            logger.error(f"Error handling signal from Redis: {e}", exc_info=True)
     
     def _simulate_order(self, signal: SignalData, order_info: dict):
         """回测模拟开仓"""
@@ -334,14 +420,107 @@ class TradingEngine:
     
     def get_results(self) -> dict:
         """获取回测结果（用于API返回）"""
+        statistics = self._calculate_statistics()
+        account_status = self.position_manager.get_account_status()
+        
+        # 计算盈利因子
+        winning_trades = [t for t in self.trades if t.get('pnl', 0) > 0]
+        losing_trades = [t for t in self.trades if t.get('pnl', 0) < 0]
+        total_profit = sum(t.get('pnl', 0) for t in winning_trades)
+        total_loss = abs(sum(t.get('pnl', 0) for t in losing_trades))
+        profit_factor = total_profit / total_loss if total_loss > 0 else 0
+        
+        # 计算仓位相关统计
+        if self.trades:
+            # 平均持仓时间（小时）
+            avg_holding_time = sum(
+                (t.get('exit_time', 0) - t.get('entry_time', 0)) / 3600 
+                for t in self.trades
+            ) / len(self.trades) if self.trades else 0
+            
+            # 最大持仓金额占比
+            max_position_pct = self.position_manager.single_position_max_pct
+            
+            # 平均单笔投入（从信号中计算开仓金额）
+            open_signals = [s for s in self.signals if s.get('action') == 'OPEN']
+            avg_position_size = sum(
+                s.get('price', 0) * s.get('quantity', 0) 
+                for s in open_signals
+            ) / len(open_signals) if open_signals else 0
+        else:
+            avg_holding_time = 0
+            max_position_pct = 0
+            avg_position_size = 0
+        
         return {
             'mode': self.mode,
             'strategy': self.strategy.strategy_name,
             'symbols': self.strategy.symbols,
             'timeframe': self.strategy.timeframe,
-            'statistics': self._calculate_statistics(),
-            'account_status': self.position_manager.get_account_status(),
-            'trades': self.trades,
+            
+            # 顶层字段（方便前端直接访问）
+            'total_return': account_status['total_pnl_pct'],
+            'sharpe_ratio': statistics['sharpe_ratio'],
+            'max_drawdown': statistics['max_drawdown'],
+            'win_rate': statistics['win_rate'],
+            'total_trades': statistics['total_trades'],
+            'profit_factor': profit_factor,
+            
+            # 仓位管理信息
+            'initial_balance': account_status['initial_balance'],
+            'final_balance': account_status['current_balance'],
+            'avg_holding_time': avg_holding_time,  # 小时
+            'max_position_pct': max_position_pct,  # 单笔最大仓位占比
+            'avg_position_size': avg_position_size,  # 平均单笔投入
+            
+            # 详细统计（兼容性保留）
+            'statistics': statistics,
+            'account_status': account_status,
+            
+            # 数据记录
+            'trades': self.trades,  # 完整交易记录（用于统计分析）
+            'signals': self.signals,  # 所有信号记录（用于前端展示）
             'equity_curve': self.equity_curve
         }
+    
+    def save_results_to_file(self, output_dir: str = "backtest_results") -> str:
+        """
+        保存回测结果到文件
+        
+        Args:
+            output_dir: 输出目录
+            
+        Returns:
+            保存的文件路径
+        """
+        import os
+        import json
+        from datetime import datetime
+        
+        # 创建输出目录
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 生成文件名：策略_交易对_时间周期_时间戳.json
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        symbols_str = "_".join(self.strategy.symbols)
+        filename = f"{self.strategy.strategy_name}_{symbols_str}_{self.strategy.timeframe}_{timestamp}.json"
+        filepath = os.path.join(output_dir, filename)
+        
+        # 获取结果
+        results = self.get_results()
+        
+        # 添加元数据
+        results['metadata'] = {
+            'generated_at': datetime.now().isoformat(),
+            'total_signals': len(self.signals),
+            'total_trades': len(self.trades),
+            'backtest_duration_seconds': None,  # 可以记录运行时间
+        }
+        
+        # 保存为 JSON
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"Backtest results saved to: {filepath}")
+        return filepath
 

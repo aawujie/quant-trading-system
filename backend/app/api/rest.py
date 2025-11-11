@@ -931,10 +931,19 @@ async def run_backtest(request: BacktestRequest):
             
             backtest_task_manager.update_progress(task_id, 95)
             
-            # === 阶段4: 结果统计 (95-100%) ===
+            # === 阶段4: 结果统计与保存 (95-100%) ===
             results = engine.get_results()
             
             backtest_task_manager.update_progress(task_id, 98)
+            
+            # 保存回测结果到文件
+            try:
+                filepath = engine.save_results_to_file(output_dir="backtest_results")
+                results['saved_file'] = filepath
+                logger.info(f"Backtest results saved: {filepath}")
+            except Exception as e:
+                logger.error(f"Failed to save backtest results: {e}")
+                results['saved_file'] = None
             
             # 返回结果（100%会在任务完成时自动设置）
             return results

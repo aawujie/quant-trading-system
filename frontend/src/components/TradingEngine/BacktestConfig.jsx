@@ -83,6 +83,7 @@ export default function BacktestConfig() {
 
     // 建立WebSocket连接
     const ws = new WebSocket(`ws://localhost:8000/ws/backtest/${taskId}`);
+    let lastLoggedProgress = 0; // 记录上次打印日志的进度
     
     ws.onopen = () => {
       console.log('✅ WebSocket connected for task:', taskId);
@@ -91,7 +92,17 @@ export default function BacktestConfig() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('📨 Received from WebSocket:', data);
+        
+        // 智能日志：只在关键时刻打印（进度变化>=5% 或 状态变化）
+        const shouldLog = 
+          data.status === 'completed' || 
+          data.status === 'failed' || 
+          (data.progress !== undefined && (data.progress - lastLoggedProgress >= 5 || data.progress === 0));
+        
+        if (shouldLog) {
+          console.log(`📨 WebSocket update: ${data.status} - ${data.progress}%`);
+          lastLoggedProgress = data.progress || 0;
+        }
         
         // 更新进度
         if (data.progress !== undefined) {
@@ -426,44 +437,81 @@ export default function BacktestConfig() {
             <div className="grid grid-cols-3 gap-4">
               <MetricCard
                 label="总收益率"
-                value={`${(result.total_return * 100).toFixed(2)}%`}
+                value={result.total_return != null ? `${(result.total_return * 100).toFixed(2)}%` : 'N/A'}
                 trend={result.total_return >= 0 ? 'up' : 'down'}
                 icon="💰"
               />
               <MetricCard
                 label="夏普比率"
-                value={result.sharpe_ratio?.toFixed(2) || 'N/A'}
+                value={result.sharpe_ratio != null ? result.sharpe_ratio.toFixed(2) : 'N/A'}
                 icon="📊"
               />
               <MetricCard
                 label="最大回撤"
-                value={`${(result.max_drawdown * 100).toFixed(2)}%`}
+                value={result.max_drawdown != null ? `${(result.max_drawdown * 100).toFixed(2)}%` : 'N/A'}
                 trend="down"
                 icon="📉"
               />
               <MetricCard
                 label="胜率"
-                value={`${(result.win_rate * 100).toFixed(2)}%`}
+                value={result.win_rate != null ? `${(result.win_rate * 100).toFixed(2)}%` : 'N/A'}
                 icon="🎯"
               />
               <MetricCard
                 label="交易次数"
-                value={result.total_trades}
+                value={result.total_trades != null ? result.total_trades : 0}
                 icon="🔄"
               />
               <MetricCard
                 label="盈利因子"
-                value={result.profit_factor?.toFixed(2) || 'N/A'}
+                value={result.profit_factor != null ? result.profit_factor.toFixed(2) : 'N/A'}
                 icon="📈"
               />
             </div>
 
-            {/* 交易记录 */}
-            {result.trades && result.trades.length > 0 && (
+            {/* 仓位管理信息 */}
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <MetricCard
+                label="初始资金"
+                value={result.initial_balance != null ? `$${result.initial_balance.toFixed(2)}` : 'N/A'}
+                icon="💵"
+              />
+              <MetricCard
+                label="最终资金"
+                value={result.final_balance != null ? `$${result.final_balance.toFixed(2)}` : 'N/A'}
+                trend={result.final_balance >= result.initial_balance ? 'up' : 'down'}
+                icon="💳"
+              />
+              <MetricCard
+                label="平均持仓时间"
+                value={result.avg_holding_time != null ? `${result.avg_holding_time.toFixed(1)}h` : 'N/A'}
+                icon="⏱️"
+              />
+              <MetricCard
+                label="最大仓位占比"
+                value={result.max_position_pct != null ? `${(result.max_position_pct * 100).toFixed(0)}%` : 'N/A'}
+                icon="📊"
+              />
+              <MetricCard
+                label="平均单笔投入"
+                value={result.avg_position_size != null ? `$${result.avg_position_size.toFixed(2)}` : 'N/A'}
+                icon="💸"
+              />
+              <MetricCard
+                label="资金使用率"
+                value={result.avg_position_size != null && result.initial_balance != null 
+                  ? `${((result.avg_position_size / result.initial_balance) * 100).toFixed(1)}%` 
+                  : 'N/A'}
+                icon="🎚️"
+              />
+            </div>
+
+            {/* 交易信号记录 */}
+            {result.signals && result.signals.length > 0 && (
               <div>
                 <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                  📝 交易记录
-                  <span className="text-sm text-green-400 font-normal">共 {result.trades.length} 笔</span>
+                  📝 交易信号记录
+                  <span className="text-sm text-green-400 font-normal">共 {result.signals.length} 个信号</span>
                 </h4>
                 <div className="bg-[#0a0a0f] rounded-lg overflow-hidden border border-[#2a2a3a]">
                   <div className="overflow-x-auto">
@@ -479,7 +527,7 @@ export default function BacktestConfig() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#2a2a3a]">
-                        {result.trades.map((trade, idx) => (
+                        {result.signals.map((trade, idx) => (
                           <tr key={idx} className="hover:bg-[#1a1a2e]/50 transition-colors">
                             <td className="px-4 py-3 text-sm text-gray-300 font-mono">
                               {new Date(trade.timestamp * 1000).toLocaleString('zh-CN', {
@@ -500,16 +548,18 @@ export default function BacktestConfig() {
                               {trade.action === 'OPEN' ? '开仓' : '平仓'}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-300 font-mono text-right">
-                              ${trade.price.toFixed(2)}
+                              ${trade.price?.toFixed(2) || '-'}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-300 font-mono text-right">
-                              {trade.quantity.toFixed(4)}
+                              {trade.quantity?.toFixed(4) || '-'}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <span className={`text-sm font-semibold font-mono ${
-                                trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
+                                (trade.pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                               }`}>
-                                {trade.pnl >= 0 ? '+' : ''}{trade.pnl?.toFixed(2) || '-'}
+                                {trade.action === 'CLOSE' && trade.pnl != null 
+                                  ? `${trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)}` 
+                                  : '-'}
                               </span>
                             </td>
                           </tr>

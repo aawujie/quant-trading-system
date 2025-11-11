@@ -152,6 +152,10 @@ docker-compose.override.yml
 *.log
 logs/*.log
 *.log.*
+# 忽略所有回测结果文件
+*.json
+# 保留示例文件
+!EXAMPLE_*.json
 
 # 保留日志目录但忽略内容
 logs/*

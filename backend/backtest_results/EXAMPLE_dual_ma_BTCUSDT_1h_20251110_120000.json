@@ -1,0 +1,151 @@
+{
+  "mode": "backtest",
+  "strategy": "dual_ma",
+  "symbols": [
+    "BTCUSDT"
+  ],
+  "timeframe": "1h",
+  "total_return": 0.234567,
+  "sharpe_ratio": 1.234,
+  "max_drawdown": 0.089,
+  "win_rate": 0.6222222222222222,
+  "total_trades": 45,
+  "profit_factor": 2.84,
+  "initial_balance": 10000.0,
+  "final_balance": 12345.67,
+  "avg_holding_time": 8.5,
+  "max_position_pct": 0.3,
+  "avg_position_size": 3000.0,
+  "statistics": {
+    "total_trades": 45,
+    "winning_trades": 28,
+    "losing_trades": 17,
+    "win_rate": 0.6222222222222222,
+    "avg_win": 234.56,
+    "avg_loss": -156.78,
+    "win_loss_ratio": 1.496,
+    "max_win": 1234.56,
+    "max_loss": -567.89,
+    "max_drawdown": 0.089,
+    "sharpe_ratio": 1.234
+  },
+  "account_status": {
+    "initial_balance": 10000.0,
+    "current_balance": 12345.67,
+    "total_pnl": 2345.67,
+    "total_pnl_pct": 0.234567
+  },
+  "trades": [
+    {
+      "symbol": "BTCUSDT",
+      "side": "LONG",
+      "entry_time": 1757678400,
+      "exit_time": 1757692800,
+      "entry_price": 115035.5,
+      "exit_price": 115435.0,
+      "quantity": 0.0869565,
+      "pnl": 34.76,
+      "pnl_pct": 0.00347,
+      "reason": "Take profit triggered"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "side": "SHORT",
+      "entry_time": 1757746800,
+      "exit_time": 1757800800,
+      "entry_price": 115715.5,
+      "exit_price": 115828.2,
+      "quantity": 0.0864198,
+      "pnl": -9.74,
+      "pnl_pct": -0.00097,
+      "reason": "Stop loss triggered"
+    }
+  ],
+  "signals": [
+    {
+      "timestamp": 1757678400,
+      "symbol": "BTCUSDT",
+      "side": "LONG",
+      "action": "OPEN",
+      "signal_type": "OPEN_LONG",
+      "price": 115035.5,
+      "quantity": 0.0869565,
+      "reason": "Golden Cross: MA5 crossed above MA20",
+      "confidence": 0.85,
+      "stop_loss": 114335.0,
+      "take_profit": 116500.0
+    },
+    {
+      "timestamp": 1757692800,
+      "symbol": "BTCUSDT",
+      "side": "LONG",
+      "action": "CLOSE",
+      "signal_type": "CLOSE_LONG",
+      "price": 115435.0,
+      "quantity": 0.0869565,
+      "reason": "Take profit triggered",
+      "confidence": null,
+      "pnl": 34.76,
+      "pnl_pct": 0.00347
+    },
+    {
+      "timestamp": 1757746800,
+      "symbol": "BTCUSDT",
+      "side": "SHORT",
+      "action": "OPEN",
+      "signal_type": "OPEN_SHORT",
+      "price": 115715.5,
+      "quantity": 0.0864198,
+      "reason": "Death Cross: MA5 crossed below MA20",
+      "confidence": 0.82,
+      "stop_loss": 116500.0,
+      "take_profit": 114800.0
+    },
+    {
+      "timestamp": 1757800800,
+      "symbol": "BTCUSDT",
+      "side": "SHORT",
+      "action": "CLOSE",
+      "signal_type": "CLOSE_SHORT",
+      "price": 115828.2,
+      "quantity": 0.0864198,
+      "reason": "Stop loss triggered",
+      "confidence": null,
+      "pnl": -9.74,
+      "pnl_pct": -0.00097
+    }
+  ],
+  "equity_curve": [
+    {
+      "timestamp": 1757678400,
+      "balance": 10000.0,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "timestamp": 1757692800,
+      "balance": 10034.76,
+      "pnl": 34.76,
+      "pnl_pct": 0.00347
+    },
+    {
+      "timestamp": 1757746800,
+      "balance": 10034.76,
+      "pnl": 34.76,
+      "pnl_pct": 0.00347
+    },
+    {
+      "timestamp": 1757800800,
+      "balance": 10025.02,
+      "pnl": 25.02,
+      "pnl_pct": 0.0025
+    }
+  ],
+  "metadata": {
+    "generated_at": "2025-11-10T15:20:00.123456",
+    "total_signals": 4,
+    "total_trades": 2,
+    "backtest_duration_seconds": null
+  }
+}
+

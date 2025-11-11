@@ -75,11 +75,10 @@ class ProgressTracker:
         progress_changed = progress > self.last_progress
         is_complete = self.processed_items >= self.total_items
         
-        # 更新条件：
-        # 1. 时间间隔足够 且 达到阈值
-        # 2. 或者进度变化了
-        # 3. 或者完成了
-        should_update = (time_passed and threshold_reached) or progress_changed or is_complete
+        # 更新条件（修复：确保时间节流生效）：
+        # 1. 时间间隔足够 且 (达到阈值 或 进度变化了)
+        # 2. 或者完成了（完成时立即推送）
+        should_update = (time_passed and (threshold_reached or progress_changed)) or is_complete
         
         if should_update:
             self.last_update_time = current_time

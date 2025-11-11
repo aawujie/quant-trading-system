@@ -161,16 +161,20 @@ class TaskManager:
     
     def update_progress(self, task_id: str, progress: int) -> None:
         """
-        更新任务进度
+        更新任务进度（带节流）
         
         Args:
             task_id: 任务ID
             progress: 进度百分比（0-100）
         """
         if task_id in self.tasks:
-            self.tasks[task_id]['progress'] = progress
-            # 异步通知WebSocket客户端（不等待）
-            asyncio.create_task(self._notify_websockets(task_id))
+            old_progress = self.tasks[task_id].get('progress', 0)
+            
+            # 节流：只有进度真正改变时才推送
+            if progress != old_progress:
+                self.tasks[task_id]['progress'] = progress
+                # 异步通知WebSocket客户端（不等待）
+                asyncio.create_task(self._notify_websockets(task_id))
     
     async def register_websocket(self, task_id: str, websocket) -> None:
         """
