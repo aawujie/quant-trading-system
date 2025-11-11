@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { getStrategies, getPositionPresets, getAIConfig } from '../../services/tradingEngineApi';
+import { useTradingEngineConfig } from '../../contexts/TradingEngineContext';
 
 /**
  * 实盘交易组件 - Tailwind风格
  */
 export default function LiveTrading() {
+  // 从Context获取共享配置
+  const { strategyDetails, presets, aiConfig } = useTradingEngineConfig();
+  
   const [config, setConfig] = useState({
     strategy: 'dual_ma',
     symbol: 'BTCUSDT',
@@ -14,52 +17,8 @@ export default function LiveTrading() {
     params: {},
   });
 
-  const [strategies, setStrategies] = useState([]);
-  const [strategyDetails, setStrategyDetails] = useState({});
-  const [presets, setPresets] = useState([]);
-  const [aiConfig, setAiConfig] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState(null);
-
-  // 加载配置
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [strategiesData, presetsData, aiConfigData] = await Promise.all([
-          getStrategies().catch(() => []),
-          getPositionPresets().catch(() => []),
-          getAIConfig().catch(() => ({ enabled: false })),
-        ]);
-        
-        if (strategiesData && strategiesData.length > 0) {
-          setStrategies(strategiesData);
-          
-          // 转换格式
-          const details = {};
-          strategiesData.forEach(strategy => {
-            details[strategy.name] = {
-              name: strategy.display_name || strategy.name,
-              description: strategy.description || '',
-              icon: strategy.icon || '📊',
-              color: strategy.color || '#4CAF50',
-              params: strategy.parameters || {}
-            };
-          });
-          setStrategyDetails(details);
-        }
-        
-        if (presetsData && Array.isArray(presetsData) && presetsData.length > 0) {
-          setPresets(presetsData);
-        }
-        if (aiConfigData) {
-          setAiConfig(aiConfigData);
-        }
-      } catch (err) {
-        console.error('Failed to load data:', err);
-      }
-    };
-    loadData();
-  }, []);
 
   // 初始化策略参数
   useEffect(() => {

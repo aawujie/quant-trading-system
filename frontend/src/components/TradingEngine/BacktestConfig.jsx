@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { runBacktest, getBacktestResult, getPositionPresets, getStrategies } from '../../services/tradingEngineApi';
+import { runBacktest } from '../../services/tradingEngineApi';
+import { useTradingEngineConfig } from '../../contexts/TradingEngineContext';
 
 /**
  * 回测配置组件 - Tailwind风格
  */
 export default function BacktestConfig() {
+  // 从Context获取共享配置
+  const { strategyDetails, presets } = useTradingEngineConfig();
+  
   const [config, setConfig] = useState({
     strategy: 'dual_ma',
     symbol: 'BTCUSDT',
@@ -17,50 +21,11 @@ export default function BacktestConfig() {
     market_type: 'future',  // 🔥 默认使用永续合约（与系统配置保持一致）
   });
 
-  const [strategies, setStrategies] = useState([]);
-  const [strategyDetails, setStrategyDetails] = useState({});
-  const [presets, setPresets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [taskId, setTaskId] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(0);  // 新增：进度状态
-
-  // 加载策略和预设
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [strategiesData, presetsData] = await Promise.all([
-          getStrategies().catch(() => []),
-          getPositionPresets().catch(() => []),
-        ]);
-        
-        if (strategiesData && strategiesData.length > 0) {
-          setStrategies(strategiesData);
-          
-          // 转换策略格式
-          const details = {};
-          strategiesData.forEach(strategy => {
-            details[strategy.name] = {
-              name: strategy.display_name || strategy.name,
-              description: strategy.description || '',
-              icon: strategy.icon || '📊',
-              color: strategy.color || '#4CAF50',
-              params: strategy.parameters || {}
-            };
-          });
-          setStrategyDetails(details);
-        }
-        
-        if (presetsData && Array.isArray(presetsData) && presetsData.length > 0) {
-          setPresets(presetsData);
-        }
-      } catch (err) {
-        console.error('Failed to load data:', err);
-      }
-    };
-    loadData();
-  }, []);
 
   // 初始化策略参数
   useEffect(() => {
