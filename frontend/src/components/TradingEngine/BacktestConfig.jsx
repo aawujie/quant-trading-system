@@ -26,6 +26,7 @@ export default function BacktestConfig() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(0);  // 新增：进度状态
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });  // 排序配置
 
   // 初始化策略参数
   useEffect(() => {
@@ -133,6 +134,59 @@ export default function BacktestConfig() {
         [key]: value,
       },
     }));
+  };
+
+  // 排序函数
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // 获取排序后的信号数据
+  const getSortedSignals = (signals) => {
+    if (!signals || !sortConfig.key) return signals;
+
+    const sorted = [...signals].sort((a, b) => {
+      let aVal, bVal;
+
+      switch (sortConfig.key) {
+        case 'timestamp':
+          aVal = a.timestamp;
+          bVal = b.timestamp;
+          break;
+        case 'side':
+          aVal = a.side;
+          bVal = b.side;
+          break;
+        case 'action':
+          aVal = a.action;
+          bVal = b.action;
+          break;
+        case 'price':
+          aVal = a.price || 0;
+          bVal = b.price || 0;
+          break;
+        case 'quantity':
+          aVal = a.quantity || 0;
+          bVal = b.quantity || 0;
+          break;
+        case 'pnl':
+          aVal = a.pnl || 0;
+          bVal = b.pnl || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
   };
 
   const currentStrategy = strategyDetails[config.strategy];
@@ -483,16 +537,52 @@ export default function BacktestConfig() {
                     <table className="w-full">
                       <thead>
                         <tr className="bg-[#1a1a2e] border-b border-[#2a2a3a]">
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">时间</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">方向</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">类型</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">价格</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">数量</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">收益</th>
+                          <SortableHeader 
+                            label="时间" 
+                            sortKey="timestamp" 
+                            currentSort={sortConfig} 
+                            onSort={handleSort}
+                            align="left"
+                          />
+                          <SortableHeader 
+                            label="方向" 
+                            sortKey="side" 
+                            currentSort={sortConfig} 
+                            onSort={handleSort}
+                            align="left"
+                          />
+                          <SortableHeader 
+                            label="类型" 
+                            sortKey="action" 
+                            currentSort={sortConfig} 
+                            onSort={handleSort}
+                            align="left"
+                          />
+                          <SortableHeader 
+                            label="价格" 
+                            sortKey="price" 
+                            currentSort={sortConfig} 
+                            onSort={handleSort}
+                            align="right"
+                          />
+                          <SortableHeader 
+                            label="数量" 
+                            sortKey="quantity" 
+                            currentSort={sortConfig} 
+                            onSort={handleSort}
+                            align="right"
+                          />
+                          <SortableHeader 
+                            label="收益" 
+                            sortKey="pnl" 
+                            currentSort={sortConfig} 
+                            onSort={handleSort}
+                            align="right"
+                          />
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#2a2a3a]">
-                        {result.signals.map((trade, idx) => (
+                        {getSortedSignals(result.signals).map((trade, idx) => (
                           <tr key={idx} className="hover:bg-[#1a1a2e]/50 transition-colors">
                             <td className="px-4 py-3 text-sm text-gray-300 font-mono">
                               {new Date(trade.timestamp * 1000).toLocaleString('zh-CN', {
@@ -539,6 +629,43 @@ export default function BacktestConfig() {
         )}
       </div>
     </div>
+  );
+}
+
+// 可排序表头组件
+function SortableHeader({ label, sortKey, currentSort, onSort, align = 'left' }) {
+  const isActive = currentSort.key === sortKey;
+  const direction = currentSort.direction;
+
+  return (
+    <th 
+      className={`px-4 py-3 text-${align} text-xs font-semibold text-gray-400 uppercase cursor-pointer hover:text-gray-200 transition-colors select-none`}
+      onClick={() => onSort(sortKey)}
+    >
+      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+        <span>{label}</span>
+        <span className="inline-flex flex-col text-[10px] leading-none">
+          {!isActive && (
+            <>
+              <span className="text-gray-600">▲</span>
+              <span className="text-gray-600">▼</span>
+            </>
+          )}
+          {isActive && direction === 'asc' && (
+            <>
+              <span className="text-blue-400">▲</span>
+              <span className="text-gray-600">▼</span>
+            </>
+          )}
+          {isActive && direction === 'desc' && (
+            <>
+              <span className="text-gray-600">▲</span>
+              <span className="text-blue-400">▼</span>
+            </>
+          )}
+        </span>
+      </div>
+    </th>
   );
 }
 
