@@ -1,0 +1,363 @@
+import { useState, useEffect, useRef } from 'react';
+import { calculatePositionByDistance, formatPrice, formatPercent, formatSize } from '../../utils/positionCalculator';
+import { drawPnLBoxOnCanvas, clearPnLBoxCanvas } from '../../utils/drawPriceLines';
+import './styles.css';
+
+/**
+ * 合约仓位计算器组件
+ * 
+ * 功能：
+ * 1. 基于相对距离输入（止盈/止损距离）
+ * 2. 实时计算仓位、保证金、杠杆、强平价
+ * 3. 在图表上绘制价格线（可开关）
+ * 4. 支持高级参数配置（MMR、强平缓冲）
+ */
+export default function PositionCalculator({ 
+  symbol, 
+  currentPrice,
+  chart,
+  candlestickSeries,
+  onResultChange,  // 回调函数，通知父组件结果变化
+  onVisibilityChange,  // 回调函数，通知父组件显示状态变化
+}) {
+  // UI 状态
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showPnLBox, setShowPnLBox] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // 基础输入参数
+  const [maxLoss, setMaxLoss] = useState(100);
+  const [tpDistance, setTpDistance] = useState(500);
+  const [slDistance, setSlDistance] = useState(-100);
+  
+  // 高级参数
+  const [mmr, setMmr] = useState(0.5);           // 维持保证金率 (%)
+  const [liqBuffer, setLiqBuffer] = useState(10); // 强平缓冲 (%)
+  
+  // 计算结果
+  const [result, setResult] = useState(null);
+  
+  // 实时计算
+  useEffect(() => {
+    if (!currentPrice || currentPrice <= 0) {
+      setResult(null);
+      return;
+    }
+    
+    const calculated = calculatePositionByDistance(
+      maxLoss,
+      tpDistance,
+      slDistance,
+      currentPrice,
+      mmr / 100,        // 转换为小数 0.005
+      liqBuffer / 100   // 转换为小数 0.1
+    );
+    
+    setResult(calculated);
+  }, [maxLoss, tpDistance, slDistance, currentPrice, mmr, liqBuffer]);
+  
+  // 通知父组件结果变化
+  useEffect(() => {
+    if (onResultChange) {
+      onResultChange(result);
+    }
+  }, [result, onResultChange]);
+  
+  // 通知父组件显示状态变化
+  useEffect(() => {
+    if (onVisibilityChange) {
+      onVisibilityChange(showPnLBox);
+    }
+  }, [showPnLBox, onVisibilityChange]);
+  
+  // 重置到默认值
+  const handleReset = () => {
+    setMaxLoss(100);
+    setTpDistance(500);
+    setSlDistance(-100);
+  };
+  
+  // 重置高级参数
+  const handleResetAdvanced = () => {
+    setMmr(0.5);
+    setLiqBuffer(10);
+  };
+  
+  // 切换 P&L 矩形显示
+  const togglePnLBox = () => {
+    setShowPnLBox(!showPnLBox);
+  };
+  
+  // 获取币种名称（去掉USDT）
+  const coinName = symbol ? symbol.replace('USDT', '') : 'BTC';
+  
+  return (
+    <div className="position-calculator">
+      {/* 标题栏 */}
+      <div 
+        className="calculator-header"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <span>📐 合约计算器</span>
+        <span className="collapse-icon">{isCollapsed ? '▼' : '▲'}</span>
+      </div>
+      
+      {!isCollapsed && (
+        <>
+          {/* 基础输入区域 */}
+          <div className="calculator-section">
+            <div className="section-title">═════ 输入参数 ═════</div>
+            
+            <div className="calculator-input">
+              <label>💰 最大亏损 (USDT)</label>
+              <input
+                type="number"
+                value={maxLoss}
+                onChange={(e) => setMaxLoss(Number(e.target.value))}
+                placeholder="100"
+                min="0"
+                step="10"
+              />
+            </div>
+            
+            <div className="calculator-input">
+              <label>
+                📍 止盈距离 (USDT)
+                <span className="hint"> 做多:+, 做空:-</span>
+              </label>
+              <input
+                type="number"
+                value={tpDistance}
+                onChange={(e) => setTpDistance(Number(e.target.value))}
+                placeholder="+500 或 -200"
+                step="10"
+              />
+            </div>
+            
+            <div className="calculator-input">
+              <label>
+                🛡️ 止损距离 (USDT)
+                <span className="hint"> 做多:-, 做空:+</span>
+              </label>
+              <input
+                type="number"
+                value={slDistance}
+                onChange={(e) => setSlDistance(Number(e.target.value))}
+                placeholder="-100 或 +400"
+                step="10"
+              />
+            </div>
+          </div>
+          
+          {/* 高级设置 */}
+          <div className="advanced-settings">
+            <div 
+              className="advanced-header"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              <span>⚙️ 高级设置</span>
+              <span className="collapse-icon">{showAdvanced ? '▲' : '▼'}</span>
+            </div>
+            
+            {showAdvanced && (
+              <div className="advanced-content">
+                <div className="calculator-input">
+                  <label>
+                    🔧 维持保证金率 (MMR)
+                    <span className="hint"> 交易所规则</span>
+                  </label>
+                  <div className="input-with-unit">
+                    <input
+                      type="number"
+                      value={mmr}
+                      onChange={(e) => setMmr(Number(e.target.value))}
+                      step="0.1"
+                      min="0.1"
+                      max="10"
+                    />
+                    <span className="unit">%</span>
+                  </div>
+                  <div className="hint-text">
+                    默认 0.5% | 常见: 0.4%-5.0%
+                  </div>
+                </div>
+                
+                <div className="calculator-input">
+                  <label>
+                    🛡️ 强平缓冲比例
+                    <span className="hint"> 安全边际</span>
+                  </label>
+                  <div className="input-with-unit">
+                    <input
+                      type="number"
+                      value={liqBuffer}
+                      onChange={(e) => setLiqBuffer(Number(e.target.value))}
+                      step="1"
+                      min="0"
+                      max="50"
+                    />
+                    <span className="unit">%</span>
+                  </div>
+                  <div className="hint-text">
+                    默认 10% | 保守:15-20%, 激进:5%
+                  </div>
+                </div>
+                
+                <div className="advanced-info">
+                  <div className="info-item">
+                    💡 <strong>MMR</strong>: 越高强平越远
+                  </div>
+                  <div className="info-item">
+                    💡 <strong>缓冲</strong>: 越大保证金越多
+                  </div>
+                </div>
+                
+                <button 
+                  className="btn-reset-advanced"
+                  onClick={handleResetAdvanced}
+                >
+                  恢复默认值
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* 实时价格显示 */}
+          <div className="calculator-section">
+            <div className="section-title">═════ 实时价格 ═════</div>
+            
+            <div className="price-display">
+              <div className="price-row">
+                <span className="price-label">📊 当前价格:</span>
+                <span className="price-value">{formatPrice(currentPrice)}</span>
+              </div>
+              {result && !result.error && (
+                <>
+                  <div className="price-row">
+                    <span className="price-label">🟢 开仓价:</span>
+                    <span className="price-value">{formatPrice(result.entry)}</span>
+                  </div>
+                  <div className="price-row">
+                    <span className="price-label">🎯 止盈价:</span>
+                    <span className="price-value profit">
+                      {formatPrice(result.tp)} ({tpDistance > 0 ? '+' : ''}{tpDistance})
+                    </span>
+                  </div>
+                  <div className="price-row">
+                    <span className="price-label">🔴 止损价:</span>
+                    <span className="price-value loss">
+                      {formatPrice(result.sl)} ({slDistance > 0 ? '+' : ''}{slDistance})
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          
+          {/* 错误提示 */}
+          {result?.error && (
+            <div className="error-message">
+              ⚠️ {result.error}
+            </div>
+          )}
+          
+          {/* 计算结果 */}
+          {result && !result.error && (
+            <div className="calculator-section">
+              <div className="section-title">═════ 计算结果 ═════</div>
+              
+              <div className="calculator-result">
+                {/* 方向和盈亏比 */}
+                <div className="result-row-highlight">
+                  <span>📈 交易方向:</span>
+                  <span className={result.direction === 'Long' ? 'long-color' : 'short-color'}>
+                    {result.direction === 'Long' ? '做多 🟢' : '做空 🔴'}
+                  </span>
+                </div>
+                
+                <div className="result-row-highlight">
+                  <span>🎲 盈亏比:</span>
+                  <span className="profit-color">{result.rrRatio.toFixed(2)}:1</span>
+                </div>
+                
+                {/* 仓位信息 */}
+                <div className="result-subsection">
+                  <div className="result-row">
+                    <span>💼 持仓数量:</span>
+                    <span>{formatSize(result.positionSize)} {coinName}</span>
+                  </div>
+                  
+                  <div className="result-row">
+                    <span>💵 仓位价值:</span>
+                    <span>{formatPrice(result.positionValue)} USDT</span>
+                  </div>
+                  
+                  <div className="result-row">
+                    <span>💎 所需保证金:</span>
+                    <span className="highlight">{formatPrice(result.margin)} USDT</span>
+                  </div>
+                  
+                  <div className="result-row">
+                    <span>⚡ 杠杆倍数:</span>
+                    <span className={result.leverage > 20 ? 'warning-color' : ''}>
+                      {result.leverage.toFixed(1)}x
+                    </span>
+                  </div>
+                </div>
+                
+                {/* 盈亏信息 */}
+                <div className="result-subsection">
+                  <div className="result-row">
+                    <span>💰 潜在盈利:</span>
+                    <span className="profit-color">+{formatPrice(result.totalProfit)} USDT</span>
+                  </div>
+                  
+                  <div className="result-row">
+                    <span>📊 保证金收益率:</span>
+                    <span className="profit-color">+{formatPercent(result.marginYield)}%</span>
+                  </div>
+                  
+                  <div className="result-row">
+                    <span>📉 保证金亏损率:</span>
+                    <span className="loss-color">-{formatPercent(result.marginLossRate)}%</span>
+                  </div>
+                </div>
+                
+                {/* 强平信息 */}
+                <div className="result-subsection liquidation-section">
+                  <div className="result-row">
+                    <span>⚠️ 强平价:</span>
+                    <span className={Math.abs(result.distanceToLiqPercent) < 2 ? 'danger-color' : 'warning-color'}>
+                      {formatPrice(result.liquidationPrice)} USDT
+                      ({result.distanceToLiqPercent > 0 ? '+' : ''}{formatPercent(result.distanceToLiqPercent)}%)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* 操作按钮 */}
+          <div className="calculator-actions">
+            <button 
+              className={`btn-toggle-lines ${showPnLBox ? 'active' : ''}`}
+              onClick={togglePnLBox}
+              disabled={!result || result.error}
+              title={showPnLBox ? '隐藏 P&L 矩形' : '显示 P&L 矩形'}
+            >
+              {showPnLBox ? '👁️ 隐藏矩形' : '👁️ 显示矩形'}
+            </button>
+            <button 
+              className="btn-reset"
+              onClick={handleReset}
+              title="重置所有参数"
+            >
+              🔄 重置
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+

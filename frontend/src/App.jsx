@@ -14,6 +14,8 @@ import IndicatorButton from './components/Indicators/IndicatorButton';
 import IndicatorModal from './components/Indicators/IndicatorModal';
 import { getIndicatorConfig } from './components/Indicators/IndicatorConfig';
 import TradingEngine from './components/TradingEngine/TradingEngine';
+import PositionCalculator from './components/PositionCalculator/PositionCalculator';
+import PnLCanvas from './components/PositionCalculator/PnLCanvas';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -158,6 +160,10 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false); // Changed to false
   const [error, setError] = useState(null);
   const [noDataMessage, setNoDataMessage] = useState(null); // 无数据提示
+  
+  // P&L 计算器状态
+  const [pnlResult, setPnlResult] = useState(null);
+  const [showPnLBox, setShowPnLBox] = useState(true);
 
   // 实时价格数据
   const [priceData, setPriceData] = useState({
@@ -1387,6 +1393,16 @@ export default function App() {
                 activeTool={drawingManager.activeTool}
               />
             )}
+            
+            {/* P&L 矩形画布覆盖层 */}
+            {chartRef.current && seriesRef.current?.candlestick && (
+              <PnLCanvas
+                chart={chartRef.current}
+                series={seriesRef.current.candlestick}
+                result={pnlResult}
+                visible={showPnLBox}
+              />
+            )}
           </div>
         </div>
 
@@ -1400,6 +1416,16 @@ export default function App() {
             high24h={priceData.high24h}
             low24h={priceData.low24h}
             volume24h={priceData.volume24h}
+          />
+          
+          {/* 合约仓位计算器 */}
+          <PositionCalculator
+            symbol={symbol}
+            currentPrice={priceData.currentPrice}
+            chart={chartRef.current}
+            candlestickSeries={seriesRef.current?.candlestick}
+            onResultChange={setPnlResult}
+            onVisibilityChange={setShowPnLBox}
           />
           
           {/* Tab容器 - 绘图列表和策略列表 */}
