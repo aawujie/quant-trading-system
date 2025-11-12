@@ -126,6 +126,61 @@ class DrawingDB(Base):
     )
 
 
+class BacktestRunDB(Base):
+    """回测运行记录表"""
+    __tablename__ = "backtest_runs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(String(50), unique=True, nullable=False, index=True)
+    
+    # 回测配置
+    strategy_name = Column(String(50), nullable=False, index=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    timeframe = Column(String(10), nullable=False, index=True)
+    market_type = Column(String(20), nullable=False)
+    start_time = Column(BigInteger, nullable=False)
+    end_time = Column(BigInteger, nullable=False)
+    initial_capital = Column(Float, nullable=False)
+    
+    # 策略参数和仓位配置（JSON）
+    strategy_params = Column(JSON)
+    position_preset = Column(String(50))
+    position_config = Column(JSON)
+    
+    # 核心指标
+    total_return = Column(Float, index=True)
+    sharpe_ratio = Column(Float, index=True)
+    max_drawdown = Column(Float)
+    win_rate = Column(Float)
+    total_trades = Column(Integer)
+    profit_factor = Column(Float)
+    
+    # 资金指标
+    initial_balance = Column(Float)
+    final_balance = Column(Float)
+    
+    # 交易统计
+    avg_holding_time = Column(Float)
+    max_position_pct = Column(Float)
+    avg_position_size = Column(Float)
+    
+    # 详细数据（JSONB）
+    signals = Column(JSON)
+    metrics = Column(JSON)
+    
+    # 元数据
+    status = Column(String(20), default='completed')
+    error_message = Column(String)
+    duration = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_backtest_runs_symbol_timeframe', 'symbol', 'timeframe'),
+        Index('idx_backtest_runs_created_at', 'created_at'),
+        Index('idx_backtest_runs_total_return', 'total_return'),
+    )
+
+
 class Database:
     """
     Async database manager
@@ -1038,4 +1093,211 @@ class Database:
         except Exception as e:
             logger.error(f"Error fetching recent trades: {e}")
             return []
+    
+    # Backtest operations
+    
+    async def insert_backtest_run(self, backtest_data: dict) -> bool:
+        """
+        插入回测运行记录
+        
+        Args:
+            backtest_data: 回测数据字典，包含所有字段
+            
+        Returns:
+            bool: 是否成功插入
+        """
+        async with self.SessionLocal() as session:
+            try:
+                db_backtest = BacktestRunDB(**backtest_data)
+                session.add(db_backtest)
+                await session.commit()
+                logger.info(f"Inserted backtest run: {backtest_data.get('run_id')}")
+                return True
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to insert backtest run: {e}")
+                return False
+    
+    async def get_backtest_runs(
+        self,
+        symbol: Optional[str] = None,
+        strategy_name: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0,
+        sort_by: str = "created_at",
+        sort_order: str = "desc"
+    ) -> List[dict]:
+        """
+        获取回测历史列表（只返回元数据，不含详细信号）
+        
+        Args:
+            symbol: 可选，按交易对筛选
+            strategy_name: 可选，按策略筛选
+            limit: 返回数量限制
+            offset: 偏移量（分页）
+            sort_by: 排序字段（created_at, total_return, sharpe_ratio等）
+            sort_order: 排序方向（asc/desc）
+            
+        Returns:
+            回测列表
+        """
+        async with self.SessionLocal() as session:
+            query = select(BacktestRunDB).where(BacktestRunDB.status == 'completed')
+            
+            # 筛选条件
+            if symbol:
+                query = query.where(BacktestRunDB.symbol == symbol)
+            if strategy_name:
+                query = query.where(BacktestRunDB.strategy_name == strategy_name)
+            
+            # 排序
+            sort_column = getattr(BacktestRunDB, sort_by, BacktestRunDB.created_at)
+            if sort_order == "desc":
+                query = query.order_by(sort_column.desc())
+            else:
+                query = query.order_by(sort_column.asc())
+            
+            # 分页
+            query = query.offset(offset).limit(limit)
+            
+            result = await session.execute(query)
+            rows = result.scalars().all()
+            
+            # 转换为字典（不包含详细信号数据，减少传输量）
+            return [
+                {
+                    'id': row.id,
+                    'run_id': row.run_id,
+                    'strategy_name': row.strategy_name,
+                    'symbol': row.symbol,
+                    'timeframe': row.timeframe,
+                    'market_type': row.market_type,
+                    'start_time': row.start_time,
+                    'end_time': row.end_time,
+                    'initial_capital': row.initial_capital,
+                    'strategy_params': row.strategy_params,
+                    'position_preset': row.position_preset,
+                    'total_return': row.total_return,
+                    'sharpe_ratio': row.sharpe_ratio,
+                    'max_drawdown': row.max_drawdown,
+                    'win_rate': row.win_rate,
+                    'total_trades': row.total_trades,
+                    'profit_factor': row.profit_factor,
+                    'initial_balance': row.initial_balance,
+                    'final_balance': row.final_balance,
+                    'avg_holding_time': row.avg_holding_time,
+                    'max_position_pct': row.max_position_pct,
+                    'avg_position_size': row.avg_position_size,
+                    'duration': row.duration,
+                    'status': row.status,  # ✅ 添加status字段
+                    'created_at': row.created_at.isoformat() if row.created_at else None,
+                    # 不包含signals和metrics，减少传输量
+                }
+                for row in rows
+            ]
+    
+    async def get_backtest_detail(self, run_id: str) -> Optional[dict]:
+        """
+        获取回测详细数据（包含所有信号）
+        
+        Args:
+            run_id: 回测运行ID
+            
+        Returns:
+            完整的回测数据，包含signals和metrics
+        """
+        async with self.SessionLocal() as session:
+            result = await session.execute(
+                select(BacktestRunDB).where(BacktestRunDB.run_id == run_id)
+            )
+            row = result.scalar_one_or_none()
+            
+            if not row:
+                return None
+            
+            return {
+                'id': row.id,
+                'run_id': row.run_id,
+                'strategy_name': row.strategy_name,
+                'symbol': row.symbol,
+                'timeframe': row.timeframe,
+                'market_type': row.market_type,
+                'start_time': row.start_time,
+                'end_time': row.end_time,
+                'initial_capital': row.initial_capital,
+                'strategy_params': row.strategy_params,
+                'position_preset': row.position_preset,
+                'position_config': row.position_config,
+                'total_return': row.total_return,
+                'sharpe_ratio': row.sharpe_ratio,
+                'max_drawdown': row.max_drawdown,
+                'win_rate': row.win_rate,
+                'total_trades': row.total_trades,
+                'profit_factor': row.profit_factor,
+                'initial_balance': row.initial_balance,
+                'final_balance': row.final_balance,
+                'avg_holding_time': row.avg_holding_time,
+                'max_position_pct': row.max_position_pct,
+                'avg_position_size': row.avg_position_size,
+                'signals': row.signals,  # 完整信号列表
+                'metrics': row.metrics,  # 完整指标
+                'status': row.status,
+                'error_message': row.error_message,
+                'duration': row.duration,
+                'created_at': row.created_at.isoformat() if row.created_at else None,
+            }
+    
+    async def delete_backtest_run(self, run_id: str) -> bool:
+        """
+        删除回测记录
+        
+        Args:
+            run_id: 回测运行ID
+            
+        Returns:
+            是否成功删除
+        """
+        async with self.SessionLocal() as session:
+            try:
+                result = await session.execute(
+                    select(BacktestRunDB).where(BacktestRunDB.run_id == run_id)
+                )
+                backtest = result.scalar_one_or_none()
+                
+                if backtest:
+                    await session.delete(backtest)
+                    await session.commit()
+                    logger.info(f"Deleted backtest run: {run_id}")
+                    return True
+                return False
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to delete backtest run: {e}")
+                return False
+    
+    async def count_backtest_runs(
+        self,
+        symbol: Optional[str] = None,
+        strategy_name: Optional[str] = None
+    ) -> int:
+        """
+        统计回测记录数量
+        
+        Args:
+            symbol: 可选，按交易对筛选
+            strategy_name: 可选，按策略筛选
+            
+        Returns:
+            回测记录数量
+        """
+        async with self.SessionLocal() as session:
+            query = select(func.count(BacktestRunDB.id)).where(BacktestRunDB.status == 'completed')
+            
+            if symbol:
+                query = query.where(BacktestRunDB.symbol == symbol)
+            if strategy_name:
+                query = query.where(BacktestRunDB.strategy_name == strategy_name)
+            
+            result = await session.execute(query)
+            return result.scalar() or 0
 

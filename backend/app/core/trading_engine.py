@@ -423,6 +423,13 @@ class TradingEngine:
         statistics = self._calculate_statistics()
         account_status = self.position_manager.get_account_status()
         
+        # 获取回测时间范围（从数据源获取）
+        start_time = None
+        end_time = None
+        if hasattr(self.data_source, 'start_time') and hasattr(self.data_source, 'end_time'):
+            start_time = self.data_source.start_time
+            end_time = self.data_source.end_time
+        
         # 计算盈利因子
         winning_trades = [t for t in self.trades if t.get('pnl', 0) > 0]
         losing_trades = [t for t in self.trades if t.get('pnl', 0) < 0]
@@ -457,6 +464,10 @@ class TradingEngine:
             'strategy': self.strategy.strategy_name,
             'symbols': self.strategy.symbols,
             'timeframe': self.strategy.timeframe,
+            
+            # 回测时间范围
+            'start_time': start_time,
+            'end_time': end_time,
             
             # 顶层字段（方便前端直接访问）
             'total_return': account_status['total_pnl_pct'],

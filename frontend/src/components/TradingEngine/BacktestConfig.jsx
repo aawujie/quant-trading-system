@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { runBacktest } from '../../services/tradingEngineApi';
 import { useTradingEngineConfig } from '../../contexts/TradingEngineContext';
+import BacktestHistoryList from './BacktestHistoryList';
+import BacktestCharts from './BacktestCharts';
 
 /**
  * 回测配置组件 - Tailwind风格
@@ -27,6 +29,8 @@ export default function BacktestConfig() {
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(0);  // 新增：进度状态
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });  // 排序配置
+  const [selectedBacktest, setSelectedBacktest] = useState(null);  // 选中的历史回测
+  const [showCharts, setShowCharts] = useState(false);  // 是否显示图表分析
 
   // 初始化策略参数
   useEffect(() => {
@@ -114,6 +118,7 @@ export default function BacktestConfig() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setSelectedBacktest(null);  // 清空选中的历史回测
     setProgress(0);  // 重置进度
 
     try {
@@ -124,6 +129,13 @@ export default function BacktestConfig() {
       setError(err.response?.data?.detail || '运行回测失败');
       setLoading(false);
     }
+  };
+  
+  // 处理历史回测选择
+  const handleSelectBacktest = (backtestResult) => {
+    setSelectedBacktest(backtestResult);
+    setResult(null);  // 清空当前回测结果
+    setTaskId(null);
   };
 
   const handleParamChange = (key, value) => {
@@ -190,11 +202,101 @@ export default function BacktestConfig() {
   };
 
   const currentStrategy = strategyDetails[config.strategy];
+  
+  // 显示的结果：优先显示当前回测结果，其次显示选中的历史回测
+  const displayResult = result || (selectedBacktest ? {
+    ...selectedBacktest.metrics,
+    signals: selectedBacktest.signals,
+    run_id: selectedBacktest.runId
+  } : null);
+
+  // 如果显示图表，渲染图表组件
+  if (showCharts && (selectedBacktest || result)) {
+    const backtestResultObj = selectedBacktest || (result ? {
+      // 从result创建BacktestResult对象所需的数据
+      runId: result.run_id,
+      strategy: result.strategy,
+      symbol: config.symbol,
+      timeframe: result.timeframe,
+      marketType: config.market_type,
+      startTime: result.start_time,  // ✅ 从result中获取
+      endTime: result.end_time,      // ✅ 从result中获取
+      totalReturn: result.total_return,
+      sharpeRatio: result.sharpe_ratio,
+      maxDrawdown: result.max_drawdown,
+      winRate: result.win_rate,
+      totalTrades: result.total_trades,
+      profitFactor: result.profit_factor,
+      signals: result.signals,
+      initialBalance: result.initial_balance,
+      finalBalance: result.final_balance,
+      avgHoldingTime: result.avg_holding_time,
+      maxPositionPct: result.max_position_pct,
+      avgPositionSize: result.avg_position_size,
+      getDisplayInfo: function() {
+        return {
+          title: `${this.strategy} - ${this.symbol} ${this.timeframe}`,
+          subtitle: `回测结果`,
+          returnLabel: `${this.totalReturn >= 0 ? '+' : ''}${(this.totalReturn * 100).toFixed(2)}%`,
+          returnClass: this.totalReturn >= 0 ? 'text-green-400' : 'text-red-400'
+        };
+      },
+      loadKlineData: async function() {
+        const response = await fetch(
+          `/api/klines/${this.symbol}/${this.timeframe}?` +
+          `start_time=${this.startTime}&` +
+          `end_time=${this.endTime}&` +
+          `market_type=${this.marketType}&limit=10000`
+        );
+        const data = await response.json();
+        return data.klines || [];
+      },
+      getEquityCurve: function() {
+        const curve = [];
+        let balance = this.initialBalance;
+        curve.push({
+          time: this.startTime,
+          balance: balance,
+          return: 0
+        });
+        this.signals
+          .filter(s => s.action === 'CLOSE' && s.pnl != null)
+          .forEach(signal => {
+            balance += signal.pnl;
+            curve.push({
+              time: signal.timestamp,
+              balance: balance,
+              return: ((balance / this.initialBalance) - 1) * 100
+            });
+          });
+        return curve;
+      },
+      getTradeMarkers: function() {
+        return this.signals.map(signal => ({
+          time: signal.timestamp,
+          position: signal.action === 'OPEN' ? 'belowBar' : 'aboveBar',
+          color: signal.side === 'LONG' ? '#26a69a' : '#ef5350',
+          shape: signal.action === 'OPEN' ? 'arrowUp' : 'arrowDown',
+          text: `${signal.side} ${signal.action} $${signal.price?.toFixed(2)}`,
+          size: 1
+        }));
+      }
+    } : null);
+
+    return (
+      <div className="p-6">
+        <BacktestCharts 
+          backtestResult={backtestResultObj}
+          onClose={() => setShowCharts(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-12 gap-6">
       {/* 左侧配置 */}
-      <div className="col-span-5 space-y-4">
+      <div className="col-span-5 space-y-4 max-h-[900px] overflow-y-auto pr-2">
         {/* 策略选择 */}
         <div className="bg-[#1a1a2e] rounded-lg p-4 border border-[#2a2a3a]">
           <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
@@ -406,11 +508,37 @@ export default function BacktestConfig() {
             <span>{error}</span>
           </div>
         )}
+        
+        {/* 回测历史列表 */}
+        <div className="bg-[#1a1a2e] rounded-lg p-4 border border-[#2a2a3a]">
+          <BacktestHistoryList
+            onSelect={handleSelectBacktest}
+            selectedRunId={selectedBacktest?.runId}
+            symbol={config.symbol}
+            // 不筛选策略，显示所有策略的回测历史
+          />
+        </div>
       </div>
 
       {/* 右侧结果 */}
       <div className="col-span-7 bg-[#1a1a2e] rounded-lg border border-[#2a2a3a] overflow-hidden">
-        {!result && !loading && (
+        {/* 显示来源标识 */}
+        {selectedBacktest && !result && (
+          <div className="bg-blue-500/10 border-b border-blue-500/30 px-6 py-3 flex items-center gap-2">
+            <span className="text-blue-400">📚</span>
+            <span className="text-sm text-blue-400">
+              正在查看历史回测：{selectedBacktest.getDisplayInfo().title}
+            </span>
+            <button
+              onClick={() => setSelectedBacktest(null)}
+              className="ml-auto text-xs text-gray-400 hover:text-white transition-colors"
+            >
+              ✕ 关闭
+            </button>
+          </div>
+        )}
+        
+        {!displayResult && !loading && (
           <div className="flex flex-col items-center justify-center h-[600px] px-8 text-center">
             <div className="text-6xl mb-6 opacity-30">📊</div>
             <h3 className="text-2xl font-semibold text-white mb-4">准备就绪</h3>
@@ -438,52 +566,68 @@ export default function BacktestConfig() {
           </div>
         )}
 
-        {result && (
+        {displayResult && (
           <div className="p-6 space-y-6 max-h-[800px] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                 📈 回测结果
+                {displayResult.run_id && (
+                  <span className="text-sm text-gray-400 font-normal">
+                    ID: {displayResult.run_id}
+                  </span>
+                )}
               </h3>
-              <button
-                onClick={() => setResult(null)}
-                className="px-3 py-1 text-sm bg-[#2a2a3a] hover:bg-[#3a3a4a] text-gray-300 rounded transition-colors"
-              >
-                清除
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCharts(true)}
+                  className="px-4 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors flex items-center gap-1"
+                >
+                  📊 查看图表分析
+                </button>
+                <button
+                  onClick={() => {
+                    setResult(null);
+                    setSelectedBacktest(null);
+                  }}
+                  className="px-3 py-1 text-sm bg-[#2a2a3a] hover:bg-[#3a3a4a] text-gray-300 rounded transition-colors"
+                >
+                  清除
+                </button>
+              </div>
             </div>
 
             {/* 核心指标 */}
             <div className="grid grid-cols-3 gap-4">
               <MetricCard
                 label="总收益率"
-                value={result.total_return != null ? `${(result.total_return * 100).toFixed(2)}%` : 'N/A'}
-                trend={result.total_return >= 0 ? 'up' : 'down'}
+                value={displayResult.total_return != null ? `${(displayResult.total_return * 100).toFixed(2)}%` : 'N/A'}
+                trend={displayResult.total_return >= 0 ? 'up' : 'down'}
                 icon="💰"
               />
               <MetricCard
                 label="夏普比率"
-                value={result.sharpe_ratio != null ? result.sharpe_ratio.toFixed(2) : 'N/A'}
+                value={displayResult.sharpe_ratio != null ? displayResult.sharpe_ratio.toFixed(2) : 'N/A'}
                 icon="📊"
               />
               <MetricCard
                 label="最大回撤"
-                value={result.max_drawdown != null ? `${(result.max_drawdown * 100).toFixed(2)}%` : 'N/A'}
+                value={displayResult.max_drawdown != null ? `${(displayResult.max_drawdown * 100).toFixed(2)}%` : 'N/A'}
                 trend="down"
                 icon="📉"
               />
               <MetricCard
                 label="胜率"
-                value={result.win_rate != null ? `${(result.win_rate * 100).toFixed(2)}%` : 'N/A'}
+                value={displayResult.win_rate != null ? `${(displayResult.win_rate * 100).toFixed(2)}%` : 'N/A'}
                 icon="🎯"
               />
               <MetricCard
                 label="交易次数"
-                value={result.total_trades != null ? result.total_trades : 0}
+                value={displayResult.total_trades != null ? displayResult.total_trades : 0}
                 icon="🔄"
               />
               <MetricCard
                 label="盈利因子"
-                value={result.profit_factor != null ? result.profit_factor.toFixed(2) : 'N/A'}
+                value={displayResult.profit_factor != null ? displayResult.profit_factor.toFixed(2) : 'N/A'}
                 icon="📈"
               />
             </div>
@@ -492,45 +636,45 @@ export default function BacktestConfig() {
             <div className="grid grid-cols-3 gap-4 mt-4">
               <MetricCard
                 label="初始资金"
-                value={result.initial_balance != null ? `$${result.initial_balance.toFixed(2)}` : 'N/A'}
+                value={displayResult.initial_balance != null ? `$${displayResult.initial_balance.toFixed(2)}` : 'N/A'}
                 icon="💵"
               />
               <MetricCard
                 label="最终资金"
-                value={result.final_balance != null ? `$${result.final_balance.toFixed(2)}` : 'N/A'}
-                trend={result.final_balance >= result.initial_balance ? 'up' : 'down'}
+                value={displayResult.final_balance != null ? `$${displayResult.final_balance.toFixed(2)}` : 'N/A'}
+                trend={displayResult.final_balance >= displayResult.initial_balance ? 'up' : 'down'}
                 icon="💳"
               />
               <MetricCard
                 label="平均持仓时间"
-                value={result.avg_holding_time != null ? `${result.avg_holding_time.toFixed(1)}h` : 'N/A'}
+                value={displayResult.avg_holding_time != null ? `${displayResult.avg_holding_time.toFixed(1)}h` : 'N/A'}
                 icon="⏱️"
               />
               <MetricCard
                 label="最大仓位占比"
-                value={result.max_position_pct != null ? `${(result.max_position_pct * 100).toFixed(0)}%` : 'N/A'}
+                value={displayResult.max_position_pct != null ? `${(displayResult.max_position_pct * 100).toFixed(0)}%` : 'N/A'}
                 icon="📊"
               />
               <MetricCard
                 label="平均单笔投入"
-                value={result.avg_position_size != null ? `$${result.avg_position_size.toFixed(2)}` : 'N/A'}
+                value={displayResult.avg_position_size != null ? `$${displayResult.avg_position_size.toFixed(2)}` : 'N/A'}
                 icon="💸"
               />
               <MetricCard
                 label="资金使用率"
-                value={result.avg_position_size != null && result.initial_balance != null 
-                  ? `${((result.avg_position_size / result.initial_balance) * 100).toFixed(1)}%` 
+                value={displayResult.avg_position_size != null && displayResult.initial_balance != null 
+                  ? `${((displayResult.avg_position_size / displayResult.initial_balance) * 100).toFixed(1)}%` 
                   : 'N/A'}
                 icon="🎚️"
               />
             </div>
 
             {/* 交易信号记录 */}
-            {result.signals && result.signals.length > 0 && (
+            {displayResult.signals && displayResult.signals.length > 0 && (
               <div>
                 <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
                   📝 交易信号记录
-                  <span className="text-sm text-green-400 font-normal">共 {result.signals.length} 个信号</span>
+                  <span className="text-sm text-green-400 font-normal">共 {displayResult.signals.length} 个信号</span>
                 </h4>
                 <div className="bg-[#0a0a0f] rounded-lg overflow-hidden border border-[#2a2a3a]">
                   <div className="overflow-x-auto">
@@ -582,7 +726,7 @@ export default function BacktestConfig() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#2a2a3a]">
-                        {getSortedSignals(result.signals).map((trade, idx) => (
+                        {getSortedSignals(displayResult.signals).map((trade, idx) => (
                           <tr key={idx} className="hover:bg-[#1a1a2e]/50 transition-colors">
                             <td className="px-4 py-3 text-sm text-gray-300 font-mono">
                               {new Date(trade.timestamp * 1000).toLocaleString('zh-CN', {

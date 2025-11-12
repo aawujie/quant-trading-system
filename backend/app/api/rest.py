@@ -14,6 +14,7 @@ from app.models.indicators import IndicatorData
 from app.models.signals import SignalData
 from app.models.drawings import DrawingData
 from app.models.requests import BacktestRequest, OptimizationRequest, DataDownloadRequest, DataRepairRequest
+from app.models.backtest import BacktestResult, BacktestHistoryResponse, BacktestDetailResponse
 from app.exchanges.binance import BinanceExchange
 from app.services.data_manager import DataManager
 from app.core.strategy_config import get_strategy_config
@@ -783,8 +784,8 @@ from typing import Dict, Any
 # 不再使用全局字典，改用 TaskManager
 
 
-@app.post("/api/backtest/run")
-async def run_backtest(request: BacktestRequest):
+@app.post("/api/backtest/run", response_model=BacktestResult)
+async def run_backtest(request: BacktestRequest) -> BacktestResult:
     """
     运行策略回测（优化版）
     
@@ -934,16 +935,64 @@ async def run_backtest(request: BacktestRequest):
             # === 阶段4: 结果统计与保存 (95-100%) ===
             results = engine.get_results()
             
-            backtest_task_manager.update_progress(task_id, 98)
+            backtest_task_manager.update_progress(task_id, 96)
             
-            # 保存回测结果到文件
+            # 保存回测结果到数据库
             try:
-                filepath = engine.save_results_to_file(output_dir="backtest_results")
-                results['saved_file'] = filepath
-                logger.info(f"Backtest results saved: {filepath}")
+                import time
+                from datetime import datetime
+                
+                # 生成run_id
+                run_id = f"{request.strategy}_{request.symbol}_{request.timeframe}_{datetime.fromtimestamp(start_time).strftime('%Y%m%d_%H%M%S')}"
+                
+                # 准备数据库记录
+                backtest_data = {
+                    'run_id': run_id,
+                    'strategy_name': request.strategy,
+                    'symbol': request.symbol,
+                    'timeframe': request.timeframe,
+                    'market_type': request.market_type,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'initial_capital': request.initial_capital,
+                    'strategy_params': request.params,
+                    'position_preset': request.position_preset,
+                    'position_config': None,  # 可以从position_manager获取
+                    # 核心指标
+                    'total_return': results.get('total_return'),
+                    'sharpe_ratio': results.get('sharpe_ratio'),
+                    'max_drawdown': results.get('max_drawdown'),
+                    'win_rate': results.get('win_rate'),
+                    'total_trades': results.get('total_trades'),
+                    'profit_factor': results.get('profit_factor'),
+                    # 资金指标
+                    'initial_balance': results.get('initial_balance'),
+                    'final_balance': results.get('final_balance'),
+                    # 交易统计
+                    'avg_holding_time': results.get('avg_holding_time'),
+                    'max_position_pct': results.get('max_position_pct'),
+                    'avg_position_size': results.get('avg_position_size'),
+                    # 详细数据
+                    'signals': results.get('signals', []),
+                    'metrics': results,  # 存储完整的结果对象
+                    # 元数据
+                    'status': 'completed',
+                    'error_message': None,
+                    'duration': results.get('duration', 0)
+                }
+                
+                # 保存到数据库
+                success = await db.insert_backtest_run(backtest_data)
+                
+                if success:
+                    results['run_id'] = run_id  # 添加run_id到返回结果
+                    logger.info(f"Backtest results saved to database: {run_id}")
+                else:
+                    logger.warning(f"Failed to save backtest results to database")
+                    
             except Exception as e:
-                logger.error(f"Failed to save backtest results: {e}")
-                results['saved_file'] = None
+                logger.error(f"Error saving backtest to database: {e}")
+                # 不影响回测结果返回
             
             # 返回结果（100%会在任务完成时自动设置）
             return results
@@ -1056,6 +1105,115 @@ async def get_backtest_stats():
         "status": "success",
         "stats": backtest_task_manager.get_stats()
     }
+
+
+# ==================== 回测历史接口 ====================
+
+@app.get("/api/backtest/history", response_model=BacktestHistoryResponse)
+async def get_backtest_history(
+    symbol: Optional[str] = None,
+    strategy: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    sort_by: str = Query("created_at", regex="^(created_at|total_return|sharpe_ratio|win_rate)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$")
+) -> BacktestHistoryResponse:
+    """
+    获取回测历史列表
+    
+    Args:
+        symbol: 可选，按交易对筛选
+        strategy: 可选，按策略筛选
+        limit: 返回数量限制（1-100）
+        offset: 偏移量（分页）
+        sort_by: 排序字段（created_at/total_return/sharpe_ratio/win_rate）
+        sort_order: 排序方向（asc/desc）
+        
+    Returns:
+        回测历史列表和总数
+    """
+    try:
+        # 获取回测列表（不含详细信号）
+        backtests = await db.get_backtest_runs(
+            symbol=symbol,
+            strategy_name=strategy,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
+        
+        # 获取总数（用于分页）
+        total = await db.count_backtest_runs(
+            symbol=symbol,
+            strategy_name=strategy
+        )
+        
+        return BacktestHistoryResponse(
+            data=backtests,
+            total=total,
+            limit=limit,
+            offset=offset
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to get backtest history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/backtest/detail/{run_id}", response_model=BacktestDetailResponse)
+async def get_backtest_detail(run_id: str) -> BacktestDetailResponse:
+    """
+    获取回测详细数据（包含所有信号）
+    
+    Args:
+        run_id: 回测运行ID
+        
+    Returns:
+        完整的回测数据
+    """
+    try:
+        backtest = await db.get_backtest_detail(run_id)
+        
+        if not backtest:
+            raise HTTPException(status_code=404, detail=f"Backtest run '{run_id}' not found")
+        
+        return BacktestDetailResponse(data=backtest)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get backtest detail: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/backtest/{run_id}")
+async def delete_backtest(run_id: str):
+    """
+    删除回测记录
+    
+    Args:
+        run_id: 回测运行ID
+        
+    Returns:
+        删除结果
+    """
+    try:
+        success = await db.delete_backtest_run(run_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Backtest run '{run_id}' not found")
+        
+        return {
+            "status": "success",
+            "message": f"Backtest run '{run_id}' deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete backtest: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== 仓位管理配置接口 ====================
