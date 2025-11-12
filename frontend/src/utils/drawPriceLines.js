@@ -23,10 +23,29 @@ export function drawPnLBoxOnCanvas(canvas, chart, series, result) {
   try {
     const { entry, tp, sl, liquidationPrice, direction, marginYield, marginLossRate } = result;
     
-    // 获取图表尺寸
+    // 获取最新K线数据（时间戳）
+    const seriesData = series.data();
+    if (!seriesData || seriesData.length === 0) {
+      console.warn('⚠️ 无K线数据');
+      return;
+    }
+    
+    // 最新K线的时间戳
+    const latestKline = seriesData[seriesData.length - 1];
+    const latestTimestamp = latestKline.time;
+    
+    // 获取时间轴和价格轴
     const timeScale = chart.timeScale();
     
-    // 价格转换为 Y 坐标（使用 series 的坐标转换方法）
+    // 将时间戳转换为屏幕X坐标（关键！这样矩形就固定在时间坐标系上了）
+    const latestBarX = timeScale.timeToCoordinate(latestTimestamp);
+    
+    if (latestBarX === null) {
+      console.warn('⚠️ 时间坐标转换失败');
+      return;
+    }
+    
+    // 价格转换为 Y 坐标
     const entryY = series.priceToCoordinate(entry);
     const tpY = series.priceToCoordinate(tp);
     const slY = series.priceToCoordinate(sl);
@@ -38,11 +57,26 @@ export function drawPnLBoxOnCanvas(canvas, chart, series, result) {
       return;
     }
     
-    // X 坐标（在最右侧绘制矩形）
-    // 直接使用 Canvas 宽度，矩形在最右侧
+    // 矩形固定宽度和避让价格刻度
     const boxWidth = 120;
-    const rightX = canvas.width - 10;  // 距离右边缘 10 像素
-    const leftX = rightX - boxWidth;
+    const priceScaleWidth = 70;  // 右侧价格刻度占用空间
+    const safeMargin = 20;        // 额外安全边距
+    
+    // 计算矩形的理想位置（中心对齐最新K线）
+    let centerX = latestBarX;
+    let leftX = centerX - boxWidth / 2;
+    let rightX = centerX + boxWidth / 2;
+    
+    // 检查右边界是否会被价格刻度遮挡
+    const maxRightX = canvas.width - priceScaleWidth - safeMargin;
+    
+    // 如果超出，向左平移矩形（确保完全可见）
+    if (rightX > maxRightX) {
+      const offset = rightX - maxRightX;
+      centerX -= offset;
+      leftX -= offset;
+      rightX = maxRightX;
+    }
     
     ctx.save();
     
@@ -133,9 +167,6 @@ export function drawPnLBoxOnCanvas(canvas, chart, series, result) {
     ctx.fillText(`⚠️ Liq ${liquidationPrice.toFixed(2)}`, labelX, liqY + 4);
     
     ctx.restore();
-    
-    console.log('✅ P&L 矩形绘制成功 (Canvas)');
-    
   } catch (err) {
     console.error('❌ 绘制 P&L 矩形失败:', err);
   }
@@ -153,6 +184,5 @@ export function clearPnLBoxCanvas(canvas) {
   if (!ctx) return;
   
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  console.log('✅ Canvas 已清除');
 }
 
