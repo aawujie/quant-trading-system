@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { runBacktest } from '../../services/tradingEngineApi';
+import { runBacktest, getKlines } from '../../services/tradingEngineApi';
 import { useTradingEngineConfig } from '../../contexts/TradingEngineContext';
 import BacktestHistoryList from './BacktestHistoryList';
 import BacktestCharts from './BacktestCharts';
@@ -136,6 +136,7 @@ export default function BacktestConfig() {
     setSelectedBacktest(backtestResult);
     setResult(null);  // 清空当前回测结果
     setTaskId(null);
+    setShowCharts(false);  // 重置图表显示状态
   };
 
   const handleParamChange = (key, value) => {
@@ -242,13 +243,13 @@ export default function BacktestConfig() {
         };
       },
       loadKlineData: async function() {
-        const response = await fetch(
-          `/api/klines/${this.symbol}/${this.timeframe}?` +
-          `start_time=${this.startTime}&` +
-          `end_time=${this.endTime}&` +
-          `market_type=${this.marketType}&limit=10000`
-        );
-        const data = await response.json();
+        const params = {
+          start_time: this.startTime,
+          end_time: this.endTime,
+          market_type: this.marketType,
+          limit: 10000
+        };
+        const data = await getKlines(this.symbol, this.timeframe, params);
         return data.klines || [];
       },
       getEquityCurve: function() {

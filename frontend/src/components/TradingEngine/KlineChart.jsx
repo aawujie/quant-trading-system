@@ -9,11 +9,29 @@ import { createChart } from 'lightweight-charts';
 export default function KlineChart({ backtestResult }) {
   const chartRef = useRef(null);
   const containerRef = useRef(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);  // 初始为 false，等待 useEffect 触发
   const [error, setError] = useState(null);
   
   useEffect(() => {
-    if (!backtestResult || !containerRef.current) return;
+    console.log('📊 KlineChart: useEffect triggered');
+    console.log('📊 KlineChart: backtestResult =', backtestResult);
+    console.log('📊 KlineChart: containerRef.current =', containerRef.current);
+    
+    if (!backtestResult) {
+      console.log('⚠️ KlineChart: backtestResult is null/undefined, skipping');
+      return;
+    }
+    
+    if (!containerRef.current) {
+      console.log('⚠️ KlineChart: containerRef.current is null, skipping');
+      return;
+    }
+    
+    // 防止重复初始化
+    if (chartRef.current) {
+      console.log('⚠️ KlineChart: Chart already initialized, skipping');
+      return;
+    }
     
     let chart = null;
     
@@ -22,8 +40,13 @@ export default function KlineChart({ backtestResult }) {
       setError(null);
       
       try {
+        console.log('📊 KlineChart: Starting to load kline data...');
+        console.log('📊 KlineChart: backtestResult =', backtestResult);
+        
         // 1. 加载K线数据
+        console.log('📊 KlineChart: Calling loadKlineData()...');
         const klines = await backtestResult.loadKlineData();
+        console.log('📊 KlineChart: Loaded', klines?.length, 'klines');
         
         if (!klines || klines.length === 0) {
           setError('无K线数据');
@@ -31,7 +54,12 @@ export default function KlineChart({ backtestResult }) {
           return;
         }
         
-        // 2. 创建图表
+        // 2. 清空容器（防止重复创建）
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+        
+        // 3. 创建图表
         chart = createChart(containerRef.current, {
           width: containerRef.current.clientWidth,
           height: 400,
@@ -112,10 +140,12 @@ export default function KlineChart({ backtestResult }) {
     
     // 清理
     return () => {
+      console.log('🗑️ KlineChart: Cleaning up chart');
       window.removeEventListener('resize', handleResize);
       if (chart) {
         chart.remove();
       }
+      chartRef.current = null;  // 重置 ref，允许重新初始化
     };
   }, [backtestResult]);
   
@@ -125,27 +155,29 @@ export default function KlineChart({ backtestResult }) {
         📊 K线图 + 交易信号
       </h4>
       
-      {loading && (
-        <div className="flex items-center justify-center h-[400px]">
-          <div className="text-center">
-            <div className="text-4xl mb-2 animate-spin">⏳</div>
-            <div className="text-sm text-gray-400">加载K线数据...</div>
+      {/* 容器始终渲染，但根据状态显示不同内容 */}
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center h-[400px] bg-[#1a1a2e] z-10">
+            <div className="text-center">
+              <div className="text-4xl mb-2 animate-spin">⏳</div>
+              <div className="text-sm text-gray-400">加载K线数据...</div>
+            </div>
           </div>
-        </div>
-      )}
-      
-      {error && (
-        <div className="flex items-center justify-center h-[400px]">
-          <div className="text-center">
-            <div className="text-4xl mb-2">⚠️</div>
-            <div className="text-sm text-red-400">{error}</div>
+        )}
+        
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center h-[400px] bg-[#1a1a2e] z-10">
+            <div className="text-center">
+              <div className="text-4xl mb-2">⚠️</div>
+              <div className="text-sm text-red-400">{error}</div>
+            </div>
           </div>
-        </div>
-      )}
-      
-      {!loading && !error && (
-        <div ref={containerRef} />
-      )}
+        )}
+        
+        {/* 图表容器始终存在 */}
+        <div ref={containerRef} className={loading || error ? 'invisible' : 'visible'} />
+      </div>
       
       {/* 图例说明 */}
       {!loading && !error && (

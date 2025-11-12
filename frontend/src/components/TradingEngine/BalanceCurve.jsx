@@ -9,10 +9,22 @@ import { createChart } from 'lightweight-charts';
 export default function BalanceCurve({ backtestResult }) {
   const chartRef = useRef(null);
   const containerRef = useRef(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);  // 初始为 false
   
   useEffect(() => {
-    if (!backtestResult || !containerRef.current) return;
+    console.log('💰 BalanceCurve: useEffect triggered');
+    console.log('💰 BalanceCurve: containerRef.current =', containerRef.current);
+    
+    if (!backtestResult || !containerRef.current) {
+      console.log('⚠️ BalanceCurve: Skipping (backtestResult or container is null)');
+      return;
+    }
+    
+    // 防止重复初始化
+    if (chartRef.current) {
+      console.log('⚠️ BalanceCurve: Chart already initialized, skipping');
+      return;
+    }
     
     let chart = null;
     
@@ -27,7 +39,12 @@ export default function BalanceCurve({ backtestResult }) {
         return;
       }
       
-      // 2. 创建图表
+      // 2. 清空容器（防止重复创建）
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+      
+      // 3. 创建图表
       chart = createChart(containerRef.current, {
         width: containerRef.current.clientWidth,
         height: 250,
@@ -110,10 +127,12 @@ export default function BalanceCurve({ backtestResult }) {
     
     // 清理
     return () => {
+      console.log('🗑️ BalanceCurve: Cleaning up chart');
       window.removeEventListener('resize', handleResize);
       if (chart) {
         chart.remove();
       }
+      chartRef.current = null;  // 重置 ref，允许重新初始化
     };
   }, [backtestResult]);
   
@@ -135,13 +154,15 @@ export default function BalanceCurve({ backtestResult }) {
         </div>
       </div>
       
-      {loading ? (
-        <div className="flex items-center justify-center h-[250px]">
-          <div className="text-sm text-gray-400">加载中...</div>
-        </div>
-      ) : (
-        <div ref={containerRef} />
-      )}
+      {/* 容器始终渲染 */}
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center h-[250px] bg-[#1a1a2e] z-10">
+            <div className="text-sm text-gray-400">加载中...</div>
+          </div>
+        )}
+        <div ref={containerRef} className={loading ? 'invisible' : 'visible'} />
+      </div>
       
       {/* 统计信息 */}
       {!loading && backtestResult && (

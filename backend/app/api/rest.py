@@ -151,8 +151,10 @@ async def health_check():
 async def get_klines(
     symbol: str,
     timeframe: str,
-    limit: int = Query(100, ge=1, le=1000, description="返回数量（1-1000）"),
+    limit: int = Query(100, ge=1, le=50000, description="返回数量（1-50000）"),
     before: Optional[int] = Query(None, description="分页时间戳（获取此时间之前的数据）"),
+    start_time: Optional[int] = Query(None, description="开始时间戳（用于回测）"),
+    end_time: Optional[int] = Query(None, description="结束时间戳（用于回测）"),
     market_type: str = Query('future', description="市场类型: spot现货/future合约/delivery交割")
 ):
     """
@@ -161,8 +163,10 @@ async def get_klines(
     参数:
         symbol: 交易对（例如: BTCUSDT, ETHUSDT）
         timeframe: 时间周期（例如: 1m, 5m, 15m, 1h, 4h, 1d）
-        limit: 返回数量，默认100，最大1000
+        limit: 返回数量，默认100，最大50000（回测需要大量数据）
         before: 可选，分页时间戳（例如: 1699776000）
+        start_time: 可选，开始时间戳（与end_time配合使用，用于回测场景）
+        end_time: 可选，结束时间戳（与start_time配合使用，用于回测场景）
         market_type: 市场类型（默认: future）
         
     返回:
@@ -172,9 +176,14 @@ async def get_klines(
         GET /api/klines/BTCUSDT/1h?limit=100&market_type=future
         GET /api/klines/ETHUSDT/4h?limit=500
         GET /api/klines/BTCUSDT/1d?limit=50&before=1699776000
+        GET /api/klines/BTCUSDT/1h?start_time=1756732680&end_time=1762953480&market_type=future&limit=10000
     """
     try:
-        klines = await db.get_recent_klines(symbol, timeframe, limit, before, market_type)
+        # 如果提供了时间范围，使用专门的查询方法
+        if start_time is not None and end_time is not None:
+            klines = await db.get_klines_by_time_range(symbol, timeframe, start_time, end_time, market_type)
+        else:
+            klines = await db.get_recent_klines(symbol, timeframe, limit, before, market_type)
         # 调试：打印到控制台
         if klines:
             import json

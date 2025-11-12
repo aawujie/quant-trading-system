@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BacktestResult } from '../../utils/BacktestResult';
+import { getBacktestHistory, getBacktestDetail, deleteBacktest } from '../../services/tradingEngineApi';
 
 /**
  * 回测历史列表组件
@@ -27,23 +28,17 @@ export default function BacktestHistoryList({ onSelect, selectedRunId, symbol })
   const loadBacktests = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
+      const params = {
         limit: 20,
         offset: 0,
         sort_by: filters.sortBy,
         sort_order: filters.sortOrder
-      });
+      };
       
       // 只按交易对筛选，不筛选策略（显示所有策略的历史）
-      if (symbol) params.append('symbol', symbol);
+      if (symbol) params.symbol = symbol;
       
-      const response = await fetch(`/api/backtest/history?${params}`);
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const result = await response.json();
+      const result = await getBacktestHistory(params);
       
       // 直接使用返回的数据（Pydantic 模型不再包含 status 字段）
       setBacktests(result.data || []);
@@ -58,19 +53,20 @@ export default function BacktestHistoryList({ onSelect, selectedRunId, symbol })
   
   const handleSelect = async (backtest) => {
     try {
+      console.log('📚 Loading backtest detail for:', backtest.run_id);
+      
       // 加载完整数据（包含signals）
-      const response = await fetch(`/api/backtest/detail/${backtest.run_id}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load backtest detail: ${response.status}`);
-      }
-      
-      const result = await response.json();
+      const result = await getBacktestDetail(backtest.run_id);
+      console.log('📚 Got backtest detail response:', result);
       
       // 直接使用返回的数据
       if (result.data) {
+        console.log('📚 Creating BacktestResult with data:', result.data);
         const backtestResult = new BacktestResult(result.data);
+        console.log('📚 Created BacktestResult:', backtestResult);
         onSelect(backtestResult);
+      } else {
+        console.error('⚠️ No data in backtest detail response:', result);
       }
     } catch (error) {
       console.error('Failed to load backtest detail:', error);
@@ -86,13 +82,7 @@ export default function BacktestHistoryList({ onSelect, selectedRunId, symbol })
     }
     
     try {
-      const response = await fetch(`/api/backtest/${runId}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Delete failed: ${response.status}`);
-      }
+      await deleteBacktest(runId);
       
       // 删除成功，重新加载列表
       loadBacktests();

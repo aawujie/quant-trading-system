@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import KlineChart from './KlineChart';
 import EquityCurve from './EquityCurve';
 import BalanceCurve from './BalanceCurve';
@@ -6,9 +7,12 @@ import BalanceCurve from './BalanceCurve';
  * 回测图表组件容器
  * 
  * 统一管理K线图、收益率曲线、资金曲线三个图表
+ * 使用 memo 优化，避免不必要的重新渲染
  */
-export default function BacktestCharts({ backtestResult, onClose }) {
-  if (!backtestResult) return null;
+function BacktestCharts({ backtestResult, onClose }) {
+  if (!backtestResult) {
+    return null;
+  }
   
   const displayInfo = backtestResult.getDisplayInfo();
   
@@ -56,3 +60,8 @@ export default function BacktestCharts({ backtestResult, onClose }) {
   );
 }
 
+// 使用 memo 包装，只在 backtestResult.runId 变化时重新渲染
+export default memo(BacktestCharts, (prevProps, nextProps) => {
+  // 如果 runId 相同，则不重新渲染
+  return prevProps.backtestResult?.runId === nextProps.backtestResult?.runId;
+});

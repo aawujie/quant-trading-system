@@ -1,3 +1,5 @@
+import { getKlines } from '../services/tradingEngineApi';
+
 /**
  * 回测结果数据类
  * 
@@ -5,6 +7,8 @@
  */
 export class BacktestResult {
   constructor(data) {
+    console.log('🔨 BacktestResult: Constructor called with data =', data);
+    
     this.data = data;
     
     // 基础标识
@@ -38,6 +42,24 @@ export class BacktestResult {
     this.endTime = data.end_time;
     this.createdAt = data.created_at;
     
+    // 验证必要字段
+    if (!this.startTime || !this.endTime) {
+      console.error('⚠️ BacktestResult: Missing time range!', {
+        startTime: this.startTime,
+        endTime: this.endTime,
+        data
+      });
+    }
+    
+    console.log('🔨 BacktestResult: Initialized with:', {
+      runId: this.runId,
+      symbol: this.symbol,
+      timeframe: this.timeframe,
+      startTime: this.startTime,
+      endTime: this.endTime,
+      signals: this.signals?.length
+    });
+    
     // 配置信息
     this.strategyParams = data.strategy_params || {};
     this.positionPreset = data.position_preset;
@@ -53,32 +75,39 @@ export class BacktestResult {
    * @returns {Promise<Array>} K线数据数组
    */
   async loadKlineData() {
+    console.log('📊 BacktestResult.loadKlineData: Called');
+    console.log('📊 Cached klines:', this._klines?.length || 0);
+    
     if (this._klines) {
+      console.log('📊 Using cached klines:', this._klines.length);
       return this._klines;
     }
     
     try {
-      const params = new URLSearchParams({
+      const params = {
         start_time: this.startTime,
         end_time: this.endTime,
         market_type: this.marketType,
         limit: 10000
+      };
+      
+      console.log('📊 Fetching klines with params:', {
+        symbol: this.symbol,
+        timeframe: this.timeframe,
+        params
       });
       
-      const response = await fetch(
-        `/api/klines/${this.symbol}/${this.timeframe}?${params}`
-      );
+      const result = await getKlines(this.symbol, this.timeframe, params);
+      console.log('📊 Got klines result:', result);
+      console.log('📊 Result type:', Array.isArray(result) ? 'Array' : 'Object');
       
-      if (!response.ok) {
-        throw new Error(`Failed to load klines: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      this._klines = result.klines || [];
+      // 后端可能直接返回数组，也可能返回 {klines: [...]} 对象
+      this._klines = Array.isArray(result) ? result : (result.klines || []);
+      console.log('📊 Cached', this._klines.length, 'klines');
       
       return this._klines;
     } catch (error) {
-      console.error('Failed to load kline data:', error);
+      console.error('❌ Failed to load kline data:', error);
       return [];
     }
   }

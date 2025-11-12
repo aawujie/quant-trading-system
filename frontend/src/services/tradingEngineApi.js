@@ -128,3 +128,35 @@ export const getStrategyCategories = async () => {
   return response.data.categories;
 };
 
+/**
+ * 获取回测历史列表
+ */
+export const getBacktestHistory = async (params) => {
+  const response = await axios.get(`${API_BASE_URL}/api/backtest/history`, { params });
+  return response.data;
+};
+
+/**
+ * 获取回测详情
+ */
+export const getBacktestDetail = async (runId) => {
+  const response = await axios.get(`${API_BASE_URL}/api/backtest/detail/${runId}`);
+  return response.data;
+};
+
+/**
+ * 删除回测记录
+ */
+export const deleteBacktest = async (runId) => {
+  const response = await axios.delete(`${API_BASE_URL}/api/backtest/${runId}`);
+  return response.data;
+};
+
+/**
+ * 获取K线数据
+ */
+export const getKlines = async (symbol, timeframe, params) => {
+  const response = await axios.get(`${API_BASE_URL}/api/klines/${symbol}/${timeframe}`, { params });
+  return response.data;
+};
+
