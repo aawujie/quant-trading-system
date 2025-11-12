@@ -85,6 +85,9 @@ db: Optional[Database] = None
 exchange: Optional[BinanceExchange] = None
 data_manager: Optional[DataManager] = None
 
+# Global task storage for optimization (TODO: migrate to TaskManager like backtest)
+optimization_tasks = {}
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -148,22 +151,27 @@ async def health_check():
 async def get_klines(
     symbol: str,
     timeframe: str,
-    limit: int = Query(100, ge=1, le=1000, description="Number of K-lines to fetch"),
-    before: Optional[int] = Query(None, description="Fetch K-lines before this timestamp (for pagination)"),
-    market_type: str = Query('future', description="Market type: spot, future, delivery")
+    limit: int = Query(100, ge=1, le=1000, description="返回数量（1-1000）"),
+    before: Optional[int] = Query(None, description="分页时间戳（获取此时间之前的数据）"),
+    market_type: str = Query('future', description="市场类型: spot现货/future合约/delivery交割")
 ):
     """
-    Get recent K-line data
+    获取K线数据
     
-    Args:
-        symbol: Trading symbol (e.g., BTCUSDT)
-        timeframe: Timeframe (e.g., 1h, 1d)
-        limit: Number of K-lines to fetch (max 1000)
-        before: Optional timestamp - fetch K-lines before this timestamp (for infinite scroll)
-        market_type: Market type (spot, future, delivery)
+    参数:
+        symbol: 交易对（例如: BTCUSDT, ETHUSDT）
+        timeframe: 时间周期（例如: 1m, 5m, 15m, 1h, 4h, 1d）
+        limit: 返回数量，默认100，最大1000
+        before: 可选，分页时间戳（例如: 1699776000）
+        market_type: 市场类型（默认: future）
         
-    Returns:
-        List of K-line data
+    返回:
+        K线数据列表，按时间升序排列
+        
+    示例:
+        GET /api/klines/BTCUSDT/1h?limit=100&market_type=future
+        GET /api/klines/ETHUSDT/4h?limit=500
+        GET /api/klines/BTCUSDT/1d?limit=50&before=1699776000
     """
     try:
         klines = await db.get_recent_klines(symbol, timeframe, limit, before, market_type)
@@ -187,18 +195,22 @@ async def get_klines(
 async def get_latest_kline(
     symbol: str,
     timeframe: str,
-    market_type: str = Query('future', description="Market type: spot, future, delivery")
+    market_type: str = Query('future', description="市场类型: spot现货/future合约/delivery交割")
 ):
     """
-    Get the latest K-line
+    获取最新K线数据
     
-    Args:
-        symbol: Trading symbol
-        timeframe: Timeframe
-        market_type: Market type (spot, future, delivery)
+    参数:
+        symbol: 交易对（例如: BTCUSDT）
+        timeframe: 时间周期（例如: 1h, 4h, 1d）
+        market_type: 市场类型（默认: future）
         
-    Returns:
-        Latest K-line data or None
+    返回:
+        最新的K线数据，如果没有则返回 null
+        
+    示例:
+        GET /api/klines/BTCUSDT/1h/latest
+        GET /api/klines/ETHUSDT/4h/latest?market_type=spot
     """
     try:
         klines = await db.get_recent_klines(symbol, timeframe, limit=1, market_type=market_type)
@@ -213,13 +225,17 @@ async def get_latest_kline(
 @app.get("/api/ticker/{symbol}", response_model=TickerData)
 async def get_ticker(symbol: str):
     """
-    Get 24hr ticker statistics from exchange (交易所官方24小时统计数据)
+    获取实时行情数据（24小时统计）
     
-    Args:
-        symbol: Trading symbol (e.g., 'BTCUSDT')
+    参数:
+        symbol: 交易对（例如: BTCUSDT, ETHUSDT）
         
-    Returns:
-        Ticker data with 24hr statistics
+    返回:
+        实时行情数据，包含24小时价格、成交量等统计信息
+        
+    示例:
+        GET /api/ticker/BTCUSDT
+        GET /api/ticker/ETHUSDT
     """
     try:
         # Convert BTCUSDT to BTC/USDT for exchange
@@ -237,22 +253,27 @@ async def get_ticker(symbol: str):
 async def get_indicators(
     symbol: str,
     timeframe: str,
-    limit: int = Query(500, ge=1, le=1000, description="Number of indicators to fetch"),
-    before: Optional[int] = Query(None, description="Fetch indicators before this timestamp"),
-    market_type: str = Query('future', description="Market type: spot, future, delivery")
+    limit: int = Query(500, ge=1, le=1000, description="返回数量（1-1000）"),
+    before: Optional[int] = Query(None, description="分页时间戳（获取此时间之前的数据）"),
+    market_type: str = Query('future', description="市场类型: spot现货/future合约/delivery交割")
 ):
     """
-    Get recent indicator data (batch)
+    获取技术指标数据
     
-    Args:
-        symbol: Trading symbol (e.g., BTCUSDT)
-        timeframe: Timeframe (e.g., 1h, 1d)
-        limit: Number of indicators to fetch (max 1000)
-        before: Optional timestamp - fetch indicators before this timestamp
-        market_type: Market type (spot, future, delivery)
+    参数:
+        symbol: 交易对（例如: BTCUSDT, ETHUSDT）
+        timeframe: 时间周期（例如: 1h, 4h, 1d）
+        limit: 返回数量，默认500，最大1000
+        before: 可选，分页时间戳（例如: 1699776000）
+        market_type: 市场类型（默认: future）
         
-    Returns:
-        List of indicator data, sorted by timestamp ascending
+    返回:
+        指标数据列表，包含MA、EMA、RSI、MACD、布林带等，按时间升序排列
+        
+    示例:
+        GET /api/indicators/BTCUSDT/1h?limit=500&market_type=future
+        GET /api/indicators/ETHUSDT/4h?limit=200
+        GET /api/indicators/BTCUSDT/1d?limit=100&before=1699776000
     """
     try:
         indicators = await db.get_recent_indicators(symbol, timeframe, limit, before, market_type)
@@ -266,18 +287,22 @@ async def get_indicators(
 async def get_latest_indicator(
     symbol: str,
     timeframe: str,
-    market_type: str = Query('future', description="Market type: spot, future, delivery")
+    market_type: str = Query('future', description="市场类型: spot现货/future合约/delivery交割")
 ):
     """
-    Get the latest indicator data
+    获取最新技术指标数据
     
-    Args:
-        symbol: Trading symbol
-        timeframe: Timeframe
-        market_type: Market type (spot, future, delivery)
+    参数:
+        symbol: 交易对（例如: BTCUSDT）
+        timeframe: 时间周期（例如: 1h, 4h, 1d）
+        market_type: 市场类型（默认: future）
         
-    Returns:
-        Latest indicator data or None
+    返回:
+        最新的指标数据，如果没有则返回 null
+        
+    示例:
+        GET /api/indicators/BTCUSDT/1h/latest
+        GET /api/indicators/ETHUSDT/4h/latest?market_type=spot
     """
     try:
         # Get latest K-line timestamp
@@ -299,18 +324,23 @@ async def get_latest_indicator(
 async def get_signals(
     strategy_name: str,
     symbol: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=1000, description="Number of signals to fetch")
+    limit: int = Query(100, ge=1, le=1000, description="返回数量（1-1000）")
 ):
     """
-    Get trading signals
+    获取交易信号
     
-    Args:
-        strategy_name: Strategy identifier (e.g., dual_ma)
-        symbol: Optional symbol filter
-        limit: Number of signals to fetch
+    参数:
+        strategy_name: 策略名称（例如: dual_ma, rsi, macd, bollinger）
+        symbol: 可选，交易对过滤（例如: BTCUSDT）
+        limit: 返回数量，默认100，最大1000
         
-    Returns:
-        List of trading signals
+    返回:
+        交易信号列表，包含买入/卖出信号及相关信息
+        
+    示例:
+        GET /api/signals/dual_ma?limit=100
+        GET /api/signals/rsi?symbol=BTCUSDT&limit=50
+        GET /api/signals/macd?symbol=ETHUSDT
     """
     try:
         signals = await db.get_recent_signals(strategy_name, symbol, limit)
@@ -326,14 +356,18 @@ async def get_latest_signal(
     symbol: Optional[str] = None
 ):
     """
-    Get the latest signal
+    获取最新交易信号
     
-    Args:
-        strategy_name: Strategy identifier
-        symbol: Optional symbol filter
+    参数:
+        strategy_name: 策略名称（例如: dual_ma, rsi, macd）
+        symbol: 可选，交易对过滤（例如: BTCUSDT）
         
-    Returns:
-        Latest signal or None
+    返回:
+        最新的交易信号，如果没有则返回 null
+        
+    示例:
+        GET /api/signals/dual_ma/latest
+        GET /api/signals/rsi/latest?symbol=BTCUSDT
     """
     try:
         signals = await db.get_recent_signals(strategy_name, symbol, limit=1)
@@ -386,13 +420,17 @@ async def get_drawings(
     symbol: str
 ):
     """
-    获取指定交易对的所有绘图（所有时间级别共享）
+    获取指定交易对的所有绘图
     
-    Args:
-        symbol: 交易对
+    参数:
+        symbol: 交易对（例如: BTCUSDT, ETHUSDT）
         
-    Returns:
-        绘图数据列表
+    返回:
+        绘图数据列表，包含趋势线、水平线、斐波那契等所有图表绘制数据
+        
+    示例:
+        GET /api/drawings/BTCUSDT
+        GET /api/drawings/ETHUSDT
     """
     try:
         drawings = await db.get_drawings(symbol)
@@ -407,11 +445,14 @@ async def get_drawing_by_id(drawing_id: str):
     """
     根据ID获取单个绘图
     
-    Args:
-        drawing_id: 绘图ID
+    参数:
+        drawing_id: 绘图ID（例如: 550e8400-e29b-41d4-a716-446655440000）
         
-    Returns:
-        绘图数据或None
+    返回:
+        绘图数据，如果不存在则返回404
+        
+    示例:
+        GET /api/drawings/id/550e8400-e29b-41d4-a716-446655440000
     """
     try:
         drawing = await db.get_drawing_by_id(drawing_id)
@@ -430,11 +471,20 @@ async def create_drawing(drawing: DrawingData):
     """
     创建新绘图
     
-    Args:
-        drawing: 绘图数据
+    参数:
+        drawing: 绘图数据对象（JSON格式）
         
-    Returns:
-        成功消息
+    返回:
+        创建结果及绘图ID
+        
+    示例:
+        POST /api/drawings
+        Body: {
+            "drawing_id": "550e8400-e29b-41d4-a716-446655440000",
+            "symbol": "BTCUSDT",
+            "drawing_type": "trendline",
+            "data": {...}
+        }
     """
     try:
         success = await db.insert_drawing(drawing)
@@ -452,12 +502,21 @@ async def update_drawing(drawing_id: str, drawing: DrawingData):
     """
     更新绘图
     
-    Args:
-        drawing_id: 绘图ID
-        drawing: 更新的绘图数据
+    参数:
+        drawing_id: 绘图ID（例如: 550e8400-e29b-41d4-a716-446655440000）
+        drawing: 更新的绘图数据对象（JSON格式）
         
-    Returns:
-        成功消息
+    返回:
+        更新结果
+        
+    示例:
+        PUT /api/drawings/550e8400-e29b-41d4-a716-446655440000
+        Body: {
+            "drawing_id": "550e8400-e29b-41d4-a716-446655440000",
+            "symbol": "BTCUSDT",
+            "drawing_type": "trendline",
+            "data": {...}
+        }
     """
     try:
         if drawing_id != drawing.drawing_id:
@@ -480,11 +539,14 @@ async def delete_drawing(drawing_id: str):
     """
     删除绘图
     
-    Args:
-        drawing_id: 绘图ID
+    参数:
+        drawing_id: 绘图ID（例如: 550e8400-e29b-41d4-a716-446655440000）
         
-    Returns:
-        成功消息
+    返回:
+        删除结果
+        
+    示例:
+        DELETE /api/drawings/550e8400-e29b-41d4-a716-446655440000
     """
     try:
         success = await db.delete_drawing(drawing_id)
@@ -513,16 +575,20 @@ async def create_download_task(
     """
     创建历史数据下载任务
     
-    Args:
-        symbol: 交易对（如 BTCUSDT）
-        timeframe: 时间周期（如 1h）
-        start_time: 开始时间戳（秒）
-        end_time: 结束时间戳（秒）
-        market_type: 市场类型（spot/future/delivery）
-        auto_start: 是否自动开始下载
+    参数:
+        symbol: 交易对（例如: BTCUSDT, ETHUSDT）
+        timeframe: 时间周期（例如: 1h, 4h, 1d）
+        start_time: 开始时间戳，秒（例如: 1640995200 即 2022-01-01）
+        end_time: 结束时间戳，秒（例如: 1672531200 即 2023-01-01）
+        market_type: 市场类型（spot/future/delivery，默认: future）
+        auto_start: 是否自动开始下载（默认: true）
         
-    Returns:
-        任务信息
+    返回:
+        任务信息，包含task_id和状态
+        
+    示例:
+        POST /api/data/download?symbol=BTCUSDT&timeframe=1h&start_time=1640995200&end_time=1672531200&market_type=future
+        POST /api/data/download?symbol=ETHUSDT&timeframe=4h&start_time=1640995200&end_time=1672531200
     """
     try:
         task_id = data_manager.create_download_task(
@@ -552,11 +618,14 @@ async def get_download_task(task_id: str):
     """
     获取下载任务状态
     
-    Args:
-        task_id: 任务ID
+    参数:
+        task_id: 任务ID（例如: 550e8400-e29b-41d4-a716-446655440000）
         
-    Returns:
-        任务状态
+    返回:
+        任务状态，包含进度、已下载数量等信息
+        
+    示例:
+        GET /api/data/download/550e8400-e29b-41d4-a716-446655440000
     """
     try:
         task_status = data_manager.get_task_status(task_id)
@@ -580,8 +649,11 @@ async def list_download_tasks():
     """
     获取所有下载任务列表
     
-    Returns:
-        任务列表
+    返回:
+        所有下载任务列表，包含状态和进度
+        
+    示例:
+        GET /api/data/download
     """
     try:
         tasks = data_manager.get_all_tasks()
@@ -601,11 +673,14 @@ async def start_download_task(task_id: str):
     """
     启动下载任务
     
-    Args:
-        task_id: 任务ID
+    参数:
+        task_id: 任务ID（例如: 550e8400-e29b-41d4-a716-446655440000）
         
-    Returns:
-        成功消息
+    返回:
+        启动结果
+        
+    示例:
+        POST /api/data/download/550e8400-e29b-41d4-a716-446655440000/start
     """
     try:
         await data_manager.start_download_task(task_id)
@@ -624,11 +699,14 @@ async def cancel_download_task(task_id: str):
     """
     取消下载任务
     
-    Args:
-        task_id: 任务ID
+    参数:
+        task_id: 任务ID（例如: 550e8400-e29b-41d4-a716-446655440000）
         
-    Returns:
-        成功消息
+    返回:
+        取消结果
+        
+    示例:
+        POST /api/data/download/550e8400-e29b-41d4-a716-446655440000/cancel
     """
     try:
         await data_manager.cancel_task(task_id)
@@ -647,8 +725,11 @@ async def get_data_stats():
     """
     获取数据统计信息
     
-    Returns:
-        数据统计
+    返回:
+        数据统计信息，包含K线数量、指标数量、交易对列表等
+        
+    示例:
+        GET /api/data/stats
     """
     try:
         stats = await data_manager.get_data_stats()
@@ -668,22 +749,26 @@ async def get_data_stats():
 
 @app.post("/api/admin/repair-data")
 async def trigger_data_repair(
-    symbols: str = Query('BTCUSDT,ETHUSDT', description="Comma-separated symbols"),
-    timeframes: str = Query('1h,4h,1d', description="Comma-separated timeframes"),
-    days: int = Query(7, ge=1, le=90, description="Check last N days"),
-    market_type: str = Query('future', description="Market type")
+    symbols: str = Query('BTCUSDT,ETHUSDT', description="交易对列表（逗号分隔）"),
+    timeframes: str = Query('1h,4h,1d', description="时间周期列表（逗号分隔）"),
+    days: int = Query(7, ge=1, le=90, description="检查最近N天（1-90）"),
+    market_type: str = Query('future', description="市场类型: spot/future/delivery")
 ):
     """
-    手动触发数据修复任务
+    手动触发数据修复任务（后台运行）
     
-    Args:
-        symbols: 交易对列表（逗号分隔）
-        timeframes: 时间周期列表（逗号分隔）
-        days: 检查最近N天
-        market_type: 市场类型
+    参数:
+        symbols: 交易对列表，逗号分隔（例如: BTCUSDT,ETHUSDT）
+        timeframes: 时间周期列表，逗号分隔（例如: 1h,4h,1d）
+        days: 检查最近N天，默认7天（1-90天）
+        market_type: 市场类型（默认: future）
         
-    Returns:
+    返回:
         任务启动状态
+        
+    示例:
+        POST /api/admin/repair-data?symbols=BTCUSDT&timeframes=1h&days=7&market_type=future
+        POST /api/admin/repair-data?symbols=BTCUSDT,ETHUSDT&timeframes=1h,4h,1d&days=30
     """
     try:
         from app.services.data_integrity import DataIntegrityService
@@ -732,22 +817,26 @@ async def trigger_data_repair(
 
 @app.get("/api/admin/data-status")
 async def check_data_status(
-    symbols: str = Query('BTCUSDT', description="Comma-separated symbols"),
-    timeframes: str = Query('1h', description="Comma-separated timeframes"),
-    days: int = Query(7, ge=1, le=90, description="Check last N days"),
-    market_type: str = Query('future', description="Market type")
+    symbols: str = Query('BTCUSDT', description="交易对列表（逗号分隔）"),
+    timeframes: str = Query('1h', description="时间周期列表（逗号分隔）"),
+    days: int = Query(7, ge=1, le=90, description="检查最近N天（1-90）"),
+    market_type: str = Query('future', description="市场类型: spot/future/delivery")
 ):
     """
     检查数据完整性状态
     
-    Args:
-        symbols: 交易对列表（逗号分隔）
-        timeframes: 时间周期列表（逗号分隔）
-        days: 检查最近N天
-        market_type: 市场类型
+    参数:
+        symbols: 交易对列表，逗号分隔（例如: BTCUSDT,ETHUSDT）
+        timeframes: 时间周期列表，逗号分隔（例如: 1h,4h）
+        days: 检查最近N天，默认7天（1-90天）
+        market_type: 市场类型（默认: future）
         
-    Returns:
-        数据状态报告
+    返回:
+        数据状态报告，包含K线和指标的缺失情况
+        
+    示例:
+        GET /api/admin/data-status?symbols=BTCUSDT&timeframes=1h&days=7
+        GET /api/admin/data-status?symbols=BTCUSDT,ETHUSDT&timeframes=1h,4h&days=30&market_type=future
     """
     try:
         from app.services.data_integrity import DataIntegrityService
@@ -830,17 +919,47 @@ async def run_backtest(request: BacktestRequest) -> BacktestResult:
     """
     运行策略回测（优化版）
     
-    优化特性：
+    功能特性:
     - TTL缓存（1小时自动过期）
     - 并发控制（最多3个并发）
-    - WebSocket实时推送
-    - SQL层面时间过滤
+    - WebSocket实时推送进度
+    - SQL层面时间过滤优化
+    - 细粒度进度追踪（0-100%）
     
-    Args:
-        request: 回测配置
+    参数:
+        request: 回测配置对象（JSON格式）
+        - strategy: 策略名称（例如: rsi, dual_ma, macd, bollinger）
+        - symbol: 交易对（例如: BTCUSDT）
+        - timeframe: 时间周期（例如: 1h, 4h, 1d）
+        - start_date: 开始日期（例如: 2023-01-01）
+        - end_date: 结束日期（例如: 2023-12-31）
+        - initial_capital: 初始资金（例如: 10000）
+        - position_preset: 仓位管理预设（例如: conservative, moderate, aggressive）
+        - market_type: 市场类型（例如: future, spot）
+        - params: 策略参数（JSON对象）
+        - enable_ai: 是否启用AI增强（默认: false）
         
-    Returns:
-        任务ID和状态
+    返回:
+        任务ID和状态，可通过 WebSocket 或轮询获取进度
+        
+    示例:
+        POST /api/backtest/run
+        Body: {
+            "strategy": "rsi",
+            "symbol": "BTCUSDT",
+            "timeframe": "1h",
+            "start_date": "2023-01-01",
+            "end_date": "2023-12-31",
+            "initial_capital": 10000,
+            "position_preset": "moderate",
+            "market_type": "future",
+            "params": {
+                "rsi_period": 14,
+                "oversold": 30,
+                "overbought": 70
+            },
+            "enable_ai": false
+        }
     """
     try:
         import uuid
@@ -1059,15 +1178,20 @@ async def run_backtest(request: BacktestRequest) -> BacktestResult:
 @app.get("/api/backtest/result/{task_id}")
 async def get_backtest_result(task_id: str):
     """
-    获取回测结果（优化版）
+    获取回测结果（支持TTL缓存）
     
-    从任务管理器获取（支持TTL缓存）
-    
-    Args:
-        task_id: 任务ID
+    参数:
+        task_id: 任务ID（例如: 550e8400-e29b-41d4-a716-446655440000）
         
-    Returns:
-        回测结果或任务状态
+    返回:
+        回测结果和任务状态：
+        - status: 任务状态（pending/running/completed/failed）
+        - progress: 进度百分比（0-100）
+        - results: 回测结果（完成后才有）
+        - error: 错误信息（失败时才有）
+        
+    示例:
+        GET /api/backtest/result/550e8400-e29b-41d4-a716-446655440000
     """
     task = backtest_task_manager.get_task(task_id)
     
@@ -1154,24 +1278,31 @@ async def get_backtest_stats():
 async def get_backtest_history(
     symbol: Optional[str] = None,
     strategy: Optional[str] = None,
-    limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    sort_by: str = Query("created_at", regex="^(created_at|total_return|sharpe_ratio|win_rate)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$")
+    limit: int = Query(20, ge=1, le=100, description="返回数量（1-100）"),
+    offset: int = Query(0, ge=0, description="偏移量（分页）"),
+    sort_by: str = Query("created_at", regex="^(created_at|total_return|sharpe_ratio|win_rate)$", 
+                        description="排序字段"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="排序方向")
 ) -> BacktestHistoryResponse:
     """
-    获取回测历史列表
+    获取回测历史列表（支持分页和排序）
     
-    Args:
-        symbol: 可选，按交易对筛选
-        strategy: 可选，按策略筛选
-        limit: 返回数量限制（1-100）
-        offset: 偏移量（分页）
-        sort_by: 排序字段（created_at/total_return/sharpe_ratio/win_rate）
-        sort_order: 排序方向（asc/desc）
+    参数:
+        symbol: 可选，按交易对筛选（例如: BTCUSDT）
+        strategy: 可选，按策略筛选（例如: rsi, dual_ma）
+        limit: 返回数量，默认20，最大100
+        offset: 偏移量，用于分页（默认: 0）
+        sort_by: 排序字段（created_at/total_return/sharpe_ratio/win_rate，默认: created_at）
+        sort_order: 排序方向（asc升序/desc降序，默认: desc）
         
-    Returns:
-        回测历史列表和总数
+    返回:
+        回测历史列表和总数，包含分页信息
+        
+    示例:
+        GET /api/backtest/history?limit=20&offset=0
+        GET /api/backtest/history?symbol=BTCUSDT&limit=10
+        GET /api/backtest/history?strategy=rsi&sort_by=total_return&sort_order=desc
+        GET /api/backtest/history?symbol=ETHUSDT&strategy=macd&limit=50
     """
     try:
         # 获取回测列表（不含详细信号）
@@ -1205,13 +1336,17 @@ async def get_backtest_history(
 @app.get("/api/backtest/detail/{run_id}", response_model=BacktestDetailResponse)
 async def get_backtest_detail(run_id: str) -> BacktestDetailResponse:
     """
-    获取回测详细数据（包含所有信号）
+    获取回测详细数据（包含所有交易信号）
     
-    Args:
-        run_id: 回测运行ID
+    参数:
+        run_id: 回测运行ID（例如: rsi_BTCUSDT_1h_20230101_000000）
         
-    Returns:
-        完整的回测数据
+    返回:
+        完整的回测数据，包含所有交易信号、资金曲线、性能指标等
+        
+    示例:
+        GET /api/backtest/detail/rsi_BTCUSDT_1h_20230101_000000
+        GET /api/backtest/detail/dual_ma_ETHUSDT_4h_20230601_120000
     """
     try:
         backtest = await db.get_backtest_detail(run_id)
@@ -1233,11 +1368,14 @@ async def delete_backtest(run_id: str):
     """
     删除回测记录
     
-    Args:
-        run_id: 回测运行ID
+    参数:
+        run_id: 回测运行ID（例如: rsi_BTCUSDT_1h_20230101_000000）
         
-    Returns:
+    返回:
         删除结果
+        
+    示例:
+        DELETE /api/backtest/rsi_BTCUSDT_1h_20230101_000000
     """
     try:
         success = await db.delete_backtest_run(run_id)
@@ -1262,10 +1400,13 @@ async def delete_backtest(run_id: str):
 @app.get("/api/position/presets")
 async def get_position_manager_presets():
     """
-    获取仓位管理预设配置（从配置文件）
+    获取仓位管理预设配置
     
-    Returns:
-        预设列表
+    返回:
+        仓位管理预设列表，包含保守、稳健、激进等不同风格
+        
+    示例:
+        GET /api/position/presets
     """
     try:
         position_config = get_position_config()
@@ -1286,11 +1427,16 @@ async def get_position_preset_detail(preset_name: str):
     """
     获取指定仓位管理预设的详细配置
     
-    Args:
-        preset_name: 预设名称
+    参数:
+        preset_name: 预设名称（例如: conservative, moderate, aggressive）
         
-    Returns:
-        预设详细配置
+    返回:
+        预设详细配置，包含仓位计算策略、风险管理参数等
+        
+    示例:
+        GET /api/position/presets/conservative
+        GET /api/position/presets/moderate
+        GET /api/position/presets/aggressive
     """
     try:
         position_config = get_position_config()
@@ -1385,13 +1531,36 @@ async def reload_position_config():
 @app.post("/api/optimize/run")
 async def run_optimization(request: OptimizationRequest):
     """
-    运行参数优化
+    运行策略参数优化（后台任务）
     
-    Args:
-        request: 优化配置
+    参数:
+        request: 优化配置对象（JSON格式）
+        - strategy_name: 策略名称（例如: rsi, dual_ma）
+        - symbols: 交易对列表（例如: ["BTCUSDT"]）
+        - timeframe: 时间周期（例如: 1h）
+        - start_time: 开始时间戳（秒）
+        - end_time: 结束时间戳（秒）
+        - initial_balance: 初始资金（例如: 10000）
+        - n_trials: 优化次数（例如: 100）
+        - optimization_target: 优化目标（例如: sharpe_ratio, total_return）
+        - market_type: 市场类型（例如: future）
         
-    Returns:
+    返回:
         任务ID和状态
+        
+    示例:
+        POST /api/optimize/run
+        Body: {
+            "strategy_name": "rsi",
+            "symbols": ["BTCUSDT"],
+            "timeframe": "1h",
+            "start_time": 1640995200,
+            "end_time": 1672531200,
+            "initial_balance": 10000,
+            "n_trials": 100,
+            "optimization_target": "sharpe_ratio",
+            "market_type": "future"
+        }
     """
     try:
         import uuid
@@ -1466,13 +1635,16 @@ async def run_optimization(request: OptimizationRequest):
 @app.get("/api/optimize/result/{task_id}")
 async def get_optimization_result(task_id: str):
     """
-    获取优化结果
+    获取参数优化结果
     
-    Args:
-        task_id: 任务ID
+    参数:
+        task_id: 任务ID（例如: 550e8400-e29b-41d4-a716-446655440000）
         
-    Returns:
-        优化结果或任务状态
+    返回:
+        优化结果或任务状态，包含最优参数组合和性能指标
+        
+    示例:
+        GET /api/optimize/result/550e8400-e29b-41d4-a716-446655440000
     """
     if task_id not in optimization_tasks:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -1491,8 +1663,11 @@ async def get_ai_config():
     """
     获取AI配置状态
     
-    Returns:
-        AI配置信息
+    返回:
+        AI配置信息，包含是否启用、模型名称、API密钥状态等
+        
+    示例:
+        GET /api/ai/config
     """
     import os
     
@@ -1514,8 +1689,11 @@ async def get_strategies():
     """
     获取所有可用策略及其配置
     
-    Returns:
-        策略列表，包含每个策略的参数配置
+    返回:
+        策略列表，包含每个策略的名称、描述、图标、参数配置等
+        
+    示例:
+        GET /api/strategies
     """
     try:
         strategy_config = get_strategy_config()
@@ -1536,11 +1714,16 @@ async def get_strategy_detail(strategy_name: str):
     """
     获取指定策略的详细配置
     
-    Args:
-        strategy_name: 策略名称
+    参数:
+        strategy_name: 策略名称（例如: rsi, dual_ma, macd, bollinger）
         
-    Returns:
-        策略详细配置
+    返回:
+        策略详细配置，包含参数定义、默认值、范围等
+        
+    示例:
+        GET /api/strategies/rsi
+        GET /api/strategies/dual_ma
+        GET /api/strategies/macd
     """
     try:
         strategy_config = get_strategy_config()
