@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from scalar_fastapi import get_scalar_api_reference
 
 from app.core.database import Database
 from app.config import settings
@@ -25,9 +26,40 @@ logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
-    title="Quantitative Trading System API",
-    description="REST API for accessing trading data",
-    version="0.1.0"
+    title="量化交易系统 API",
+    description="""
+    # 量化交易系统 REST API
+    
+    ## 功能模块
+    
+    - 📊 **市场数据**: K线、指标、实时行情查询
+    - 🎯 **交易信号**: 策略信号查询和管理
+    - 🔄 **回测管理**: 回测执行、历史查询、结果分析
+    - 📈 **绘图工具**: 图表绘制数据管理
+    - ⚙️ **系统管理**: 数据修复、状态监控
+    
+    ## 数据格式
+    
+    - 时间戳: Unix 秒级时间戳
+    - 数据格式: JSON
+    - WebSocket: `ws://localhost:8001/ws`
+    
+    ## 技术栈
+    
+    - FastAPI + Python
+    - PostgreSQL + Redis
+    - Binance API
+    """,
+    version="1.0.0",
+    contact={
+        "name": "Jie",
+    },
+    license_info={
+        "name": "MIT",
+    },
+    # 禁用默认文档，只使用 Scalar
+    docs_url=None,      # 关闭 Swagger UI
+    redoc_url=None,     # 关闭 ReDoc
 )
 
 # Add CORS middleware
@@ -38,6 +70,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Scalar API 文档（唯一的文档入口）
+@app.get("/docs", include_in_schema=False)
+async def api_docs():
+    """API 文档页面（Scalar）"""
+    return get_scalar_api_reference(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} - API 文档",
+    )
 
 # Database instance (will be initialized on startup)
 db: Optional[Database] = None
