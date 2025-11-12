@@ -15,7 +15,7 @@ from app.models.indicators import IndicatorData
 from app.models.signals import SignalData
 from app.models.drawings import DrawingData
 from app.models.requests import BacktestRequest, OptimizationRequest, DataDownloadRequest, DataRepairRequest
-from app.models.backtest import BacktestResult, BacktestHistoryResponse, BacktestDetailResponse
+from app.models.backtest import BacktestResult, BacktestHistoryResponse, BacktestDetailResponse, BacktestTaskResponse
 from app.exchanges.binance import BinanceExchange
 from app.services.data_manager import DataManager
 from app.core.strategy_config import get_strategy_config
@@ -923,8 +923,8 @@ from typing import Dict, Any
 # 不再使用全局字典，改用 TaskManager
 
 
-@app.post("/api/backtest/run", response_model=BacktestResult)
-async def run_backtest(request: BacktestRequest) -> BacktestResult:
+@app.post("/api/backtest/run", response_model=BacktestTaskResponse)
+async def run_backtest(request: BacktestRequest) -> BacktestTaskResponse:
     """
     运行策略回测（优化版）
     

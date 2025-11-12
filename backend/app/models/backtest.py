@@ -163,3 +163,24 @@ class BacktestDetailResponse(BaseModel):
             }
         }
 
+
+class BacktestTaskResponse(BaseModel):
+    """
+    回测任务创建响应
+    
+    用于返回异步回测任务的启动状态
+    """
+    
+    status: str = Field(..., description="状态：success/error")
+    task_id: str = Field(..., description="任务ID，用于查询进度和结果")
+    message: str = Field(..., description="提示信息")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "task_id": "550e8400-e29b-41d4-a716-446655440000",
+                "message": "Backtest task started (optimized)"
+            }
+        }
+
