@@ -225,10 +225,20 @@ class IndicatorNode(ProcessorNode):
         self.stats['calc_time_total'] += calc_time
         self.stats['calc_count'] += 1
         
-        # 性能告警
-        if calc_time > 0.01:  # 超过 10ms
+        # 性能监控（分级告警）
+        # 3m 级别 K 线每 3 分钟更新一次，10-30ms 延迟不影响用户体验
+        # 未来可优化布林带标准差计算从 O(n) 到 O(1)
+        if calc_time > 0.05:  # 超过 50ms - 严重性能问题
+            logger.error(
+                f"❌ Calculation critically slow: {calc_time*1000:.2f}ms for {calc_key}"
+            )
+        elif calc_time > 0.03:  # 超过 30ms - 需要关注
             logger.warning(
-                f"⚠️ Incremental calculation too slow: {calc_time*1000:.2f}ms for {calc_key}"
+                f"⚠️ Calculation slow: {calc_time*1000:.2f}ms for {calc_key}"
+            )
+        elif calc_time > 0.015:  # 超过 15ms - 正常范围上限
+            logger.info(
+                f"ℹ️ Calculation acceptable: {calc_time*1000:.2f}ms for {calc_key}"
             )
         
         # 转换为 IndicatorData 对象
