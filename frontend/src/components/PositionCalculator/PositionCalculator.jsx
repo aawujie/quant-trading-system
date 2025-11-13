@@ -187,37 +187,33 @@ export default function PositionCalculator({
               />
             </div>
             
-            <div className="calculator-input">
-              <label>
-                📍 止盈幅度
-                <span className="hint"> 做多:+, 做空:-</span>
-              </label>
-              <div className="input-with-unit">
-                <input
-                  type="number"
-                  value={tpPercent}
-                  onChange={(e) => setTpPercent(Number(e.target.value))}
-                  placeholder="2"
-                  step="0.1"
-                />
-                <span className="unit">%</span>
+            <div className="calculator-input-row">
+              <div className="calculator-input">
+                <label>📍 止盈幅度</label>
+                <div className="input-with-unit">
+                  <input
+                    type="number"
+                    value={tpPercent}
+                    onChange={(e) => setTpPercent(Number(e.target.value))}
+                    placeholder="2"
+                    step="0.1"
+                  />
+                  <span className="unit">%</span>
+                </div>
               </div>
-            </div>
-            
-            <div className="calculator-input">
-              <label>
-                🛡️ 止损幅度
-                <span className="hint"> 做多:-, 做空:+</span>
-              </label>
-              <div className="input-with-unit">
-                <input
-                  type="number"
-                  value={slPercent}
-                  onChange={(e) => setSlPercent(Number(e.target.value))}
-                  placeholder="-0.5"
-                  step="0.1"
-                />
-                <span className="unit">%</span>
+              
+              <div className="calculator-input">
+                <label>🛡️ 止损幅度</label>
+                <div className="input-with-unit">
+                  <input
+                    type="number"
+                    value={slPercent}
+                    onChange={(e) => setSlPercent(Number(e.target.value))}
+                    placeholder="-0.5"
+                    step="0.1"
+                  />
+                  <span className="unit">%</span>
+                </div>
               </div>
             </div>
           </div>

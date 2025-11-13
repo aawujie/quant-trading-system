@@ -85,6 +85,18 @@
   font-weight: 500;
 }
 
+/* 输入框行（止盈止损同行） */
+.calculator-input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.calculator-input-row .calculator-input {
+  flex: 1;
+  margin-bottom: 0;
+}
+
 .calculator-input label .hint {
   font-size: 10px;
   color: #666;
