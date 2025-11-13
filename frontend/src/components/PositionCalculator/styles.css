@@ -272,6 +272,36 @@
   color: #bbb;
 }
 
+/* 单行高亮显示（交易方向 + 盈亏比） */
+.result-row-highlight-single {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
+  font-weight: 600;
+  gap: 12px;
+}
+
+.highlight-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.highlight-item span:first-child {
+  color: #bbb;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.highlight-item span:last-child {
+  font-weight: 600;
+}
+
 .result-subsection {
   margin-top: 10px;
   padding-top: 10px;
