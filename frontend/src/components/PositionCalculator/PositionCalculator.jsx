@@ -152,6 +152,22 @@ export default function PositionCalculator({
       
       {!isCollapsed && (
         <>
+          {/* 方向和盈亏比 */}
+          {result && !result.error && (
+            <div className="result-row-highlight-single">
+              <div className="highlight-item">
+                <span>💹 交易方向:</span>
+                <span className={result.direction === 'Long' ? 'long-color' : 'short-color'}>
+                  {result.direction === 'Long' ? '▲' : '▼'}
+                </span>
+              </div>
+              <div className="highlight-item">
+                <span>⚖️ 盈亏比:</span>
+                <span className="profit-color">{result.rrRatio.toFixed(2)}:1</span>
+              </div>
+            </div>
+          )}
+          
           {/* 基础输入区域 */}
           <div className="calculator-section">
             <div className="section-title">═════ 输入参数 ═════</div>
@@ -335,20 +351,6 @@ export default function PositionCalculator({
               <div className="section-title">═════ 计算结果 ═════</div>
               
               <div className="calculator-result">
-                {/* 方向和盈亏比 */}
-                <div className="result-row-highlight-single">
-                  <div className="highlight-item">
-                    <span>💹 交易方向:</span>
-                    <span className={result.direction === 'Long' ? 'long-color' : 'short-color'}>
-                      {result.direction === 'Long' ? '▲' : '▼'}
-                    </span>
-                  </div>
-                  <div className="highlight-item">
-                    <span>⚖️ 盈亏比:</span>
-                    <span className="profit-color">{result.rrRatio.toFixed(2)}:1</span>
-                  </div>
-                </div>
-                
                 {/* 仓位信息 */}
                 <div className="result-subsection">
                   <div className="result-row">
