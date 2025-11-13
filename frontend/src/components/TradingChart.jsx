@@ -77,9 +77,9 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
           const hours = String(beijingDate.getUTCHours()).padStart(2, '0');
           const minutes = String(beijingDate.getUTCMinutes()).padStart(2, '0');
           
-          // 智能显示：如果是0点，显示日期；否则只显示时间
-          if (hours === '00' && minutes === '00') {
-            return `${month}-${day}`;
+          // 横坐标刻度：08:00 显示日期+时间，其他时刻只显示时间
+          if (hours === '08' && minutes === '00') {
+            return `${month}-${day} ${hours}:${minutes}`;
           }
           return `${hours}:${minutes}`;
         },
