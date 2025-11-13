@@ -281,10 +281,6 @@ export default function PositionCalculator({
             <div className="section-title">═════ 实时价格 ═════</div>
             
             <div className="price-display">
-              <div className="price-row">
-                <span className="price-label">📊 当前价格:</span>
-                <span className="price-value">{formatPrice(currentPrice)}</span>
-              </div>
               {result && !result.error && (
                 <>
                   <div className="price-row">
