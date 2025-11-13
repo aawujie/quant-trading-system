@@ -294,15 +294,6 @@ export default function PositionCalculator({
               {result && !result.error && (
                 <>
                   <div className="price-row">
-                    <span className="price-label">
-                      🟢 开仓价:
-                      {useCustomEntry && <span className="custom-badge">自定义</span>}
-                    </span>
-                    <span className={`price-value ${useCustomEntry ? 'custom-entry-active' : ''}`}>
-                      {formatPrice(result.entry)}
-                    </span>
-                  </div>
-                  <div className="price-row">
                     <span className="price-label">🎯 止盈价:</span>
                     <span className="price-value profit">
                       {formatPrice(result.tp)} ({tpPercent > 0 ? '+' : ''}{tpPercent}%)
