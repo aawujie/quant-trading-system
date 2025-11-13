@@ -72,20 +72,22 @@ export default function PositionCalculator({
     setResult(calculated);
   }, [maxLoss, tpPercent, slPercent, currentPrice, useCustomEntry, customEntry, mmr, liqBuffer]);
   
-  // 通知父组件结果变化（只在开仓价变化时触发，避免不必要的重绘）
+  // 通知父组件结果变化（监听关键价格变化以触发重绘）
   useEffect(() => {
     if (!onResultChange) return;
     
-    // 获取当前开仓价
-    const currentEntry = result && !result.error ? result.entry : null;
+    // 获取影响矩形绘制的关键价格
+    const currentKey = result && !result.error 
+      ? `${result.entry}_${result.tp}_${result.sl}_${result.liquidationPrice}`
+      : null;
     
-    // 如果开仓价没变，不通知父组件（避免重绘）
-    if (currentEntry === lastEntryRef.current) {
+    // 如果关键价格都没变，不通知父组件（避免重绘）
+    if (currentKey === lastEntryRef.current) {
       return;
     }
     
     // 更新记录并通知父组件
-    lastEntryRef.current = currentEntry;
+    lastEntryRef.current = currentKey;
     onResultChange(result);
   }, [result, onResultChange]);
   
