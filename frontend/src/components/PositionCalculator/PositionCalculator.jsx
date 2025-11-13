@@ -118,6 +118,9 @@ export default function PositionCalculator({
   // 获取币种名称（去掉USDT）
   const coinName = symbol ? symbol.replace('USDT', '') : 'BTC';
   
+  // 动态计算步长：实时价格的 0.01% (万分之一)
+  const priceStep = currentPrice ? Math.max(currentPrice * 0.0001, 0.01) : 1;
+  
   return (
     <div className="position-calculator">
       {/* 标题栏 */}
@@ -164,7 +167,7 @@ export default function PositionCalculator({
                     }}
                     onFocus={handleEntryFocus}
                     placeholder={currentPrice ? formatPrice(currentPrice) : '实时'}
-                    step="1"
+                    step={priceStep}
                     className={useCustomEntry ? 'custom-entry-active' : ''}
                   />
                   {customEntry && (
