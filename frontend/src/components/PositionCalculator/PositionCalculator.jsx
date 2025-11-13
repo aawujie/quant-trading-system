@@ -305,6 +305,12 @@ export default function PositionCalculator({
                       {formatPrice(result.sl)} ({slPercent > 0 ? '+' : ''}{slPercent}%)
                     </span>
                   </div>
+                  <div className="price-row">
+                    <span className="price-label">⚠️ 强平价:</span>
+                    <span className={`price-value ${Math.abs(result.distanceToLiqPercent) < 2 ? 'danger-color' : 'warning-color'}`}>
+                      {formatPrice(result.liquidationPrice)} ({result.distanceToLiqPercent > 0 ? '+' : ''}{formatPercent(result.distanceToLiqPercent)}%)
+                    </span>
+                  </div>
                 </>
               )}
             </div>
