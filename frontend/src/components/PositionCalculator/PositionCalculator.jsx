@@ -318,25 +318,23 @@ export default function PositionCalculator({
             <div className="calculator-section">
               <div className="calculator-result">
                 {/* 价格信息 */}
-                <div className="price-display">
-                  <div className="price-row">
-                    <span className="price-label">🎯 止盈价:</span>
-                    <span className="price-value profit">
-                      {formatPrice(result.tp)} ({tpPercent > 0 ? '+' : ''}{tpPercent}%)
-                    </span>
-                  </div>
-                  <div className="price-row">
-                    <span className="price-label">🔴 止损价:</span>
-                    <span className="price-value loss">
-                      {formatPrice(result.sl)} ({slPercent > 0 ? '+' : ''}{slPercent}%)
-                    </span>
-                  </div>
-                  <div className="price-row">
-                    <span className="price-label">⚠️ 强平价:</span>
-                    <span className={`price-value ${Math.abs(result.distanceToLiqPercent) < 2 ? 'danger-color' : 'warning-color'}`}>
-                      {formatPrice(result.liquidationPrice)} ({result.distanceToLiqPercent > 0 ? '+' : ''}{formatPercent(result.distanceToLiqPercent)}%)
-                    </span>
-                  </div>
+                <div className="result-row">
+                  <span>🎯 止盈价:</span>
+                  <span className="profit-color">
+                    {formatPrice(result.tp)} ({tpPercent > 0 ? '+' : ''}{tpPercent}%)
+                  </span>
+                </div>
+                <div className="result-row">
+                  <span>🔴 止损价:</span>
+                  <span className="loss-color">
+                    {formatPrice(result.sl)} ({slPercent > 0 ? '+' : ''}{slPercent}%)
+                  </span>
+                </div>
+                <div className="result-row">
+                  <span>⚠️ 强平价:</span>
+                  <span className={Math.abs(result.distanceToLiqPercent) < 2 ? 'danger-color' : 'warning-color'}>
+                    {formatPrice(result.liquidationPrice)} ({result.distanceToLiqPercent > 0 ? '+' : ''}{formatPercent(result.distanceToLiqPercent)}%)
+                  </span>
                 </div>
                 
                 {/* 仓位信息 */}
