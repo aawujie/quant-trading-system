@@ -384,17 +384,6 @@ export default function PositionCalculator({
                     <span className="loss-color">-{formatPercent(result.marginLossRate)}%</span>
                   </div>
                 </div>
-                
-                {/* 强平信息 */}
-                <div className="result-subsection liquidation-section">
-                  <div className="result-row">
-                    <span>⚠️ 强平价:</span>
-                    <span className={Math.abs(result.distanceToLiqPercent) < 2 ? 'danger-color' : 'warning-color'}>
-                      {formatPrice(result.liquidationPrice)} USDT
-                      ({result.distanceToLiqPercent > 0 ? '+' : ''}{formatPercent(result.distanceToLiqPercent)}%)
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
           )}
