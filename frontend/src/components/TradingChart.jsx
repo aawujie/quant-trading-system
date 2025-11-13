@@ -68,6 +68,16 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
         lockVisibleTimeRangeOnResize: false, // 窗口大小变化时不锁定可见范围
         rightBarStaysOnScroll: false, // 滚动时最右边的K线可以移动
         shiftVisibleRangeOnNewBar: false, // 新K线不自动移动视图
+        tickMarkFormatter: (time) => {
+          // Convert Unix timestamp to Beijing time (UTC+8) for axis labels
+          const date = new Date(time * 1000);
+          const beijingDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+          const month = String(beijingDate.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(beijingDate.getUTCDate()).padStart(2, '0');
+          const hours = String(beijingDate.getUTCHours()).padStart(2, '0');
+          const minutes = String(beijingDate.getUTCMinutes()).padStart(2, '0');
+          return `${month}-${day} ${hours}:${minutes}`;
+        },
       },
       rightPriceScale: {
         borderColor: '#3a3a4a',
