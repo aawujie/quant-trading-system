@@ -215,44 +215,6 @@
   color: #fff;
 }
 
-/* 价格显示 */
-.price-display {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  padding: 8px;
-}
-
-.price-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-  line-height: 1.4;
-}
-
-.price-row:last-child {
-  margin-bottom: 0;
-}
-
-.price-label {
-  font-size: 12px;
-  color: #999;
-}
-
-.price-value {
-  font-size: 13px;
-  color: #fff;
-  font-weight: 500;
-}
-
-.price-value.profit {
-  color: #26a69a;
-}
-
-.price-value.loss {
-  color: #ef5350;
-}
-
 /* 错误提示 */
 .error-message {
   background: rgba(239, 83, 80, 0.2);
