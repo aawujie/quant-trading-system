@@ -14,16 +14,43 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  cursor: pointer;
   padding: 4px 0;
   margin-bottom: 12px;
   font-weight: 600;
   color: #fff;
   user-select: none;
+  gap: 8px;
 }
 
-.calculator-header:hover {
+.calculator-header span:first-child:hover {
   color: #4CAF50;
+}
+
+/* 眼睛按钮（标题栏中） */
+.btn-toggle-pnl {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  opacity: 0.5;
+  line-height: 1;
+}
+
+.btn-toggle-pnl:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.btn-toggle-pnl.active {
+  opacity: 1;
+}
+
+.btn-toggle-pnl:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
 }
 
 .collapse-icon {
@@ -343,58 +370,6 @@
 .highlight {
   color: #4CAF50 !important;
   font-weight: 600 !important;
-}
-
-/* 操作按钮 */
-.calculator-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.calculator-actions button {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
-  border: none;
-  outline: none;
-}
-
-.btn-toggle-lines {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4CAF50;
-  border: 1px solid rgba(76, 175, 80, 0.3);
-}
-
-.btn-toggle-lines:hover:not(:disabled) {
-  background: rgba(76, 175, 80, 0.3);
-  border-color: #4CAF50;
-}
-
-.btn-toggle-lines.active {
-  background: rgba(76, 175, 80, 0.3);
-  border-color: #4CAF50;
-}
-
-.btn-toggle-lines:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.btn-reset {
-  background: rgba(255, 255, 255, 0.05);
-  color: #888;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.btn-reset:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.3);
 }
 
 /* 开仓价输入组 */

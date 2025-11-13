@@ -96,13 +96,6 @@ export default function PositionCalculator({
     }
   }, [showPnLBox, onVisibilityChange]);
   
-  // 重置到默认值
-  const handleReset = () => {
-    setMaxLoss(100);
-    setTpPercent(2);
-    setSlPercent(-0.5);
-  };
-  
   // 重置高级参数
   const handleResetAdvanced = () => {
     setMmr(0.5);
@@ -120,12 +113,28 @@ export default function PositionCalculator({
   return (
     <div className="position-calculator">
       {/* 标题栏 */}
-      <div 
-        className="calculator-header"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-      >
-        <span>📐 合约计算器</span>
-        <span className="collapse-icon">{isCollapsed ? '▼' : '▲'}</span>
+      <div className="calculator-header">
+        <span 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          style={{ flex: 1, cursor: 'pointer' }}
+        >
+          📐 合约计算器
+        </span>
+        <button
+          className={`btn-toggle-pnl ${showPnLBox ? 'active' : ''}`}
+          onClick={togglePnLBox}
+          disabled={!result || result.error}
+          title={showPnLBox ? '隐藏 P&L 矩形' : '显示 P&L 矩形'}
+        >
+          {showPnLBox ? '👁️' : '👁️‍🗨️'}
+        </button>
+        <span 
+          className="collapse-icon"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          style={{ cursor: 'pointer' }}
+        >
+          {isCollapsed ? '▼' : '▲'}
+        </span>
       </div>
       
       {!isCollapsed && (
@@ -388,25 +397,6 @@ export default function PositionCalculator({
               </div>
             </div>
           )}
-          
-          {/* 操作按钮 */}
-          <div className="calculator-actions">
-            <button 
-              className={`btn-toggle-lines ${showPnLBox ? 'active' : ''}`}
-              onClick={togglePnLBox}
-              disabled={!result || result.error}
-              title={showPnLBox ? '隐藏 P&L 矩形' : '显示 P&L 矩形'}
-            >
-              {showPnLBox ? '👁️ 隐藏矩形' : '👁️ 显示矩形'}
-            </button>
-            <button 
-              className="btn-reset"
-              onClick={handleReset}
-              title="重置所有参数"
-            >
-              🔄 重置
-            </button>
-          </div>
         </>
       )}
     </div>
