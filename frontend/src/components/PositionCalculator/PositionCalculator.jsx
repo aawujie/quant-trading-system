@@ -157,32 +157,18 @@ export default function PositionCalculator({
             <div className="calculator-input-row">
               <div className="calculator-input">
                 <label>📌 开仓价</label>
-                <div className="entry-input-group">
-                  <input
-                    type="number"
-                    value={customEntry}
-                    onChange={(e) => {
-                      setCustomEntry(e.target.value);
-                      setUseCustomEntry(e.target.value !== '');
-                    }}
-                    onFocus={handleEntryFocus}
-                    placeholder={currentPrice ? formatPrice(currentPrice) : '实时'}
-                    step={priceStep}
-                    className={useCustomEntry ? 'custom-entry-active' : ''}
-                  />
-                  {customEntry && (
-                    <button
-                      className="btn-clear-entry"
-                      onClick={() => {
-                        setCustomEntry('');
-                        setUseCustomEntry(false);
-                      }}
-                      title="清除自定义开仓价"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+                <input
+                  type="number"
+                  value={customEntry}
+                  onChange={(e) => {
+                    setCustomEntry(e.target.value);
+                    setUseCustomEntry(e.target.value !== '');
+                  }}
+                  onFocus={handleEntryFocus}
+                  placeholder={currentPrice ? formatPrice(currentPrice) : '实时'}
+                  step={priceStep}
+                  className={useCustomEntry ? 'custom-entry-active' : ''}
+                />
               </div>
               
               <div className="calculator-input">
