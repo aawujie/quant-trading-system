@@ -306,11 +306,19 @@ export default function PositionCalculator({
             )}
           </div>
           
-          {/* 实时价格显示 */}
-          <div className="calculator-section">
-            <div className="price-display">
-              {result && !result.error && (
-                <>
+          {/* 错误提示 */}
+          {result?.error && (
+            <div className="error-message">
+              ⚠️ {result.error}
+            </div>
+          )}
+          
+          {/* 计算结果 */}
+          {result && !result.error && (
+            <div className="calculator-section">
+              <div className="calculator-result">
+                {/* 价格信息 */}
+                <div className="price-display">
                   <div className="price-row">
                     <span className="price-label">🎯 止盈价:</span>
                     <span className="price-value profit">
@@ -329,22 +337,8 @@ export default function PositionCalculator({
                       {formatPrice(result.liquidationPrice)} ({result.distanceToLiqPercent > 0 ? '+' : ''}{formatPercent(result.distanceToLiqPercent)}%)
                     </span>
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-          
-          {/* 错误提示 */}
-          {result?.error && (
-            <div className="error-message">
-              ⚠️ {result.error}
-            </div>
-          )}
-          
-          {/* 计算结果 */}
-          {result && !result.error && (
-            <div className="calculator-section">
-              <div className="calculator-result">
+                </div>
+                
                 {/* 仓位信息 */}
                 <div className="result-subsection">
                   <div className="result-row">
