@@ -384,48 +384,11 @@
   font-weight: 600 !important;
 }
 
-/* 开仓价控制组（包含 +1/-1 按钮） */
-.entry-price-control {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* +1/-1 调整按钮 */
-.btn-price-adjust {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  background: rgba(76, 175, 80, 0.15);
-  border: 1px solid rgba(76, 175, 80, 0.3);
-  border-radius: 4px;
-  color: #4CAF50;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-price-adjust:hover {
-  background: rgba(76, 175, 80, 0.3);
-  border-color: #4CAF50;
-  transform: scale(1.05);
-}
-
-.btn-price-adjust:active {
-  transform: scale(0.95);
-}
-
 /* 开仓价输入组 */
 .entry-input-group {
   position: relative;
   display: flex;
   align-items: center;
-  flex: 1;
 }
 
 .entry-input-group input {

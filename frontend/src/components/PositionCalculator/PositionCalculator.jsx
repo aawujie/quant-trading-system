@@ -107,16 +107,6 @@ export default function PositionCalculator({
     setShowPnLBox(!showPnLBox);
   };
   
-  // 调整开仓价（基于实时价格）
-  const adjustEntryPrice = (delta) => {
-    const basePrice = customEntry ? Number(customEntry) : currentPrice;
-    if (basePrice && basePrice > 0) {
-      const newPrice = basePrice + delta;
-      setCustomEntry(newPrice.toString());
-      setUseCustomEntry(true);
-    }
-  };
-  
   // 获取币种名称（去掉USDT）
   const coinName = symbol ? symbol.replace('USDT', '') : 'BTC';
   
@@ -156,46 +146,30 @@ export default function PositionCalculator({
             <div className="calculator-input-row">
               <div className="calculator-input">
                 <label>📌 开仓价</label>
-                <div className="entry-price-control">
-                  <button
-                    className="btn-price-adjust"
-                    onClick={() => adjustEntryPrice(-1)}
-                    title="开仓价 -1"
-                  >
-                    −
-                  </button>
-                  <div className="entry-input-group">
-                    <input
-                      type="number"
-                      value={customEntry}
-                      onChange={(e) => {
-                        setCustomEntry(e.target.value);
-                        setUseCustomEntry(e.target.value !== '');
+                <div className="entry-input-group">
+                  <input
+                    type="number"
+                    value={customEntry}
+                    onChange={(e) => {
+                      setCustomEntry(e.target.value);
+                      setUseCustomEntry(e.target.value !== '');
+                    }}
+                    placeholder={currentPrice ? formatPrice(currentPrice) : '实时'}
+                    step="1"
+                    className={useCustomEntry ? 'custom-entry-active' : ''}
+                  />
+                  {customEntry && (
+                    <button
+                      className="btn-clear-entry"
+                      onClick={() => {
+                        setCustomEntry('');
+                        setUseCustomEntry(false);
                       }}
-                      placeholder={currentPrice ? formatPrice(currentPrice) : '实时'}
-                      step="0.1"
-                      className={useCustomEntry ? 'custom-entry-active' : ''}
-                    />
-                    {customEntry && (
-                      <button
-                        className="btn-clear-entry"
-                        onClick={() => {
-                          setCustomEntry('');
-                          setUseCustomEntry(false);
-                        }}
-                        title="清除自定义开仓价"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    className="btn-price-adjust"
-                    onClick={() => adjustEntryPrice(1)}
-                    title="开仓价 +1"
-                  >
-                    +
-                  </button>
+                      title="清除自定义开仓价"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               </div>
               
