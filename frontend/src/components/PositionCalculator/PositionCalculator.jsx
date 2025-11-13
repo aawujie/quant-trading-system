@@ -332,13 +332,13 @@ export default function PositionCalculator({
                 {/* 方向和盈亏比 */}
                 <div className="result-row-highlight-single">
                   <div className="highlight-item">
-                    <span>📈 交易方向:</span>
+                    <span>💹 交易方向:</span>
                     <span className={result.direction === 'Long' ? 'long-color' : 'short-color'}>
-                      {result.direction === 'Long' ? '做多 🟢' : '做空 🔴'}
+                      {result.direction === 'Long' ? '▲' : '▼'}
                     </span>
                   </div>
                   <div className="highlight-item">
-                    <span>🎲 盈亏比:</span>
+                    <span>⚖️ 盈亏比:</span>
                     <span className="profit-color">{result.rrRatio.toFixed(2)}:1</span>
                   </div>
                 </div>
