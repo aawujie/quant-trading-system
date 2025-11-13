@@ -19,14 +19,14 @@ echo ""
 
 # 1. Start infrastructure (Docker)
 echo "📦 Starting infrastructure (Redis + PostgreSQL)..."
-docker-compose up -d
+docker-compose -f docker-compose.yml up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to be ready..."
 sleep 5
 
 # Check if services are running
-if ! docker-compose ps | grep -q "Up"; then
+if ! docker-compose -f docker-compose.yml ps | grep -q "Up"; then
     echo "❌ Failed to start infrastructure services"
     exit 1
 fi
