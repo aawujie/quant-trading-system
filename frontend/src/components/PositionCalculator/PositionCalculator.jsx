@@ -175,21 +175,24 @@ export default function PositionCalculator({
               </div>
             </div>
             
-            <div className="calculator-input">
-              <label>💰 最大亏损 (USDT)</label>
-              <input
-                type="number"
-                value={maxLoss}
-                onChange={(e) => setMaxLoss(Number(e.target.value))}
-                placeholder="100"
-                min="0"
-                step="10"
-              />
-            </div>
-            
             <div className="calculator-input-row">
               <div className="calculator-input">
-                <label>📍 止盈幅度</label>
+                <label>💰 最大亏损</label>
+                <div className="input-with-unit">
+                  <input
+                    type="number"
+                    value={maxLoss}
+                    onChange={(e) => setMaxLoss(Number(e.target.value))}
+                    placeholder="100"
+                    min="0"
+                    step="10"
+                  />
+                  <span className="unit">U</span>
+                </div>
+              </div>
+              
+              <div className="calculator-input">
+                <label>📍 止盈</label>
                 <div className="input-with-unit">
                   <input
                     type="number"
@@ -203,7 +206,7 @@ export default function PositionCalculator({
               </div>
               
               <div className="calculator-input">
-                <label>🛡️ 止损幅度</label>
+                <label>🛡️ 止损</label>
                 <div className="input-with-unit">
                   <input
                     type="number"
