@@ -4,6 +4,11 @@ import { useTradingEngineConfig } from '../../contexts/TradingEngineContext';
 import BacktestHistoryList from './BacktestHistoryList';
 import BacktestCharts from './BacktestCharts';
 
+// WebSocket 地址配置
+const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8001';
+const API_WS_URL = import.meta.env.VITE_API_BASE_URL ? 
+  import.meta.env.VITE_API_BASE_URL.replace('http', 'ws') : 'ws://localhost:8000';
+
 /**
  * 回测配置组件 - Tailwind风格
  */
@@ -52,7 +57,7 @@ export default function BacktestConfig() {
     if (!taskId) return;
 
     // 建立WebSocket连接
-    const ws = new WebSocket(`ws://localhost:8000/ws/backtest/${taskId}`);
+    const ws = new WebSocket(`${API_WS_URL}/ws/backtest/${taskId}`);
     let lastLoggedProgress = 0; // 记录上次打印日志的进度
     
     ws.onopen = () => {

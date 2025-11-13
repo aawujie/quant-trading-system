@@ -18,8 +18,8 @@ import PositionCalculator from './components/PositionCalculator/PositionCalculat
 import PnLCanvas from './components/PositionCalculator/PnLCanvas';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
-const WS_URL = 'ws://localhost:8001/ws';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const WS_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8001/ws';
 
 // 缓存配置
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5分钟过期
