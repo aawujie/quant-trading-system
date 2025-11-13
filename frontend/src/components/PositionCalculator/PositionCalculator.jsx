@@ -107,6 +107,14 @@ export default function PositionCalculator({
     setShowPnLBox(!showPnLBox);
   };
   
+  // 开仓价聚焦时，如果为空则自动填充实时价格
+  const handleEntryFocus = () => {
+    if (!customEntry && currentPrice && currentPrice > 0) {
+      setCustomEntry(currentPrice.toString());
+      setUseCustomEntry(true);
+    }
+  };
+  
   // 获取币种名称（去掉USDT）
   const coinName = symbol ? symbol.replace('USDT', '') : 'BTC';
   
@@ -154,6 +162,7 @@ export default function PositionCalculator({
                       setCustomEntry(e.target.value);
                       setUseCustomEntry(e.target.value !== '');
                     }}
+                    onFocus={handleEntryFocus}
                     placeholder={currentPrice ? formatPrice(currentPrice) : '实时'}
                     step="1"
                     className={useCustomEntry ? 'custom-entry-active' : ''}
