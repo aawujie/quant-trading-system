@@ -76,7 +76,12 @@ export default function TradingChart({ symbol, onChartReady, onLoadMore }) {
           const day = String(beijingDate.getUTCDate()).padStart(2, '0');
           const hours = String(beijingDate.getUTCHours()).padStart(2, '0');
           const minutes = String(beijingDate.getUTCMinutes()).padStart(2, '0');
-          return `${month}-${day} ${hours}:${minutes}`;
+          
+          // 智能显示：如果是0点，显示日期；否则只显示时间
+          if (hours === '00' && minutes === '00') {
+            return `${month}-${day}`;
+          }
+          return `${hours}:${minutes}`;
         },
       },
       rightPriceScale: {
