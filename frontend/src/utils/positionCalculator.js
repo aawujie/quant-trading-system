@@ -10,7 +10,7 @@
  * @param {number} maxLoss - 最大可承受亏损 (USDT)
  * @param {number} tpDistance - 止盈距离 (USDT)，做多为正数，做空为负数
  * @param {number} slDistance - 止损距离 (USDT)，做多为负数，做空为正数
- * @param {number} currentPrice - 当前价格 (USDT)
+ * @param {number} entryPrice - 开仓价 (USDT)
  * @param {number} MMR - 维持保证金率 (小数，默认 0.005 = 0.5%)
  * @param {number} LIQ_BUFFER - 强平缓冲比例 (小数，默认 0.1 = 10%)
  * 
@@ -20,13 +20,13 @@ export function calculatePositionByDistance(
   maxLoss, 
   tpDistance, 
   slDistance, 
-  currentPrice,
+  entryPrice,
   MMR = 0.005,        // 默认 0.5%
   LIQ_BUFFER = 0.1    // 默认 10%
 ) {
   // 输入验证
-  if (!currentPrice || currentPrice <= 0) {
-    return { error: '当前价格无效' };
+  if (!entryPrice || entryPrice <= 0) {
+    return { error: '开仓价无效' };
   }
   
   if (!maxLoss || maxLoss <= 0) {
@@ -38,7 +38,7 @@ export function calculatePositionByDistance(
   }
   
   // 1. 计算绝对价格
-  const entry = currentPrice;         // 开仓价 = 实时价格
+  const entry = entryPrice;           // 使用传入的开仓价
   const tp = entry + tpDistance;      // 止盈价
   const sl = entry + slDistance;      // 止损价
   

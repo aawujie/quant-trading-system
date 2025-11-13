@@ -30,6 +30,10 @@ export default function PositionCalculator({
   const [tpDistance, setTpDistance] = useState(500);
   const [slDistance, setSlDistance] = useState(-100);
   
+  // 开仓价设置
+  const [useCustomEntry, setUseCustomEntry] = useState(false);
+  const [customEntry, setCustomEntry] = useState('');
+  
   // 高级参数
   const [mmr, setMmr] = useState(0.5);           // 维持保证金率 (%)
   const [liqBuffer, setLiqBuffer] = useState(10); // 强平缓冲 (%)
@@ -37,9 +41,17 @@ export default function PositionCalculator({
   // 计算结果
   const [result, setResult] = useState(null);
   
+  // 用于优化重绘：只在开仓价变化时才通知父组件
+  const lastEntryRef = useRef(null);
+  
   // 实时计算
   useEffect(() => {
-    if (!currentPrice || currentPrice <= 0) {
+    // 确定使用哪个开仓价
+    const entryPrice = useCustomEntry && customEntry 
+      ? Number(customEntry) 
+      : currentPrice;
+    
+    if (!entryPrice || entryPrice <= 0) {
       setResult(null);
       return;
     }
@@ -48,19 +60,29 @@ export default function PositionCalculator({
       maxLoss,
       tpDistance,
       slDistance,
-      currentPrice,
+      entryPrice,
       mmr / 100,        // 转换为小数 0.005
       liqBuffer / 100   // 转换为小数 0.1
     );
     
     setResult(calculated);
-  }, [maxLoss, tpDistance, slDistance, currentPrice, mmr, liqBuffer]);
+  }, [maxLoss, tpDistance, slDistance, currentPrice, useCustomEntry, customEntry, mmr, liqBuffer]);
   
-  // 通知父组件结果变化
+  // 通知父组件结果变化（只在开仓价变化时触发，避免不必要的重绘）
   useEffect(() => {
-    if (onResultChange) {
-      onResultChange(result);
+    if (!onResultChange) return;
+    
+    // 获取当前开仓价
+    const currentEntry = result && !result.error ? result.entry : null;
+    
+    // 如果开仓价没变，不通知父组件（避免重绘）
+    if (currentEntry === lastEntryRef.current) {
+      return;
     }
+    
+    // 更新记录并通知父组件
+    lastEntryRef.current = currentEntry;
+    onResultChange(result);
   }, [result, onResultChange]);
   
   // 通知父组件显示状态变化
@@ -107,6 +129,38 @@ export default function PositionCalculator({
           {/* 基础输入区域 */}
           <div className="calculator-section">
             <div className="section-title">═════ 输入参数 ═════</div>
+            
+            <div className="calculator-input">
+              <label>
+                📌 开仓价 (USDT)
+                <span className="hint"> 留空=实时价格</span>
+              </label>
+              <div className="entry-input-group">
+                <input
+                  type="number"
+                  value={customEntry}
+                  onChange={(e) => {
+                    setCustomEntry(e.target.value);
+                    setUseCustomEntry(e.target.value !== '');
+                  }}
+                  placeholder={currentPrice ? formatPrice(currentPrice) : '使用实时价格'}
+                  step="0.1"
+                  className={useCustomEntry ? 'custom-entry-active' : ''}
+                />
+                {customEntry && (
+                  <button
+                    className="btn-clear-entry"
+                    onClick={() => {
+                      setCustomEntry('');
+                      setUseCustomEntry(false);
+                    }}
+                    title="清除自定义开仓价"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
             
             <div className="calculator-input">
               <label>💰 最大亏损 (USDT)</label>
@@ -234,8 +288,13 @@ export default function PositionCalculator({
               {result && !result.error && (
                 <>
                   <div className="price-row">
-                    <span className="price-label">🟢 开仓价:</span>
-                    <span className="price-value">{formatPrice(result.entry)}</span>
+                    <span className="price-label">
+                      🟢 开仓价:
+                      {useCustomEntry && <span className="custom-badge">自定义</span>}
+                    </span>
+                    <span className={`price-value ${useCustomEntry ? 'custom-entry-active' : ''}`}>
+                      {formatPrice(result.entry)}
+                    </span>
                   </div>
                   <div className="price-row">
                     <span className="price-label">🎯 止盈价:</span>
