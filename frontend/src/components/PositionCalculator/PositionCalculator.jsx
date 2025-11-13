@@ -27,8 +27,8 @@ export default function PositionCalculator({
   
   // 基础输入参数
   const [maxLoss, setMaxLoss] = useState(100);
-  const [tpDistance, setTpDistance] = useState(500);
-  const [slDistance, setSlDistance] = useState(-100);
+  const [tpPercent, setTpPercent] = useState(2);      // 止盈百分比 (%)
+  const [slPercent, setSlPercent] = useState(-0.5);   // 止损百分比 (%)
   
   // 开仓价设置
   const [useCustomEntry, setUseCustomEntry] = useState(false);
@@ -56,6 +56,10 @@ export default function PositionCalculator({
       return;
     }
     
+    // 百分比转换为绝对距离
+    const tpDistance = entryPrice * (tpPercent / 100);
+    const slDistance = entryPrice * (slPercent / 100);
+    
     const calculated = calculatePositionByDistance(
       maxLoss,
       tpDistance,
@@ -66,7 +70,7 @@ export default function PositionCalculator({
     );
     
     setResult(calculated);
-  }, [maxLoss, tpDistance, slDistance, currentPrice, useCustomEntry, customEntry, mmr, liqBuffer]);
+  }, [maxLoss, tpPercent, slPercent, currentPrice, useCustomEntry, customEntry, mmr, liqBuffer]);
   
   // 通知父组件结果变化（只在开仓价变化时触发，避免不必要的重绘）
   useEffect(() => {
@@ -95,8 +99,8 @@ export default function PositionCalculator({
   // 重置到默认值
   const handleReset = () => {
     setMaxLoss(100);
-    setTpDistance(500);
-    setSlDistance(-100);
+    setTpPercent(2);
+    setSlPercent(-0.5);
   };
   
   // 重置高级参数
@@ -176,30 +180,36 @@ export default function PositionCalculator({
             
             <div className="calculator-input">
               <label>
-                📍 止盈距离 (USDT)
+                📍 止盈幅度
                 <span className="hint"> 做多:+, 做空:-</span>
               </label>
-              <input
-                type="number"
-                value={tpDistance}
-                onChange={(e) => setTpDistance(Number(e.target.value))}
-                placeholder="+500 或 -200"
-                step="10"
-              />
+              <div className="input-with-unit">
+                <input
+                  type="number"
+                  value={tpPercent}
+                  onChange={(e) => setTpPercent(Number(e.target.value))}
+                  placeholder="2"
+                  step="0.1"
+                />
+                <span className="unit">%</span>
+              </div>
             </div>
             
             <div className="calculator-input">
               <label>
-                🛡️ 止损距离 (USDT)
+                🛡️ 止损幅度
                 <span className="hint"> 做多:-, 做空:+</span>
               </label>
-              <input
-                type="number"
-                value={slDistance}
-                onChange={(e) => setSlDistance(Number(e.target.value))}
-                placeholder="-100 或 +400"
-                step="10"
-              />
+              <div className="input-with-unit">
+                <input
+                  type="number"
+                  value={slPercent}
+                  onChange={(e) => setSlPercent(Number(e.target.value))}
+                  placeholder="-0.5"
+                  step="0.1"
+                />
+                <span className="unit">%</span>
+              </div>
             </div>
           </div>
           
@@ -295,13 +305,13 @@ export default function PositionCalculator({
                   <div className="price-row">
                     <span className="price-label">🎯 止盈价:</span>
                     <span className="price-value profit">
-                      {formatPrice(result.tp)} ({tpDistance > 0 ? '+' : ''}{tpDistance})
+                      {formatPrice(result.tp)} ({tpPercent > 0 ? '+' : ''}{tpPercent}%)
                     </span>
                   </div>
                   <div className="price-row">
                     <span className="price-label">🔴 止损价:</span>
                     <span className="price-value loss">
-                      {formatPrice(result.sl)} ({slDistance > 0 ? '+' : ''}{slDistance})
+                      {formatPrice(result.sl)} ({slPercent > 0 ? '+' : ''}{slPercent}%)
                     </span>
                   </div>
                 </>
