@@ -165,23 +165,6 @@ export function drawPnLBoxOnCanvas(canvas, chart, series, result) {
     ctx.lineTo(rightX, liqY);
     ctx.stroke();
     
-    // 5. 绘制文字标签（在矩形内部，右对齐，紧贴对应线条）
-    ctx.font = 'bold 13px monospace';
-    ctx.textAlign = 'right';
-    const labelX = rightX - 10;  // 矩形右边，留10px内边距
-    
-    // 止盈标签（绿色线下方）
-    ctx.fillStyle = '#26a69a';
-    ctx.fillText(`TP ${tp.toFixed(2)} +${marginYield.toFixed(1)}%`, labelX, tpY + 18);
-    
-    // 止损标签（红色线上方）
-    ctx.fillStyle = '#ef5350';
-    ctx.fillText(`SL ${sl.toFixed(2)} -${marginLossRate.toFixed(1)}%`, labelX, slY - 6);
-    
-    // 强平标签（黄色线上方）
-    ctx.fillStyle = '#ff9800';
-    ctx.fillText(`Liq ${liquidationPrice.toFixed(2)}`, labelX, liqY - 6);
-    
     ctx.restore();
   } catch (err) {
     console.error('❌ 绘制 P&L 矩形失败:', err);
