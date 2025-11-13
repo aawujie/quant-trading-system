@@ -170,8 +170,6 @@ export default function PositionCalculator({
           
           {/* 基础输入区域 */}
           <div className="calculator-section">
-            <div className="section-title">═════ 输入参数 ═════</div>
-            
             <div className="calculator-input-row">
               <div className="calculator-input">
                 <label>📌 开仓价</label>
@@ -310,8 +308,6 @@ export default function PositionCalculator({
           
           {/* 实时价格显示 */}
           <div className="calculator-section">
-            <div className="section-title">═════ 实时价格 ═════</div>
-            
             <div className="price-display">
               {result && !result.error && (
                 <>
@@ -348,8 +344,6 @@ export default function PositionCalculator({
           {/* 计算结果 */}
           {result && !result.error && (
             <div className="calculator-section">
-              <div className="section-title">═════ 计算结果 ═════</div>
-              
               <div className="calculator-result">
                 {/* 仓位信息 */}
                 <div className="result-subsection">
