@@ -167,7 +167,6 @@ export default function PositionCalculator({
                   onFocus={handleEntryFocus}
                   placeholder={currentPrice ? formatPrice(currentPrice) : '实时'}
                   step={priceStep}
-                  className={useCustomEntry ? 'custom-entry-active' : ''}
                 />
               </div>
               
