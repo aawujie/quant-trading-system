@@ -11,6 +11,7 @@ import DrawingList from './components/DrawingTools/DrawingList';
 import StrategyList from './components/Strategy/StrategyList';
 import SidebarAccordion from './components/ui/SidebarAccordion';
 import PositionCalculatorContent from './components/PositionCalculator/PositionCalculatorContent';
+import DataIndicatorsList from './components/DataIndicators/DataIndicatorsList';
 import IndicatorButton from './components/Indicators/IndicatorButton';
 import IndicatorModal from './components/Indicators/IndicatorModal';
 import { getIndicatorConfig } from './components/Indicators/IndicatorConfig';
@@ -1475,6 +1476,14 @@ export default function App() {
                     }}
                   />
                 ),
+              },
+              {
+                id: 'dataIndicators',
+                title: '数据指标',
+                icon: '📊',
+                storageKey: 'dataIndicators',
+                defaultCollapsed: false,
+                children: <DataIndicatorsList />,
               },
             ]}
           />
