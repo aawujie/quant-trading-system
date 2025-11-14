@@ -3,6 +3,27 @@ import { calculatePositionByDistance, formatPrice, formatPercent, formatSize } f
 import { drawPnLBoxOnCanvas, clearPnLBoxCanvas } from '../../utils/drawPriceLines';
 import './styles.css';
 
+// localStorage 工具函数
+const STORAGE_KEY_PREFIX = 'positionCalculator_';
+
+const getStoredValue = (key, defaultValue) => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_PREFIX + key);
+    return stored !== null ? JSON.parse(stored) : defaultValue;
+  } catch (error) {
+    console.warn(`读取缓存失败 (${key}):`, error);
+    return defaultValue;
+  }
+};
+
+const setStoredValue = (key, value) => {
+  try {
+    localStorage.setItem(STORAGE_KEY_PREFIX + key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`保存缓存失败 (${key}):`, error);
+  }
+};
+
 /**
  * 合约仓位计算器组件
  * 
@@ -11,6 +32,7 @@ import './styles.css';
  * 2. 实时计算仓位、保证金、杠杆、强平价
  * 3. 在图表上绘制价格线（可开关）
  * 4. 支持高级参数配置（MMR、强平缓冲）
+ * 5. 自动保存输入到浏览器缓存
  */
 export default function PositionCalculator({ 
   symbol, 
@@ -20,23 +42,23 @@ export default function PositionCalculator({
   onResultChange,  // 回调函数，通知父组件结果变化
   onVisibilityChange,  // 回调函数，通知父组件显示状态变化
 }) {
-  // UI 状态
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [showPnLBox, setShowPnLBox] = useState(true);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // UI 状态 - 从缓存读取
+  const [isCollapsed, setIsCollapsed] = useState(() => getStoredValue('isCollapsed', false));
+  const [showPnLBox, setShowPnLBox] = useState(() => getStoredValue('showPnLBox', true));
+  const [showAdvanced, setShowAdvanced] = useState(() => getStoredValue('showAdvanced', false));
   
-  // 基础输入参数
-  const [maxLoss, setMaxLoss] = useState(100);
-  const [tpPercent, setTpPercent] = useState(2);      // 止盈百分比 (%)
-  const [slPercent, setSlPercent] = useState(-0.5);   // 止损百分比 (%)
+  // 基础输入参数 - 从缓存读取
+  const [maxLoss, setMaxLoss] = useState(() => getStoredValue('maxLoss', 100));
+  const [tpPercent, setTpPercent] = useState(() => getStoredValue('tpPercent', 2));      // 止盈百分比 (%)
+  const [slPercent, setSlPercent] = useState(() => getStoredValue('slPercent', -0.5));   // 止损百分比 (%)
   
-  // 开仓价设置
-  const [useCustomEntry, setUseCustomEntry] = useState(false);
-  const [customEntry, setCustomEntry] = useState('');
+  // 开仓价设置 - 从缓存读取
+  const [useCustomEntry, setUseCustomEntry] = useState(() => getStoredValue('useCustomEntry', false));
+  const [customEntry, setCustomEntry] = useState(() => getStoredValue('customEntry', ''));
   
-  // 高级参数
-  const [mmr, setMmr] = useState(0.5);           // 维持保证金率 (%)
-  const [liqBuffer, setLiqBuffer] = useState(10); // 强平缓冲 (%)
+  // 高级参数 - 从缓存读取
+  const [mmr, setMmr] = useState(() => getStoredValue('mmr', 0.5));           // 维持保证金率 (%)
+  const [liqBuffer, setLiqBuffer] = useState(() => getStoredValue('liqBuffer', 10)); // 强平缓冲 (%)
   
   // 计算结果
   const [result, setResult] = useState(null);
@@ -97,6 +119,50 @@ export default function PositionCalculator({
       onVisibilityChange(showPnLBox);
     }
   }, [showPnLBox, onVisibilityChange]);
+  
+  // 自动保存UI状态到缓存
+  useEffect(() => {
+    setStoredValue('isCollapsed', isCollapsed);
+  }, [isCollapsed]);
+  
+  useEffect(() => {
+    setStoredValue('showPnLBox', showPnLBox);
+  }, [showPnLBox]);
+  
+  useEffect(() => {
+    setStoredValue('showAdvanced', showAdvanced);
+  }, [showAdvanced]);
+  
+  // 自动保存基础输入参数到缓存
+  useEffect(() => {
+    setStoredValue('maxLoss', maxLoss);
+  }, [maxLoss]);
+  
+  useEffect(() => {
+    setStoredValue('tpPercent', tpPercent);
+  }, [tpPercent]);
+  
+  useEffect(() => {
+    setStoredValue('slPercent', slPercent);
+  }, [slPercent]);
+  
+  // 自动保存开仓价设置到缓存
+  useEffect(() => {
+    setStoredValue('useCustomEntry', useCustomEntry);
+  }, [useCustomEntry]);
+  
+  useEffect(() => {
+    setStoredValue('customEntry', customEntry);
+  }, [customEntry]);
+  
+  // 自动保存高级参数到缓存
+  useEffect(() => {
+    setStoredValue('mmr', mmr);
+  }, [mmr]);
+  
+  useEffect(() => {
+    setStoredValue('liqBuffer', liqBuffer);
+  }, [liqBuffer]);
   
   // 重置高级参数
   const handleResetAdvanced = () => {
