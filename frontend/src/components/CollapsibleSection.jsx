@@ -70,7 +70,7 @@ const styles = {
   container: {
     background: 'rgba(42, 42, 58, 0.6)',
     borderRadius: '8px',
-    marginBottom: '12px',
+    marginBottom: '4px',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     overflow: 'hidden',
   },
