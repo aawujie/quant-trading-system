@@ -9,7 +9,7 @@ import DrawingToolbar from './components/DrawingTools/DrawingToolbar';
 import DrawingCanvas from './components/DrawingTools/DrawingCanvas';
 import DrawingList from './components/DrawingTools/DrawingList';
 import StrategyList from './components/Strategy/StrategyList';
-import TabContainer from './components/TabContainer';
+import CollapsibleSection from './components/CollapsibleSection';
 import IndicatorButton from './components/Indicators/IndicatorButton';
 import IndicatorModal from './components/Indicators/IndicatorModal';
 import { getIndicatorConfig } from './components/Indicators/IndicatorConfig';
@@ -1428,41 +1428,41 @@ export default function App() {
             onVisibilityChange={setShowPnLBox}
           />
           
-          {/* Tab容器 - 绘图列表和策略列表 */}
-          <TabContainer
-            tabs={[
-              {
-                icon: '🎨',
-                label: '绘图',
-                count: drawingManager.drawings.length,
-                content: (
-                  <DrawingList
-                    drawings={drawingManager.drawings}
-                    onDelete={drawingManager.deleteDrawing}
-                    onToggleVisibility={drawingManager.toggleDrawingVisibility}
-                    onChangeColor={drawingManager.changeDrawingColor}
-                  />
-                ),
-              },
-              {
-                icon: '⚡',
-                label: '策略',
-                count: strategies.length,
-                content: (
-                  <StrategyList
-                    symbol={symbol}
-                    strategies={strategies}
-                    signals={signals}
-                    onStrategyToggle={(strategyName) => {
-                      setStrategies(prev => prev.map(s => 
-                        s.name === strategyName ? { ...s, enabled: !s.enabled } : s
-                      ));
-                    }}
-                  />
-                ),
-              },
-            ]}
-          />
+          {/* 绘图列表 */}
+          <CollapsibleSection
+            title="绘图"
+            icon="🎨"
+            count={drawingManager.drawings.length}
+            storageKey="drawingList"
+            defaultCollapsed={false}
+          >
+            <DrawingList
+              drawings={drawingManager.drawings}
+              onDelete={drawingManager.deleteDrawing}
+              onToggleVisibility={drawingManager.toggleDrawingVisibility}
+              onChangeColor={drawingManager.changeDrawingColor}
+            />
+          </CollapsibleSection>
+          
+          {/* 策略列表 */}
+          <CollapsibleSection
+            title="策略"
+            icon="⚡"
+            count={strategies.length}
+            storageKey="strategyList"
+            defaultCollapsed={false}
+          >
+            <StrategyList
+              symbol={symbol}
+              strategies={strategies}
+              signals={signals}
+              onStrategyToggle={(strategyName) => {
+                setStrategies(prev => prev.map(s => 
+                  s.name === strategyName ? { ...s, enabled: !s.enabled } : s
+                ));
+              }}
+            />
+          </CollapsibleSection>
         </aside>
       </main>
 
