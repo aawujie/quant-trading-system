@@ -42,21 +42,21 @@ export default function PositionCalculator({
   onResultChange,  // 回调函数，通知父组件结果变化
   onVisibilityChange,  // 回调函数，通知父组件显示状态变化
 }) {
-  // UI 状态 - 从缓存读取
+  // UI 状态 - 从缓存读取（全局共享）
   const [isCollapsed, setIsCollapsed] = useState(() => getStoredValue('isCollapsed', false));
   const [showPnLBox, setShowPnLBox] = useState(() => getStoredValue('showPnLBox', true));
   const [showAdvanced, setShowAdvanced] = useState(() => getStoredValue('showAdvanced', false));
   
-  // 基础输入参数 - 从缓存读取
+  // 基础输入参数 - 从缓存读取（全局共享）
   const [maxLoss, setMaxLoss] = useState(() => getStoredValue('maxLoss', 100));
   const [tpPercent, setTpPercent] = useState(() => getStoredValue('tpPercent', 2));      // 止盈百分比 (%)
   const [slPercent, setSlPercent] = useState(() => getStoredValue('slPercent', -0.5));   // 止损百分比 (%)
   
-  // 开仓价设置 - 从缓存读取
-  const [useCustomEntry, setUseCustomEntry] = useState(() => getStoredValue('useCustomEntry', false));
-  const [customEntry, setCustomEntry] = useState(() => getStoredValue('customEntry', ''));
+  // 开仓价设置 - 从缓存读取（按symbol区分）
+  const [useCustomEntry, setUseCustomEntry] = useState(() => getStoredValue(`useCustomEntry_${symbol}`, false));
+  const [customEntry, setCustomEntry] = useState(() => getStoredValue(`customEntry_${symbol}`, ''));
   
-  // 高级参数 - 从缓存读取
+  // 高级参数 - 从缓存读取（全局共享）
   const [mmr, setMmr] = useState(() => getStoredValue('mmr', 0.5));           // 维持保证金率 (%)
   const [liqBuffer, setLiqBuffer] = useState(() => getStoredValue('liqBuffer', 10)); // 强平缓冲 (%)
   
@@ -65,6 +65,14 @@ export default function PositionCalculator({
   
   // 用于优化重绘：只在开仓价变化时才通知父组件
   const lastEntryRef = useRef(null);
+  
+  // 当symbol变化时，重新加载该symbol的开仓价缓存
+  useEffect(() => {
+    const storedUseCustomEntry = getStoredValue(`useCustomEntry_${symbol}`, false);
+    const storedCustomEntry = getStoredValue(`customEntry_${symbol}`, '');
+    setUseCustomEntry(storedUseCustomEntry);
+    setCustomEntry(storedCustomEntry);
+  }, [symbol]);
   
   // 实时计算
   useEffect(() => {
@@ -146,14 +154,14 @@ export default function PositionCalculator({
     setStoredValue('slPercent', slPercent);
   }, [slPercent]);
   
-  // 自动保存开仓价设置到缓存
+  // 自动保存开仓价设置到缓存（按symbol区分）
   useEffect(() => {
-    setStoredValue('useCustomEntry', useCustomEntry);
-  }, [useCustomEntry]);
+    setStoredValue(`useCustomEntry_${symbol}`, useCustomEntry);
+  }, [useCustomEntry, symbol]);
   
   useEffect(() => {
-    setStoredValue('customEntry', customEntry);
-  }, [customEntry]);
+    setStoredValue(`customEntry_${symbol}`, customEntry);
+  }, [customEntry, symbol]);
   
   // 自动保存高级参数到缓存
   useEffect(() => {
