@@ -10,6 +10,7 @@ from uuid import uuid4
 from app.core.database import Database
 from app.exchanges.base import ExchangeBase
 from app.models.market_data import KlineData
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +242,7 @@ class DataManager:
         try:
             from sqlalchemy import text
             
-            market_types = ['spot', 'future']
+            market_types = [settings.market_type]
             timeframes = ['3m', '5m', '15m', '30m', '1h', '4h', '1d']
             
             total_klines = 0

@@ -111,10 +111,10 @@ async def start_indicator_node(bus: MessageBus, db: Database, args):
     
     logger.info(f"Symbols: {symbols}")
     logger.info(f"Timeframes: {timeframes}")
+    logger.info(f"Market type: {settings.market_type}")
     
-    # 指标节点订阅所有市场类型的K线数据
-    market_types = ['spot', 'future']
-    logger.info(f"Market types: {market_types}")
+    # 指标节点订阅K线数据
+    market_types = [settings.market_type]
     
     # Create and start node
     node = IndicatorNode(
