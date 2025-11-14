@@ -9,12 +9,12 @@ import DrawingToolbar from './components/DrawingTools/DrawingToolbar';
 import DrawingCanvas from './components/DrawingTools/DrawingCanvas';
 import DrawingList from './components/DrawingTools/DrawingList';
 import StrategyList from './components/Strategy/StrategyList';
-import CollapsibleSection from './components/CollapsibleSection';
+import SidebarAccordion from './components/ui/SidebarAccordion';
+import PositionCalculatorContent from './components/PositionCalculator/PositionCalculatorContent';
 import IndicatorButton from './components/Indicators/IndicatorButton';
 import IndicatorModal from './components/Indicators/IndicatorModal';
 import { getIndicatorConfig } from './components/Indicators/IndicatorConfig';
 import TradingEngine from './components/TradingEngine/TradingEngine';
-import PositionCalculator from './components/PositionCalculator/PositionCalculator';
 import PnLCanvas from './components/PositionCalculator/PnLCanvas';
 import axios from 'axios';
 
@@ -1418,51 +1418,66 @@ export default function App() {
             volume24h={priceData.volume24h}
           />
           
-          {/* 合约仓位计算器 */}
-          <PositionCalculator
-            symbol={symbol}
-            currentPrice={priceData.currentPrice}
-            chart={chartRef.current}
-            candlestickSeries={seriesRef.current?.candlestick}
-            onResultChange={setPnlResult}
-            onVisibilityChange={setShowPnLBox}
+          {/* 统一的 Accordion 容器：合约计算器、绘图、策略 */}
+          <SidebarAccordion
+            type="multiple"
+            items={[
+              {
+                id: 'calculator',
+                title: '合约计算器',
+                icon: '📐',
+                storageKey: 'calculator',
+                defaultCollapsed: false,
+                onToggle: (isExpanded) => {
+                  // 当合约计算器展开时显示矩形，折叠时隐藏
+                  setShowPnLBox(isExpanded);
+                },
+                children: (
+                  <PositionCalculatorContent
+                    symbol={symbol}
+                    currentPrice={priceData.currentPrice}
+                    onResultChange={setPnlResult}
+                  />
+                ),
+              },
+              {
+                id: 'drawing',
+                title: '绘图',
+                icon: '🎨',
+                count: drawingManager.drawings.length,
+                storageKey: 'drawingList',
+                defaultCollapsed: false,
+                children: (
+                  <DrawingList
+                    drawings={drawingManager.drawings}
+                    onDelete={drawingManager.deleteDrawing}
+                    onToggleVisibility={drawingManager.toggleDrawingVisibility}
+                    onChangeColor={drawingManager.changeDrawingColor}
+                  />
+                ),
+              },
+              {
+                id: 'strategy',
+                title: '策略',
+                icon: '⚡',
+                count: strategies.length,
+                storageKey: 'strategyList',
+                defaultCollapsed: false,
+                children: (
+                  <StrategyList
+                    symbol={symbol}
+                    strategies={strategies}
+                    signals={signals}
+                    onStrategyToggle={(strategyName) => {
+                      setStrategies(prev => prev.map(s => 
+                        s.name === strategyName ? { ...s, enabled: !s.enabled } : s
+                      ));
+                    }}
+                  />
+                ),
+              },
+            ]}
           />
-          
-          {/* 绘图列表 */}
-          <CollapsibleSection
-            title="绘图"
-            icon="🎨"
-            count={drawingManager.drawings.length}
-            storageKey="drawingList"
-            defaultCollapsed={false}
-          >
-            <DrawingList
-              drawings={drawingManager.drawings}
-              onDelete={drawingManager.deleteDrawing}
-              onToggleVisibility={drawingManager.toggleDrawingVisibility}
-              onChangeColor={drawingManager.changeDrawingColor}
-            />
-          </CollapsibleSection>
-          
-          {/* 策略列表 */}
-          <CollapsibleSection
-            title="策略"
-            icon="⚡"
-            count={strategies.length}
-            storageKey="strategyList"
-            defaultCollapsed={false}
-          >
-            <StrategyList
-              symbol={symbol}
-              strategies={strategies}
-              signals={signals}
-              onStrategyToggle={(strategyName) => {
-                setStrategies(prev => prev.map(s => 
-                  s.name === strategyName ? { ...s, enabled: !s.enabled } : s
-                ));
-              }}
-            />
-          </CollapsibleSection>
         </aside>
       </main>
 

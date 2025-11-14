@@ -97,19 +97,6 @@ export default function DrawingList({ drawings, onDelete, onToggleVisibility, on
                     }}
                   />
                 </div>
-                
-                {firstPoint && (
-                  <div style={styles.itemDetail}>
-                    <span style={styles.detailText}>
-                      ${firstPoint.price?.toFixed(2) || 'N/A'}
-                    </span>
-                    {drawing.created_at && (
-                      <span style={styles.detailTime}>
-                        {formatTime(drawing.created_at)}
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
               
               <div style={styles.buttonGroup}>
@@ -207,7 +194,6 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0.75rem 1rem',
-    borderBottom: '1px solid #3a3a4a',
     transition: 'background-color 0.2s'
   },
   itemInfo: {

@@ -81,35 +81,26 @@ export default function StrategyList({ symbol, strategies, signals, onStrategyTo
               >
                 <div style={styles.strategyInfo}>
                   <div style={styles.strategyTitle}>
-                    <span style={styles.strategyIcon}>
-                      {getStrategyIcon(strategy.name)}
-                    </span>
-                    <span style={styles.strategyName}>
-                      {getStrategyDisplayName(strategy.name)}
-                    </span>
-                  </div>
-                  
-                  {/* 状态指示器 */}
-                  <div style={styles.strategyStatus}>
-                    <span style={{
-                      ...styles.statusDot,
-                      backgroundColor: strategy.enabled ? '#26a69a' : '#666'
-                    }}></span>
-                    <span style={styles.statusText}>
-                      {strategy.enabled ? '运行中' : '已停止'}
-                    </span>
+                    <div style={styles.strategyNameGroup}>
+                      <span style={styles.strategyIcon}>
+                        {getStrategyIcon(strategy.name)}
+                      </span>
+                      <span style={styles.strategyName}>
+                        {getStrategyDisplayName(strategy.name)}
+                      </span>
+                    </div>
+                    {/* 状态指示器 */}
+                    <div style={styles.strategyStatus}>
+                      <span style={{
+                        ...styles.statusDot,
+                        backgroundColor: strategy.enabled ? '#26a69a' : '#666'
+                      }}></span>
+                      <span style={styles.statusText}>
+                        {strategy.enabled ? '运行中' : '已停止'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                
-                <button
-                  style={styles.expandButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleStrategy(strategy.name);
-                  }}
-                >
-                  {isExpanded ? '▼' : '▶'}
-                </button>
               </div>
 
               {/* 最新信号（折叠时显示） */}
@@ -202,35 +193,39 @@ const styles = {
   list: {
     flex: 1,
     overflowY: 'auto',
-    padding: '0.75rem',
+    minHeight: 0,
   },
   
   // 策略卡片
   strategyCard: {
-    marginBottom: '0.75rem',
-    backgroundColor: '#35354a',
-    borderRadius: '6px',
     overflow: 'hidden',
-    border: '1px solid #3a3a4a',
   },
   strategyHeader: {
-    padding: '0.75rem',
+    padding: '0.75rem 1rem',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     cursor: 'pointer',
     userSelect: 'none',
+    transition: 'background-color 0.2s',
   },
   strategyInfo: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
   },
   strategyTitle: {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: '0.5rem',
+    width: '100%',
+  },
+  strategyNameGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    flex: 1,
   },
   strategyIcon: {
     fontSize: '1.2rem',
@@ -239,6 +234,7 @@ const styles = {
     fontSize: '0.9rem',
     fontWeight: '600',
     color: '#d1d4dc',
+    textAlign: 'left',
   },
   strategyStatus: {
     display: 'flex',
@@ -265,8 +261,7 @@ const styles = {
   
   // 最新信号（折叠状态）
   lastSignal: {
-    padding: '0.5rem 0.75rem',
-    borderTop: '1px solid #3a3a4a',
+    padding: '0.5rem 1rem',
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
@@ -299,12 +294,10 @@ const styles = {
   
   // 展开的详情
   strategyDetails: {
-    borderTop: '1px solid #3a3a4a',
     backgroundColor: '#2b2b43',
   },
   section: {
-    padding: '0.75rem',
-    borderBottom: '1px solid #3a3a4a',
+    padding: '0.75rem 1rem',
   },
   sectionTitle: {
     fontSize: '0.8rem',
