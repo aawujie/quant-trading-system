@@ -95,6 +95,7 @@ export default function App() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState('1h');
   const [marketType, setMarketType] = useState('future'); // 市场类型：spot(现货) / future(永续)
+  const [availableSymbols, setAvailableSymbols] = useState(['BTCUSDT', 'ETHUSDT']); // 可用symbol列表，默认值保持向后兼容
   
   // Use refs to store latest symbol/timeframe/marketType for WebSocket callbacks
   const symbolRef = useRef(symbol);
@@ -917,6 +918,24 @@ export default function App() {
     }
   };
 
+  // Load available symbols from API on component mount
+  useEffect(() => {
+    const loadAvailableSymbols = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/stats/symbols`);
+        if (response.data && response.data.symbols && response.data.symbols.length > 0) {
+          setAvailableSymbols(response.data.symbols);
+          console.log(`✅ Loaded ${response.data.symbols.length} available symbols:`, response.data.symbols);
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to load available symbols, using default list:', err);
+        // 如果API调用失败，保持默认值不变
+      }
+    };
+    
+    loadAvailableSymbols();
+  }, []); // 只在组件挂载时执行一次
+
   // Load ticker data when symbol changes (独立于timeframe)
   useEffect(() => {
     loadTickerData(true); // 初次加载，会设置currentPrice
@@ -1163,8 +1182,15 @@ export default function App() {
               value={symbol} 
               onChange={(e) => handleSymbolChange(e.target.value)}
             >
-              <option value="BTCUSDT">BTC/USDT</option>
-              <option value="ETHUSDT">ETH/USDT</option>
+              {availableSymbols.map((sym) => {
+                // 格式化显示名称：BTCUSDT -> BTC/USDT
+                const displayName = sym.replace('USDT', '/USDT').replace('USD', '/USD');
+                return (
+                  <option key={sym} value={sym}>
+                    {displayName}
+                  </option>
+                );
+              })}
             </select>
 
             {/* 时间级别按钮组 */}

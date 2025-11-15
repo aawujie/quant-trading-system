@@ -391,16 +391,20 @@ async def get_latest_signal(
 @app.get("/api/stats/symbols")
 async def get_available_symbols():
     """
-    Get list of available symbols
+    Get list of available symbols from database
     
     Returns:
-        List of symbols with data
+        List of symbols with data in the database
     """
-    # TODO: Implement query to get distinct symbols from database
-    return {
-        "symbols": ["BTCUSDT", "ETHUSDT"],
-        "note": "This endpoint is not fully implemented yet"
-    }
+    try:
+        # 使用数据库统计方法获取所有symbol
+        stats = await db.get_kline_stats()
+        return {
+            "symbols": stats.get("symbols", [])
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch available symbols: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/stats/summary")
